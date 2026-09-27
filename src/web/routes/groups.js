@@ -6,7 +6,7 @@ import { GROUP_LETTERS } from '../../domain/draw.js';
 import { computeStandings } from '../../domain/standings.js';
 import { REACHED_LABELS } from '../../domain/stages.js';
 
-export function registerGroupRoutes(app, { db }) {
+export function registerGroupRoutes(app, { db, rng }) {
   app.get('/championships/:id/groups', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
     const matches = listMatches(db, c.id).filter(m => m.stage === 'group');
@@ -35,17 +35,17 @@ export function registerGroupRoutes(app, { db }) {
           <form method="post" action="${base}/groups/fixtures"><button class="primary">Generate fixtures</button></form>
           <form method="post" action="${base}/groups/fixtures/clear" onsubmit="return confirm('Delete ALL group matches and their results?')"><button class="danger">Clear fixtures</button></form>
         </div>
-        <p class="muted">Single round: each team plays the other three once. Play the matches in any order. Before a human-vs-CPU match,
-          press <strong>🎲 Draw</strong> on it to pick who controls the CPU team (nobody repeats inside a group until everyone has had a turn),
-          then enter the result. CPU-vs-CPU matches are simulated by the console; entering their result is optional.
-          Mark who qualified with the "Qualified" buttons.</p>
+        <p class="muted">Single round: each team plays the other three once. When fixtures are generated, the player controlling
+          each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn);
+          press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering
+          their result is optional. Mark who qualified with the "Qualified" buttons.</p>
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${GROUP_LETTERS.map(groupSection)}`,
     }));
   });
 
   app.post('/championships/:id/groups/fixtures', (req, res) => {
-    C.generateGroupFixtures(db, Number(req.params.id));
+    C.generateGroupFixtures(db, Number(req.params.id), rng);
     res.redirect(`/championships/${req.params.id}/groups`);
   });
 
@@ -55,7 +55,13 @@ export function registerGroupRoutes(app, { db }) {
   });
 
   app.post('/championships/:id/teams/:teamId/reached', (req, res) => {
-    C.setReached(db, Number(req.params.id), Number(req.params.teamId), req.body.reached);
-    res.redirect(`/championships/${req.params.id}/${req.body.back === 'groups' ? 'groups' : 'results'}`);
+    const championshipId = Number(req.params.id), teamId = Number(req.params.teamId);
+    C.setReached(db, championshipId, teamId, req.body.reached);
+    if (req.body.back === 'groups') {
+      // Return to the same group instead of the top of the page.
+      const letter = C.getChampionship(db, championshipId).teams.find(t => t.teamId === teamId)?.groupLetter;
+      return res.redirect(`/championships/${championshipId}/groups${letter ? `#group-${letter}` : ''}`);
+    }
+    res.redirect(`/championships/${championshipId}/results#team-${teamId}`);
   });
 }

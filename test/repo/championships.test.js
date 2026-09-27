@@ -69,15 +69,24 @@ test('field, draw and fixtures', () => {
   C.runDraw(db, id, rng);
   c = C.getChampionship(db, id);
   assert.ok(c.teams.every(t => t.pot >= 1 && t.pot <= 4 && /^[A-H]$/.test(t.groupLetter)));
-  C.generateGroupFixtures(db, id);
+  C.generateGroupFixtures(db, id, rng);
   const matches = listMatches(db, id);
   assert.equal(matches.length, 48);
-  const owned = c.players[0];
-  const humanMatch = matches.find(m => m.homeTeamId === owned.teamId);
-  assert.equal(humanMatch.homeControllerId, owned.playerId);
-  const cpuMatch = matches.find(m => !c.teams.find(t => t.teamId === m.homeTeamId).owner);
-  assert.equal(cpuMatch.homeControllerId, null); // drawn later, when the match is played
-  assert.throws(() => C.generateGroupFixtures(db, id), UserError);
+  const ownerOf = teamId => c.teams.find(t => t.teamId === teamId).owner?.playerId ?? null;
+  for (const m of matches) {
+    const [home, away] = [ownerOf(m.homeTeamId), ownerOf(m.awayTeamId)];
+    if (home == null && away == null) {
+      // CPU vs CPU: simulated by the console, nobody controls
+      assert.deepEqual([m.homeControllerId, m.awayControllerId], [null, null]);
+    } else {
+      // humans play their own team; a CPU opponent is drawn right away, never the human it faces
+      if (home != null) assert.equal(m.homeControllerId, home);
+      if (away != null) assert.equal(m.awayControllerId, away);
+      if (home == null) assert.ok(m.homeControllerId != null && m.homeControllerId !== away);
+      if (away == null) assert.ok(m.awayControllerId != null && m.awayControllerId !== home);
+    }
+  }
+  assert.throws(() => C.generateGroupFixtures(db, id, rng), UserError);
   assert.throws(() => C.runDraw(db, id, rng), UserError);
   C.clearGroupFixtures(db, id);
   assert.equal(listMatches(db, id).length, 0);
@@ -88,7 +97,7 @@ test('changing a player team swaps it everywhere', () => {
   const id = C.createChampionship(db, { name: 'Cup', playerIds: [players[0]], rng });
   C.fillFieldRandom(db, id, rng);
   C.runDraw(db, id, rng);
-  C.generateGroupFixtures(db, id);
+  C.generateGroupFixtures(db, id, rng);
   const before = C.getChampionship(db, id);
   const old = before.players[0].teamId;
   const oldGroup = before.teams.find(t => t.teamId === old).groupLetter;
@@ -109,7 +118,7 @@ test('outcome uses team record and reached', () => {
   const id = C.createChampionship(db, { name: 'Cup', playerIds: [players[0]], rng });
   C.fillFieldRandom(db, id, rng);
   C.runDraw(db, id, rng);
-  C.generateGroupFixtures(db, id);
+  C.generateGroupFixtures(db, id, rng);
   const teamId = C.getChampionship(db, id).players[0].teamId;
   const m = listMatches(db, id).find(x => x.homeTeamId === teamId);
   updateMatch(db, m.id, { homeScore: 1, awayScore: 1 });

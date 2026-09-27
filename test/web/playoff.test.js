@@ -6,7 +6,7 @@ import { createChampionship, getChampionship, fillFieldRandom } from '../../src/
 import { listMatches, getMatch } from '../../src/repo/matches.js';
 import { createRng } from '../../src/domain/rng.js';
 
-test('add, edit and list playoff matches; draw the CPU controller when played', async () => {
+test('add, edit and list playoff matches; CPU controller drawn automatically', async () => {
   const app = await startTestApp();
   try {
     seedTeams(app.db);
@@ -21,7 +21,7 @@ test('add, edit and list playoff matches; draw the CPU controller when played', 
     assert.equal(r.status, 302);
     let [m] = listMatches(app.db, id);
     assert.equal(m.homeControllerId, human.owner.playerId);
-    assert.equal(m.awayControllerId, null);
+    assert.ok(m.awayControllerId && m.awayControllerId !== human.owner.playerId); // drawn automatically
     await app.post(`/championships/${id}/matches/${m.id}/reroll`);
     m = getMatch(app.db, m.id);
     assert.ok(m.awayControllerId && m.awayControllerId !== human.owner.playerId);

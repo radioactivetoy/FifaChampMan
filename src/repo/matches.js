@@ -56,31 +56,29 @@ export function deleteMatch(db, id) {
   run(db, 'DELETE FROM matches WHERE id = ?', id);
 }
 
-/** Owners control their own teams; CPU sides stay empty until drawn with rerollControllers. */
-export function withOwnerControllers(match, ownerByTeam) {
-  return {
-    ...match,
-    homeControllerId: ownerByTeam.get(match.homeTeamId) ?? null,
-    awayControllerId: ownerByTeam.get(match.awayTeamId) ?? null,
-  };
+/**
+ * Sets controllers for new matches: owners play their own team, and a CPU team facing a human
+ * gets a player drawn from the rotation (matches already in the same scope count toward it).
+ */
+export function drawControllers(db, championshipId, matches, rng, { excludeId = null } = {}) {
+  const scopes = new Set(matches.map(scopeOf));
+  const existing = listMatches(db, championshipId).filter(m => m.id !== excludeId && scopes.has(scopeOf(m)));
+  return assignControllers({
+    matches, existing, ownerByTeam: ownerMap(db, championshipId),
+    playerIds: playerIdsOf(db, championshipId), rng, scopeOf,
+  });
 }
 
-export function createPlayoffMatch(db, championshipId, { stage, leg = null, homeTeamId, awayTeamId }) {
+export function createPlayoffMatch(db, championshipId, { stage, leg = null, homeTeamId, awayTeamId }, rng) {
   if (!PLAYOFF_STAGES.includes(stage)) throw new UserError(`Unknown playoff stage "${stage}"`);
   if (homeTeamId === awayTeamId) throw new UserError('A team cannot play itself');
-  return insertMatch(db, championshipId, withOwnerControllers({ stage, leg, homeTeamId, awayTeamId }, ownerMap(db, championshipId)));
+  const [match] = drawControllers(db, championshipId, [{ stage, leg, homeTeamId, awayTeamId }], rng);
+  return insertMatch(db, championshipId, match);
 }
 
-/**
- * Draws the CPU controller(s) for one match right before it is played. The rotation counts
- * every other match in the same scope that already has a controller, so play order doesn't matter.
- */
+/** Re-draws the CPU controller(s) of one match (🎲 Draw). */
 export function rerollControllers(db, matchId, rng) {
   const match = getMatch(db, matchId);
-  const existing = listMatches(db, match.championshipId).filter(m => m.id !== match.id && scopeOf(m) === scopeOf(match));
-  const [m] = assignControllers({
-    matches: [match], existing, ownerByTeam: ownerMap(db, match.championshipId),
-    playerIds: playerIdsOf(db, match.championshipId), rng, scopeOf,
-  });
+  const [m] = drawControllers(db, match.championshipId, [match], rng, { excludeId: match.id });
   updateMatch(db, matchId, { homeControllerId: m.homeControllerId, awayControllerId: m.awayControllerId });
 }

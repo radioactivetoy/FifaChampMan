@@ -15,7 +15,8 @@ test('set reached, override stars, finish and reopen', async () => {
     fillFieldRandom(app.db, id, rng);
     const teamId = getChampionship(app.db, id).players[0].teamId;
 
-    await app.post(`/championships/${id}/teams/${teamId}/reached`, { reached: 'sf' });
+    const r = await app.post(`/championships/${id}/teams/${teamId}/reached`, { reached: 'sf' });
+    assert.equal(r.location, `/championships/${id}/results#team-${teamId}`);
     assert.equal(listOutcomes(app.db, id)[0].resultStars, 4);
     let text = (await app.get(`/championships/${id}/results`)).text;
     assert.match(text, /Semi-final/);

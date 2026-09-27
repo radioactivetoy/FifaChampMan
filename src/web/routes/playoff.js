@@ -6,7 +6,7 @@ import { listMatches, createPlayoffMatch } from '../../repo/matches.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
 
-export function registerPlayoffRoutes(app, { db }) {
+export function registerPlayoffRoutes(app, { db, rng }) {
   app.get('/championships/:id/playoff', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
     const matches = listMatches(db, c.id).filter(m => m.stage !== 'group');
@@ -24,8 +24,8 @@ export function registerPlayoffRoutes(app, { db }) {
           ${select({ name: 'homeTeamId', items: teamItems })} vs ${select({ name: 'awayTeamId', items: teamItems })}
           <button class="primary">Add match</button>
         </form>
-        <p class="muted">Before a human-vs-CPU match, press <strong>🎲 Draw</strong> to pick who controls the CPU team
-          (rotating across the whole playoff), then enter the result. CPU-vs-CPU matches are simulated by the console.
+        <p class="muted">When you add a match, the player controlling a CPU team that faces a human is drawn automatically
+          (rotating across the whole playoff); press <strong>🎲 Draw</strong> to re-draw. CPU-vs-CPU matches are simulated by the console.
           When a round is done, set how far each team got on the <a href="/championships/${c.id}/results">Results</a> tab.</p>
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${PLAYOFF_STAGES.map(stage => {
@@ -38,7 +38,7 @@ export function registerPlayoffRoutes(app, { db }) {
   app.post('/championships/:id/playoff', (req, res) => {
     const homeTeamId = intOrNull(req.body.homeTeamId), awayTeamId = intOrNull(req.body.awayTeamId);
     if (homeTeamId == null || awayTeamId == null) throw new UserError('Pick both teams');
-    createPlayoffMatch(db, Number(req.params.id), { stage: req.body.stage, leg: intOrNull(req.body.leg), homeTeamId, awayTeamId });
+    createPlayoffMatch(db, Number(req.params.id), { stage: req.body.stage, leg: intOrNull(req.body.leg), homeTeamId, awayTeamId }, rng);
     res.redirect(`/championships/${req.params.id}/playoff`);
   });
 }

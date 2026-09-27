@@ -1,7 +1,7 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
-import { listMatches, insertMatch, ownerMap, withOwnerControllers } from './matches.js';
+import { listMatches, insertMatch, drawControllers } from './matches.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
 import { teamRecord } from '../domain/standings.js';
 import { fillField, FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
@@ -192,19 +192,20 @@ export function setPlacement(db, championshipId, teamId, { pot, groupLetter }) {
     pot ?? null, groupLetter ?? null, championshipId, teamId);
 }
 
-/** Creates all 48 group matches (8 groups x 6, single round). Owners control their teams; CPU controllers are drawn per match later. */
-export function generateGroupFixtures(db, championshipId) {
+/**
+ * Creates all 48 group matches (8 groups x 6, single round). Owners control their teams and each
+ * CPU team facing a human gets a controller drawn from the group's rotation (re-drawable later).
+ */
+export function generateGroupFixtures(db, championshipId, rng) {
   transaction(db, () => {
     if (hasGroupMatches(db, championshipId)) throw new UserError('Group fixtures already exist; clear them first');
     const { teams } = getChampionship(db, championshipId);
-    const owners = ownerMap(db, championshipId);
-    for (const letter of GROUP_LETTERS) {
+    const fixtures = GROUP_LETTERS.flatMap(letter => {
       const groupTeams = teams.filter(t => t.groupLetter === letter).sort((a, b) => (a.pot ?? 9) - (b.pot ?? 9));
       if (groupTeams.length !== 4) throw new UserError(`Group ${letter} has ${groupTeams.length} teams; it needs 4`);
-      for (const f of groupFixtures(groupTeams.map(t => t.teamId))) {
-        insertMatch(db, championshipId, withOwnerControllers({ ...f, stage: 'group', groupLetter: letter }, owners));
-      }
-    }
+      return groupFixtures(groupTeams.map(t => t.teamId)).map(f => ({ ...f, stage: 'group', groupLetter: letter }));
+    });
+    for (const m of drawControllers(db, championshipId, fixtures, rng)) insertMatch(db, championshipId, m);
   });
 }
 

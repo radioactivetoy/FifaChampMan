@@ -36,7 +36,7 @@ export function registerResultRoutes(app, { db }) {
         </tbody></table>
         <h2>How far each team got</h2>
         <table><thead><tr><th>Team</th><th>Group</th><th>Reached</th></tr></thead><tbody>
-        ${teams.map(t => html`<tr><td>${teamName(t)}</td><td>${t.groupLetter ?? '—'}</td>
+        ${teams.map(t => html`<tr id="team-${t.teamId}"><td>${teamName(t)}</td><td>${t.groupLetter ?? '—'}</td>
           <td><form method="post" action="${base}/teams/${t.teamId}/reached" class="inline">
             ${select({ name: 'reached', items: reachedItems, selected: t.reached })}<button>Save</button></form></td></tr>`)}
         </tbody></table>`,

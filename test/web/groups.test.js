@@ -42,14 +42,15 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     assert.match(text, /data-cpu-toggle/);
     assert.match(text, new RegExp(`Show CPU vs CPU matches \\(${cpuOnly}\\)`));
 
-    await app.post(`/championships/${id}/teams/${m.homeTeamId}/reached`, { reached: 'r16', back: 'groups' });
+    const q = await app.post(`/championships/${id}/teams/${m.homeTeamId}/reached`, { reached: 'r16', back: 'groups' });
+    assert.equal(q.location, `/championships/${id}/groups#group-${m.groupLetter}`); // stays at that group
     assert.equal(getChampionship(app.db, id).teams.find(t => t.teamId === m.homeTeamId).reached, 'r16');
 
-    // Draw a controller for a human-vs-CPU match chosen in any order
+    // The human's CPU opponent is drawn when fixtures are generated; 🎲 Draw re-draws it
     const c = getChampionship(app.db, id);
     const ownerOf = teamId => c.teams.find(t => t.teamId === teamId).owner;
     const vsCpu = listMatches(app.db, id).find(x => ownerOf(x.homeTeamId) && !ownerOf(x.awayTeamId));
-    assert.equal(vsCpu.awayControllerId, null);
+    assert.ok(vsCpu.awayControllerId != null && vsCpu.awayControllerId !== ownerOf(vsCpu.homeTeamId).playerId);
     await app.post(`/championships/${id}/matches/${vsCpu.id}/reroll`);
     const drawn = getMatch(app.db, vsCpu.id).awayControllerId;
     assert.ok(drawn != null && drawn !== ownerOf(vsCpu.homeTeamId).playerId);

@@ -33,25 +33,28 @@ test('ownerMap maps human teams to players', () => {
   assert.deepEqual([...ownerMap(db, 1)], [[teams[0], players[0]]]);
 });
 
-test('playoff match starts with owner only; CPU controllers are drawn on demand and rotate', () => {
+test('playoff match gets the owner and an auto-drawn CPU controller that rotates', () => {
   const { db, teams, players } = setup();
   const [ana, ben, cris] = players;
-  const id1 = createPlayoffMatch(db, 1, { stage: 'r16', leg: 1, homeTeamId: teams[0], awayTeamId: teams[1] });
-  const id2 = createPlayoffMatch(db, 1, { stage: 'r16', leg: 2, homeTeamId: teams[1], awayTeamId: teams[0] });
-  assert.equal(getMatch(db, id1).homeControllerId, ana);
-  assert.equal(getMatch(db, id1).awayControllerId, null);
-  // played in any order: draw leg 2 first
-  rerollControllers(db, id2, createRng(1));
-  rerollControllers(db, id1, createRng(1));
+  const id1 = createPlayoffMatch(db, 1, { stage: 'r16', leg: 1, homeTeamId: teams[0], awayTeamId: teams[1] }, createRng(1));
+  const id2 = createPlayoffMatch(db, 1, { stage: 'r16', leg: 2, homeTeamId: teams[1], awayTeamId: teams[0] }, createRng(1));
   const m1 = getMatch(db, id1), m2 = getMatch(db, id2);
+  assert.equal(m1.homeControllerId, ana);
   assert.equal(m2.awayControllerId, ana);
   assert.deepEqual(new Set([m1.awayControllerId, m2.homeControllerId]), new Set([ben, cris]));
 });
 
+test('playoff match between CPU teams has no controllers', () => {
+  const { db, teams } = setup();
+  const id = createPlayoffMatch(db, 1, { stage: 'qf', homeTeamId: teams[1], awayTeamId: teams[2] }, createRng(1));
+  const m = getMatch(db, id);
+  assert.deepEqual([m.homeControllerId, m.awayControllerId], [null, null]);
+});
+
 test('playoff validation', () => {
   const { db, teams } = setup();
-  assert.throws(() => createPlayoffMatch(db, 1, { stage: 'xx', homeTeamId: teams[0], awayTeamId: teams[1] }), UserError);
-  assert.throws(() => createPlayoffMatch(db, 1, { stage: 'qf', homeTeamId: teams[0], awayTeamId: teams[0] }), UserError);
+  assert.throws(() => createPlayoffMatch(db, 1, { stage: 'xx', homeTeamId: teams[0], awayTeamId: teams[1] }, createRng(1)), UserError);
+  assert.throws(() => createPlayoffMatch(db, 1, { stage: 'qf', homeTeamId: teams[0], awayTeamId: teams[0] }, createRng(1)), UserError);
 });
 
 test('rerollControllers keeps the owner and re-draws the CPU side', () => {

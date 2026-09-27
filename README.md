@@ -29,11 +29,11 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
    Everyone gets a team from their star level; players going up choose between two.
 4. **Field & draw** – fill the 32-team field randomly by star quotas, then run the group draw
    (8 groups of 4, pots by OVR, no two clubs from the same country in a group when possible).
-5. **Group stage** – generate fixtures (single round: 3 matches per team). Play matches in any
-   order: before a human-vs-CPU match press **🎲 Draw** to pick who controls the CPU team, then
-   enter the result. CPU-vs-CPU matches are simulated by the console (result optional).
+5. **Group stage** – generate fixtures (single round: 3 matches per team). Who controls each CPU team
+   facing a human is drawn automatically (press **🎲 Draw** on a match to re-draw), then
+   enter results. CPU-vs-CPU matches are simulated by the console (result optional).
    Mark who qualified.
-6. **Playoff** – add each match by hand, press 🎲 Draw before playing, enter results.
+6. **Playoff** – add each match by hand (the CPU controller is drawn automatically), enter results.
 7. **Results** – set how far each team got (up to Champion), check the stars earned, mark finished.
 8. **Stats** – all-time table.
 
