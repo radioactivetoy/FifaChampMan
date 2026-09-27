@@ -47,6 +47,14 @@ export function isCpuOnly(c, m) {
   return !owned(m.homeTeamId) && !owned(m.awayTeamId);
 }
 
+/** Button to draw controllers for human-vs-CPU matches that have none (shown only when needed). */
+export const fillControllersButton = (c, count, back) => (count
+  ? html`<form method="post" action="/championships/${c.id}/controllers/fill" class="row">
+      <input type="hidden" name="back" value="${back}">
+      <button class="primary">🎲 Draw missing controllers (${count})</button>
+      <span class="muted">Some matches against a player's team have no one controlling the CPU side yet.</span></form>`
+  : '');
+
 /** Checkbox that shows the CPU-vs-CPU match rows (hidden by default; see public/filter.js). */
 export const cpuToggle = count => (count
   ? html`<p><label><input type="checkbox" data-cpu-toggle> Show CPU vs CPU matches (${count})</label></p>`

@@ -76,6 +76,24 @@ export function createPlayoffMatch(db, championshipId, { stage, leg = null, home
   return insertMatch(db, championshipId, match);
 }
 
+/** Human-vs-CPU matches whose CPU side has no controller yet. */
+function matchesMissingController(db, championshipId) {
+  const owners = ownerMap(db, championshipId);
+  return listMatches(db, championshipId).filter(m => {
+    const homeHuman = owners.has(m.homeTeamId), awayHuman = owners.has(m.awayTeamId);
+    return (awayHuman && !homeHuman && m.homeControllerId == null) || (homeHuman && !awayHuman && m.awayControllerId == null);
+  });
+}
+
+export const countMissingControllers = (db, championshipId) => matchesMissingController(db, championshipId).length;
+
+/** Draws a controller for every human-vs-CPU match that has none; returns how many were filled. */
+export function fillMissingControllers(db, championshipId, rng) {
+  const missing = matchesMissingController(db, championshipId);
+  for (const m of missing) rerollControllers(db, m.id, rng);
+  return missing.length;
+}
+
 /** Re-draws the CPU controller(s) of one match (🎲 Draw). */
 export function rerollControllers(db, matchId, rng) {
   const match = getMatch(db, matchId);

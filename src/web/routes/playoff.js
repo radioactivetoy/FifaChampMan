@@ -1,8 +1,8 @@
 import { html, page, select } from '../html.js';
 import { intOrNull } from '../form.js';
-import { champNav, matchRow, cpuToggle, isCpuOnly } from '../components.js';
+import { champNav, matchRow, cpuToggle, isCpuOnly, fillControllersButton } from '../components.js';
 import * as C from '../../repo/championships.js';
-import { listMatches, createPlayoffMatch } from '../../repo/matches.js';
+import { listMatches, createPlayoffMatch, countMissingControllers } from '../../repo/matches.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
 
@@ -27,6 +27,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
         <p class="muted">When you add a match, the player controlling a CPU team that faces a human is drawn automatically
           (rotating across the whole playoff); press <strong>🎲 Draw</strong> to re-draw. CPU-vs-CPU matches are simulated by the console.
           When a round is done, set how far each team got on the <a href="/championships/${c.id}/results">Results</a> tab.</p>
+        ${fillControllersButton(c, countMissingControllers(db, c.id), 'playoff')}
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${PLAYOFF_STAGES.map(stage => {
           const stageMatches = matches.filter(m => m.stage === stage);

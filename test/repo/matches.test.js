@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb, run } from '../../src/db/connection.js';
-import { listMatches, getMatch, insertMatch, updateMatch, deleteMatch, createPlayoffMatch, rerollControllers, ownerMap } from '../../src/repo/matches.js';
+import { listMatches, getMatch, insertMatch, updateMatch, deleteMatch, createPlayoffMatch, rerollControllers, ownerMap, fillMissingControllers, countMissingControllers } from '../../src/repo/matches.js';
 import { createRng } from '../../src/domain/rng.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import { UserError } from '../../src/errors.js';
@@ -55,6 +55,25 @@ test('playoff validation', () => {
   const { db, teams } = setup();
   assert.throws(() => createPlayoffMatch(db, 1, { stage: 'xx', homeTeamId: teams[0], awayTeamId: teams[1] }, createRng(1)), UserError);
   assert.throws(() => createPlayoffMatch(db, 1, { stage: 'qf', homeTeamId: teams[0], awayTeamId: teams[0] }, createRng(1)), UserError);
+});
+
+test('fillMissingControllers draws only empty controllers of matches involving a human', () => {
+  const { db, teams, players } = setup();
+  const [ana, ben, cris] = players;
+  const vsCpu1 = insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 1, homeTeamId: teams[0], awayTeamId: teams[1] });
+  const vsCpu2 = insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 2, homeTeamId: teams[2], awayTeamId: teams[0] });
+  const alreadySet = insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 3, homeTeamId: teams[0], awayTeamId: teams[3], homeControllerId: ana, awayControllerId: ben });
+  const cpuOnly = insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 3, homeTeamId: teams[1], awayTeamId: teams[2] });
+  assert.equal(countMissingControllers(db, 1), 2);
+  assert.equal(fillMissingControllers(db, 1, createRng(1)), 2);
+  const m1 = getMatch(db, vsCpu1), m2 = getMatch(db, vsCpu2);
+  assert.deepEqual([m1.homeControllerId, m2.awayControllerId], [ana, ana]);
+  // ben already controlled a CPU team in this group, so the rotation gives cris first
+  assert.equal(m1.awayControllerId, cris);
+  assert.ok([ben, cris].includes(m2.homeControllerId));
+  assert.deepEqual([getMatch(db, alreadySet).homeControllerId, getMatch(db, alreadySet).awayControllerId], [ana, ben]);
+  assert.deepEqual([getMatch(db, cpuOnly).homeControllerId, getMatch(db, cpuOnly).awayControllerId], [null, null]);
+  assert.equal(countMissingControllers(db, 1), 0);
 });
 
 test('rerollControllers keeps the owner and re-draws the CPU side', () => {

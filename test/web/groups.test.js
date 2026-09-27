@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { startTestApp } from '../helpers.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import { createChampionship, getChampionship, fillFieldRandom, runDraw } from '../../src/repo/championships.js';
-import { listMatches, getMatch } from '../../src/repo/matches.js';
+import { listMatches, getMatch, updateMatch } from '../../src/repo/matches.js';
 import { createRng } from '../../src/domain/rng.js';
 
 async function drawnChampionship(app) {
@@ -54,6 +54,14 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     await app.post(`/championships/${id}/matches/${vsCpu.id}/reroll`);
     const drawn = getMatch(app.db, vsCpu.id).awayControllerId;
     assert.ok(drawn != null && drawn !== ownerOf(vsCpu.homeTeamId).playerId);
+
+    // A human-vs-CPU match that lost its controller can be filled from the page
+    updateMatch(app.db, vsCpu.id, { awayControllerId: null });
+    assert.match((await app.get(`/championships/${id}/groups`)).text, /Draw missing controllers \(1\)/);
+    const fill = await app.post(`/championships/${id}/controllers/fill`, { back: 'groups' });
+    assert.equal(fill.location, `/championships/${id}/groups`);
+    assert.ok(getMatch(app.db, vsCpu.id).awayControllerId != null);
+    assert.doesNotMatch((await app.get(`/championships/${id}/groups`)).text, /Draw missing controllers/);
 
     await app.post(`/championships/${id}/matches/${m.id}/delete`);
     assert.equal(listMatches(app.db, id).length, 47);

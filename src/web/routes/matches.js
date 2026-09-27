@@ -1,5 +1,5 @@
 import { intOrNull } from '../form.js';
-import { getMatch, updateMatch, deleteMatch, rerollControllers } from '../../repo/matches.js';
+import { getMatch, updateMatch, deleteMatch, rerollControllers, fillMissingControllers } from '../../repo/matches.js';
 import { PLAYOFF_STAGES } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
 
@@ -14,6 +14,11 @@ function matchInChampionship(db, req) {
 }
 
 export function registerMatchRoutes(app, { db, rng }) {
+  app.post('/championships/:id/controllers/fill', (req, res) => {
+    fillMissingControllers(db, Number(req.params.id), rng);
+    res.redirect(`/championships/${req.params.id}/${req.body.back === 'playoff' ? 'playoff' : 'groups'}`);
+  });
+
   app.post('/championships/:id/matches/:matchId', (req, res) => {
     const m = matchInChampionship(db, req);
     const b = req.body;

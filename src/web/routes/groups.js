@@ -1,7 +1,7 @@
 import { html, page } from '../html.js';
-import { champNav, matchRow, teamName, cpuToggle, isCpuOnly } from '../components.js';
+import { champNav, matchRow, teamName, cpuToggle, isCpuOnly, fillControllersButton } from '../components.js';
 import * as C from '../../repo/championships.js';
-import { listMatches } from '../../repo/matches.js';
+import { listMatches, countMissingControllers } from '../../repo/matches.js';
 import { GROUP_LETTERS } from '../../domain/draw.js';
 import { computeStandings } from '../../domain/standings.js';
 import { REACHED_LABELS } from '../../domain/stages.js';
@@ -39,6 +39,7 @@ export function registerGroupRoutes(app, { db, rng }) {
           each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn);
           press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering
           their result is optional. Mark who qualified with the "Qualified" buttons.</p>
+        ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${GROUP_LETTERS.map(groupSection)}`,
     }));
