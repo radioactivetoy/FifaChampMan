@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTeamFilter();
   setupCpuToggle();
   document.querySelectorAll("table[data-sortable]").forEach(setupSortableTable);
+  setupViewSwitch();
 });
 
 // Hides [data-filter-row] elements that don't match the controls inside [data-filter-bar].
@@ -65,4 +66,13 @@ function setupSortableTable(table) {
       table.tBodies[0].append(...rows);
     });
   });
+}
+
+// Head-to-head view switch: buttons [data-h2h-show] show the matching [data-h2h-view] block.
+function setupViewSwitch() {
+  const buttons = [...document.querySelectorAll('[data-h2h-show]')];
+  buttons.forEach(button => button.addEventListener('click', () => {
+    document.querySelectorAll('[data-h2h-view]').forEach(v => { v.hidden = v.dataset.h2hView !== button.dataset.h2hShow; });
+    buttons.forEach(b => b.classList.toggle('primary', b === button));
+  }));
 }

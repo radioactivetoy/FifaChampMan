@@ -1,4 +1,4 @@
-import { html, page } from '../html.js';
+import { html, page, raw } from '../html.js';
 import { stars, badge } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
@@ -13,6 +13,15 @@ const ppg = r => (r.played ? (points(r) / r.played).toFixed(2) : '—');
 const signed = n => (n > 0 ? `+${n}` : String(n));
 const wdl = r => `${r.won}-${r.drawn}-${r.lost}`;
 const orDash = v => (v == null ? '—' : v);
+
+const H2H_VIEWS = [['overall', 'Overall'], ['own', 'With own team'], ['cpu', 'Controlling CPU']];
+
+/** Head-to-head cell: W-D-L and goals, green when winning more than losing, red when the opposite. */
+function h2hCell(r, total = false) {
+  if (!r) return html`<td class="muted">—</td>`;
+  const cls = `${r.won > r.lost ? 'h2h-up' : r.won < r.lost ? 'h2h-down' : ''}${total ? ' h2h-total' : ''}`;
+  return html`<td class="${cls}"><strong>${wdl(r)}</strong><br><small>${r.goalsFor}:${r.goalsAgainst}</small></td>`;
+}
 
 /** <td> with a sortable value (public/filter.js sorts tables marked data-sortable). */
 const num = (value, shown = value) => html`<td data-sort="${value ?? -1}">${orDash(shown)}</td>`;
@@ -30,7 +39,7 @@ export function registerStatsRoutes(app, { db }) {
     const entries = allEntries(db);
     const matches = listAllMatches(db);
     const stats = playerStats({ players, entries, matches });
-    const h2h = headToHead(matches);
+    const h2h = headToHead({ matches, entries });
     const champions = listChampions(db);
     const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
     const playerName = new Map(players.map(p => [p.id, p.name]));
@@ -84,18 +93,26 @@ export function registerStatsRoutes(app, { db }) {
         </tbody></table></div>`}
 
         <h2>Head to head</h2>
-        <p class="muted">Row player's record (W-D-L, goals) against the column player, counting every match where
-          each controlled one side — their own team or a CPU team.</p>
+        <p class="muted">Row player's record (W-D-L, goals) against the column player, in every match where both
+          controlled a side. Switch the view to see only the matches where the row player used their own team,
+          or only those where they controlled a CPU team.</p>
         ${active.length < 2 ? html`<p class="muted">Needs at least two players with matches.</p>` : html`
-        <div class="scroll-x"><table class="grid"><thead><tr><th></th>${active.map(s => html`<th>${s.name}</th>`)}</tr></thead><tbody>
-        ${active.map(a => html`<tr><th>${a.name}</th>${active.map(b => {
-          if (a.playerId === b.playerId) return html`<td class="muted">·</td>`;
-          const r = h2h[a.playerId]?.[b.playerId];
-          if (!r) return html`<td class="muted">—</td>`;
-          const cls = r.won > r.lost ? 'h2h-up' : r.won < r.lost ? 'h2h-down' : '';
-          return html`<td class="${cls}"><strong>${wdl(r)}</strong><br><small>${r.goalsFor}:${r.goalsAgainst}</small></td>`;
-        })}</tr>`)}
-        </tbody></table></div>`}
+        <div class="row" data-h2h-switch>
+          ${H2H_VIEWS.map(([view, label], i) => html`<button type="button" data-h2h-show="${view}" class="${i === 0 ? 'primary' : ''}">${label}</button>`)}
+        </div>
+        ${H2H_VIEWS.map(([view, label], i) => html`<div class="scroll-x" data-h2h-view="${view}"${i === 0 ? '' : raw(' hidden')}>
+          <table class="grid"><caption class="muted">${label}</caption>
+          <thead><tr><th></th>${active.map(s => html`<th>${s.name}</th>`)}<th>Total</th></tr></thead><tbody>
+          ${active.map(a => {
+            const total = active.map(b => h2h[view][a.playerId]?.[b.playerId]).filter(Boolean)
+              .reduce((t, r) => ({ won: t.won + r.won, drawn: t.drawn + r.drawn, lost: t.lost + r.lost, goalsFor: t.goalsFor + r.goalsFor, goalsAgainst: t.goalsAgainst + r.goalsAgainst }),
+                { won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 });
+            return html`<tr><th>${a.name}</th>${active.map(b => {
+              if (a.playerId === b.playerId) return html`<td class="muted">·</td>`;
+              return h2hCell(h2h[view][a.playerId]?.[b.playerId]);
+            })}${h2hCell(total.won + total.drawn + total.lost ? total : null, true)}</tr>`;
+          })}
+          </tbody></table></div>`)}`}
 
         <h2>Hall of champions</h2>
         <table><thead><tr><th>Championship</th><th>Champion</th><th>Player</th></tr></thead><tbody>

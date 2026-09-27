@@ -65,19 +65,26 @@ const sidesOf = m => [
 ];
 
 /**
- * Record of every player against every other player they faced, whoever's team each used
- * (own team or a CPU team they controlled). Returns { [playerId]: { [opponentId]: record } }.
+ * Record of every player against every other player they faced, from the row player's side:
+ * overall, only when the row player used their own team, and only when they controlled a CPU team.
+ * entries (one per player per championship, with teamId) tell which team was whose.
+ * Returns { overall, own, cpu }, each { [playerId]: { [opponentId]: record } }.
  */
-export function headToHead(matches) {
-  const h = {};
+export function headToHead({ matches, entries }) {
+  const ownerOf = new Map(entries.map(e => [`${e.championshipId}:${e.teamId}`, e.playerId]));
+  const h = { overall: {}, own: {}, cpu: {} };
+  const add = (view, me, them) => {
+    h[view][me.controllerId] ??= {};
+    h[view][me.controllerId][them.controllerId] ??= emptyRecord();
+    addResult(h[view][me.controllerId][them.controllerId], me.goalsFor, me.goalsAgainst);
+  };
   for (const m of matches) {
     if (!hasResult(m)) continue;
     const [home, away] = sidesOf(m);
     if (home.controllerId == null || away.controllerId == null || home.controllerId === away.controllerId) continue;
     for (const [me, them] of [[home, away], [away, home]]) {
-      h[me.controllerId] ??= {};
-      h[me.controllerId][them.controllerId] ??= emptyRecord();
-      addResult(h[me.controllerId][them.controllerId], me.goalsFor, me.goalsAgainst);
+      add('overall', me, them);
+      add(ownerOf.get(`${m.championshipId}:${me.teamId}`) === me.controllerId ? 'own' : 'cpu', me, them);
     }
   }
   return h;

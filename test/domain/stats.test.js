@@ -47,12 +47,16 @@ test('counts qualifications and finals, average and latest stars earned', () => 
   assert.equal(ben.avgStars, 1);
 });
 
-test('headToHead: record of each controller against each other controller', () => {
-  const h = headToHead(matches);
-  // match 1: Ana 2-1 Ben; match 2: Ana 1-1 Ben
-  assert.deepEqual(h[1][2], { played: 2, won: 1, drawn: 1, lost: 0, goalsFor: 3, goalsAgainst: 2 });
-  assert.deepEqual(h[2][1], { played: 2, won: 0, drawn: 1, lost: 1, goalsFor: 2, goalsAgainst: 3 });
-  assert.equal(h[1][1], undefined);
+test('headToHead: overall, with own team and controlling CPU, from the row player side', () => {
+  const h = headToHead({ matches, entries });
+  // match 1: Ana (own team) 2-1 Ben (CPU); match 2: Ana (CPU) 1-1 Ben (own team)
+  assert.deepEqual(h.overall[1][2], { played: 2, won: 1, drawn: 1, lost: 0, goalsFor: 3, goalsAgainst: 2 });
+  assert.deepEqual(h.overall[2][1], { played: 2, won: 0, drawn: 1, lost: 1, goalsFor: 2, goalsAgainst: 3 });
+  assert.deepEqual(h.own[1][2], { played: 1, won: 1, drawn: 0, lost: 0, goalsFor: 2, goalsAgainst: 1 });
+  assert.deepEqual(h.cpu[1][2], { played: 1, won: 0, drawn: 1, lost: 0, goalsFor: 1, goalsAgainst: 1 });
+  assert.deepEqual(h.own[2][1], { played: 1, won: 0, drawn: 1, lost: 0, goalsFor: 1, goalsAgainst: 1 });
+  assert.deepEqual(h.cpu[2][1], { played: 1, won: 0, drawn: 0, lost: 1, goalsFor: 1, goalsAgainst: 2 });
+  assert.equal(h.overall[1][1], undefined);
 });
 
 test('biggestWins: largest margins with a player on the winning side', () => {

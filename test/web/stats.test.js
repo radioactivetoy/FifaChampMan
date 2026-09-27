@@ -39,6 +39,10 @@ test('stats page: leaderboard, history grid, head to head, champions and biggest
     assert.match(text, /data-sortable/);
     assert.match(text, /<h2>Championship history<\/h2>/);
     assert.match(text, /<h2>Head to head<\/h2>/);
+    for (const view of ['overall', 'own', 'cpu']) {
+      assert.match(text, new RegExp(`data-h2h-view="${view}"`));
+      assert.match(text, new RegExp(`data-h2h-show="${view}"`));
+    }
     assert.match(text, /<h2>Hall of champions<\/h2>/);
     assert.match(text, /<h2>Biggest wins<\/h2>/);
     assert.match(text, /4–0/);
