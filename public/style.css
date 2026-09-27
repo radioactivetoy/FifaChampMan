@@ -68,7 +68,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 table {
   width: 100%; margin: 8px 0 18px; background: var(--surface);
   border-collapse: separate; border-spacing: 0;
-  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
 }
 th, td { padding: 9px 12px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
 tbody tr:last-child > * { border-bottom: 0; }
@@ -227,3 +227,21 @@ body:not(.show-cpu) table.matches:not(:has(tbody tr:not([data-cpu-only]))) { dis
   table.matches td:nth-child(5) { grid-area: act; text-align: right; }
   table.matches td select[name$="ControllerId"], table.matches td select[name$="TeamId"] { width: 100%; margin-top: 4px; }
 }
+
+/* Icon + input on one line (teams page): the icon slot keeps a fixed width so rows line up. */
+.with-icon { display: flex; align-items: center; gap: 8px; }
+.with-icon input { flex: 1; min-width: 0; }
+.icon-slot { width: 24px; flex: 0 0 24px; display: inline-flex; align-items: center; justify-content: center; }
+.icon-slot img.badge { margin: 0; width: 24px; height: 24px; }
+
+/* Rounded table corners without clipping wide content (no overflow: hidden on tables). */
+thead tr:first-child > :first-child { border-top-left-radius: var(--radius); }
+thead tr:first-child > :last-child { border-top-right-radius: var(--radius); }
+tbody tr:last-child > :first-child { border-bottom-left-radius: var(--radius); }
+tbody tr:last-child > :last-child { border-bottom-right-radius: var(--radius); }
+
+/* Teams page: text inputs shrink with their column so the whole row fits. */
+.teams-table input:not(.num) { width: 100%; min-width: 80px; }
+.teams-table .with-icon input { min-width: 70px; }
+.teams-table td { padding-left: 8px; padding-right: 8px; }
+.teams-table select { max-width: 130px; }

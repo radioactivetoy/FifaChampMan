@@ -48,12 +48,12 @@ export function registerTeamRoutes(app, { db }) {
           <button class="primary">Add team</button>
         </form>
         ${teamFilterBar(teams)}
-        <table><thead><tr><th></th><th>Name</th><th>Country</th><th>League</th><th>OVR</th><th>Stars</th><th>Manual stars</th><th>Images</th><th></th></tr></thead><tbody>
+        <table class="teams-table"><thead><tr><th></th><th>Name</th><th>Country</th><th>League</th><th>OVR</th><th>Stars</th><th>Manual stars</th><th>Images</th><th></th></tr></thead><tbody>
         ${teams.map(t => { const f = `t${t.id}`; return html`<tr ${filterAttrs(t)}>
-          <td>${badge(t)}</td>
+          <td><span class="icon-slot">${badge(t)}</span></td>
           <td><form id="${f}" method="post" action="/teams/${t.id}"></form><input form="${f}" name="name" value="${t.name}" required></td>
-          <td>${flag(t)}<input form="${f}" name="country" value="${t.country}"></td>
-          <td>${leagueBadge(t)}<input form="${f}" name="league" value="${t.league}"></td>
+          <td><div class="with-icon"><span class="icon-slot">${flag(t)}</span><input form="${f}" name="country" value="${t.country}"></div></td>
+          <td><div class="with-icon"><span class="icon-slot">${leagueBadge(t)}</span><input form="${f}" name="league" value="${t.league}"></div></td>
           <td><input form="${f}" name="ovr" type="number" min="1" max="99" class="num" value="${t.ovr}" required></td>
           <td>${stars(t.stars)}</td>
           <td>${select({ name: 'starsOverride', form: f, items: starItems, selected: t.starsOverride, blank: 'from OVR' })}</td>
