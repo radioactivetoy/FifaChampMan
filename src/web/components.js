@@ -103,7 +103,7 @@ export function matchRow(c, m, { playoff = false } = {}) {
   const first = playoff
     ? html`${select({ name: 'stage', form: f, items: PLAYOFF_STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] })), selected: m.stage })}
         leg ${num('leg', m.leg)}`
-    : `MD${m.matchday}`;
+    : html`MD ${select({ name: 'matchday', form: f, items: [1, 2, 3].map(n => ({ value: n, label: n })), selected: m.matchday })}`;
   return html`<tr${cpuOnly ? raw(' data-cpu-only') : ''}>
     <td><form id="${f}" method="post" action="${base}"></form>${first}</td>
     <td class="right">${team('home')}<br>${controller('home')}</td>
@@ -111,6 +111,7 @@ export function matchRow(c, m, { playoff = false } = {}) {
       ${playoff ? html`<br><small class="muted">pens</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}` : ''}</td>
     <td>${team('away')}<br>${controller('away')}</td>
     <td class="actions"><button form="${f}" class="primary">Save</button>
+      <form method="post" action="${base}/swap" class="inline"><button title="Swap home and away">⇄</button></form>
       <form method="post" action="${base}/reroll" class="inline"><button title="Draw a random player to control the CPU team">🎲 Draw</button></form>
       <form method="post" action="${base}/delete" class="inline" onsubmit="return confirm('Delete this match?')"><button class="danger">✕</button></form></td>
   </tr>`;

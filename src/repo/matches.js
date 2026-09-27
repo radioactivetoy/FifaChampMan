@@ -52,6 +52,17 @@ export function updateMatch(db, id, fields) {
     ...entries.map(([, v]) => v ?? null), id);
 }
 
+/** Swaps home and away: teams, scores, penalties and controllers all move with their team. */
+export function swapHomeAway(db, id) {
+  const m = getMatch(db, id);
+  updateMatch(db, id, {
+    homeTeamId: m.awayTeamId, awayTeamId: m.homeTeamId,
+    homeScore: m.awayScore, awayScore: m.homeScore,
+    homePens: m.awayPens, awayPens: m.homePens,
+    homeControllerId: m.awayControllerId, awayControllerId: m.homeControllerId,
+  });
+}
+
 export function deleteMatch(db, id) {
   run(db, 'DELETE FROM matches WHERE id = ?', id);
 }

@@ -63,6 +63,25 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     assert.ok(getMatch(app.db, vsCpu.id).awayControllerId != null);
     assert.doesNotMatch((await app.get(`/championships/${id}/groups`)).text, /Draw missing controllers/);
 
+    // Matchday can be changed to follow the order FIFA uses
+    const md = listMatches(app.db, id).find(x => x.id === m.id);
+    await app.post(`/championships/${id}/matches/${m.id}`, {
+      matchday: '3', homeScore: String(md.homeScore), awayScore: String(md.awayScore),
+      homeControllerId: String(md.homeControllerId ?? ''), awayControllerId: String(md.awayControllerId ?? ''),
+    });
+    assert.equal(getMatch(app.db, m.id).matchday, 3);
+    assert.equal((await app.post(`/championships/${id}/matches/${m.id}`, { matchday: '0' })).status, 400);
+    assert.match((await app.get(`/championships/${id}/groups`)).text, new RegExp(`name="matchday" form="m${m.id}"`));
+
+    // Home and away can be swapped; scores and controllers follow their teams
+    const before = getMatch(app.db, m.id);
+    const s = await app.post(`/championships/${id}/matches/${m.id}/swap`);
+    assert.equal(s.location, `/championships/${id}/groups#group-${m.groupLetter}`);
+    const after = getMatch(app.db, m.id);
+    assert.deepEqual(
+      [after.homeTeamId, after.awayTeamId, after.homeScore, after.awayScore, after.homeControllerId, after.awayControllerId],
+      [before.awayTeamId, before.homeTeamId, before.awayScore, before.homeScore, before.awayControllerId, before.homeControllerId]);
+
     await app.post(`/championships/${id}/matches/${m.id}/delete`);
     assert.equal(listMatches(app.db, id).length, 47);
 

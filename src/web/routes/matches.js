@@ -1,5 +1,5 @@
 import { intOrNull } from '../form.js';
-import { getMatch, updateMatch, deleteMatch, rerollControllers, fillMissingControllers } from '../../repo/matches.js';
+import { getMatch, updateMatch, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
 import { PLAYOFF_STAGES } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
 
@@ -26,6 +26,11 @@ export function registerMatchRoutes(app, { db, rng }) {
       homeScore: intOrNull(b.homeScore), awayScore: intOrNull(b.awayScore),
       homeControllerId: intOrNull(b.homeControllerId), awayControllerId: intOrNull(b.awayControllerId),
     };
+    if (b.matchday !== undefined) {
+      const matchday = intOrNull(b.matchday);
+      if (matchday == null || matchday < 1) throw new UserError('Pick a matchday');
+      fields.matchday = matchday;
+    }
     if (b.stage !== undefined) {
       if (!PLAYOFF_STAGES.includes(b.stage)) throw new UserError(`Unknown playoff stage "${b.stage}"`);
       const homeTeamId = intOrNull(b.homeTeamId), awayTeamId = intOrNull(b.awayTeamId);
@@ -40,6 +45,12 @@ export function registerMatchRoutes(app, { db, rng }) {
   app.post('/championships/:id/matches/:matchId/reroll', (req, res) => {
     const m = matchInChampionship(db, req);
     rerollControllers(db, m.id, rng);
+    res.redirect(backTo(m));
+  });
+
+  app.post('/championships/:id/matches/:matchId/swap', (req, res) => {
+    const m = matchInChampionship(db, req);
+    swapHomeAway(db, m.id);
     res.redirect(backTo(m));
   });
 
