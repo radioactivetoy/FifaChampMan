@@ -34,6 +34,14 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     assert.match(text, /Group A/);
     assert.match(text, /Pts/);
 
+    // CPU-vs-CPU matches are marked (hidden by default via CSS) and a toggle is offered
+    const owners = new Set(getChampionship(app.db, id).teams.filter(t => t.owner).map(t => t.teamId));
+    const cpuOnly = matches.filter(x => !owners.has(x.homeTeamId) && !owners.has(x.awayTeamId)).length;
+    assert.ok(cpuOnly > 0);
+    assert.equal((text.match(/data-cpu-only/g) ?? []).length, cpuOnly);
+    assert.match(text, /data-cpu-toggle/);
+    assert.match(text, new RegExp(`Show CPU vs CPU matches \\(${cpuOnly}\\)`));
+
     await app.post(`/championships/${id}/teams/${m.homeTeamId}/reached`, { reached: 'r16', back: 'groups' });
     assert.equal(getChampionship(app.db, id).teams.find(t => t.teamId === m.homeTeamId).reached, 'r16');
 

@@ -1,4 +1,4 @@
-import { html, select } from './html.js';
+import { html, raw, select } from './html.js';
 import { PLAYOFF_STAGES, STAGE_LABELS } from '../domain/stages.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
@@ -41,6 +41,17 @@ export const teamName = t => (t.owner
 
 const teamLabel = t => (t.owner ? `${t.name} (${t.owner.playerName})` : t.name);
 
+/** True when neither team belongs to a player (the console simulates these matches). */
+export function isCpuOnly(c, m) {
+  const owned = teamId => c.teams.some(t => t.teamId === teamId && t.owner);
+  return !owned(m.homeTeamId) && !owned(m.awayTeamId);
+}
+
+/** Checkbox that shows the CPU-vs-CPU match rows (hidden by default; see public/filter.js). */
+export const cpuToggle = count => (count
+  ? html`<p><label><input type="checkbox" data-cpu-toggle> Show CPU vs CPU matches (${count})</label></p>`
+  : '');
+
 /**
  * One editable match as a table row. c: championship from getChampionship; m: match from listMatches.
  * playoff: also lets you edit stage, leg, teams and penalties.
@@ -49,6 +60,7 @@ export function matchRow(c, m, { playoff = false } = {}) {
   const f = `m${m.id}`;
   const base = `/championships/${c.id}/matches/${m.id}`;
   const byId = new Map(c.teams.map(t => [t.teamId, t]));
+  const cpuOnly = isCpuOnly(c, m);
   const playerItems = c.players.map(p => ({ value: p.playerId, label: p.playerName }));
   const teamItems = c.teams.map(t => ({ value: t.teamId, label: teamLabel(t) }));
   const num = (name, value) => html`<input form="${f}" name="${name}" type="number" min="0" class="num" value="${value ?? ''}">`;
@@ -62,7 +74,7 @@ export function matchRow(c, m, { playoff = false } = {}) {
     ? html`${select({ name: 'stage', form: f, items: PLAYOFF_STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] })), selected: m.stage })}
         leg ${num('leg', m.leg)}`
     : `MD${m.matchday}`;
-  return html`<tr>
+  return html`<tr${cpuOnly ? raw(' data-cpu-only') : ''}>
     <td><form id="${f}" method="post" action="${base}"></form>${first}</td>
     <td class="right">${team('home')}<br>${controller('home')}</td>
     <td class="score">${num('homeScore', m.homeScore)} – ${num('awayScore', m.awayScore)}

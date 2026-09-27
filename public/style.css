@@ -32,3 +32,6 @@ input.num { width: 4.5em; }
 .actions { white-space: nowrap; }
 textarea { width: 100%; min-height: 200px; font-family: ui-monospace, monospace; }
 img.badge { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+/* CPU-vs-CPU matches are simulated by the console: hidden unless "Show CPU vs CPU matches" is ticked. */
+tr[data-cpu-only] { display: none; }
+body.show-cpu tr[data-cpu-only] { display: table-row; }

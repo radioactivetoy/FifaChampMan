@@ -1,5 +1,5 @@
 import { html, page } from '../html.js';
-import { champNav, matchRow, teamName } from '../components.js';
+import { champNav, matchRow, teamName, cpuToggle, isCpuOnly } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches } from '../../repo/matches.js';
 import { GROUP_LETTERS } from '../../domain/draw.js';
@@ -39,6 +39,7 @@ export function registerGroupRoutes(app, { db }) {
           press <strong>🎲 Draw</strong> on it to pick who controls the CPU team (nobody repeats inside a group until everyone has had a turn),
           then enter the result. CPU-vs-CPU matches are simulated by the console; entering their result is optional.
           Mark who qualified with the "Qualified" buttons.</p>
+        ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${GROUP_LETTERS.map(groupSection)}`,
     }));
   });

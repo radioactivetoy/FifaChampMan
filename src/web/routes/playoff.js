@@ -1,6 +1,6 @@
 import { html, page, select } from '../html.js';
 import { intOrNull } from '../form.js';
-import { champNav, matchRow } from '../components.js';
+import { champNav, matchRow, cpuToggle, isCpuOnly } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, createPlayoffMatch } from '../../repo/matches.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED } from '../../domain/stages.js';
@@ -27,6 +27,7 @@ export function registerPlayoffRoutes(app, { db }) {
         <p class="muted">Before a human-vs-CPU match, press <strong>🎲 Draw</strong> to pick who controls the CPU team
           (rotating across the whole playoff), then enter the result. CPU-vs-CPU matches are simulated by the console.
           When a round is done, set how far each team got on the <a href="/championships/${c.id}/results">Results</a> tab.</p>
+        ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${PLAYOFF_STAGES.map(stage => {
           const stageMatches = matches.filter(m => m.stage === stage);
           return stageMatches.length ? html`<h2>${STAGE_LABELS[stage]}</h2><table><tbody>${stageMatches.map(m => matchRow(c, m, { playoff: true }))}</tbody></table>` : '';

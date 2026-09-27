@@ -1,5 +1,11 @@
-// Hides [data-filter-row] elements that don't match the controls inside [data-filter-bar].
+// Small client-side helpers: team list filtering and the CPU-vs-CPU match toggle.
 document.addEventListener('DOMContentLoaded', () => {
+  setupTeamFilter();
+  setupCpuToggle();
+});
+
+// Hides [data-filter-row] elements that don't match the controls inside [data-filter-bar].
+function setupTeamFilter() {
   const bar = document.querySelector('[data-filter-bar]');
   if (!bar) return;
   const rows = [...document.querySelectorAll('[data-filter-row]')];
@@ -21,4 +27,18 @@ document.addEventListener('DOMContentLoaded', () => {
   bar.addEventListener('input', apply);
   bar.addEventListener('change', apply);
   apply();
-});
+}
+
+// Shows/hides tr[data-cpu-only] rows; the choice is remembered in this browser.
+function setupCpuToggle() {
+  const toggle = document.querySelector('[data-cpu-toggle]');
+  if (!toggle) return;
+  const KEY = 'champman.showCpuMatches';
+  try { toggle.checked = localStorage.getItem(KEY) === '1'; } catch { /* storage unavailable */ }
+  const apply = () => {
+    document.body.classList.toggle('show-cpu', toggle.checked);
+    try { localStorage.setItem(KEY, toggle.checked ? '1' : '0'); } catch { /* storage unavailable */ }
+  };
+  toggle.addEventListener('change', apply);
+  apply();
+}
