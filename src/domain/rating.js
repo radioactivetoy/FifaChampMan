@@ -1,0 +1,22 @@
+import { pickN } from './rng.js';
+
+const STARS_BY_REACHED = { champion: 5, final: 4.5, sf: 4, qf: 3.5, r16: 3 };
+
+/** record: { won, points, goalsFor } of the player's team over the whole championship. */
+export function resultStars({ reached, record }) {
+  if (reached in STARS_BY_REACHED) return STARS_BY_REACHED[reached];
+  if (record.won > 0) return 2;
+  if (record.points > 0) return 1.5;
+  if (record.goalsFor > 0) return 1;
+  return 0.5;
+}
+
+/**
+ * Going up a level → two random teams to choose from; otherwise one team assigned.
+ * candidates: teams of the target tier still available.
+ */
+export function planTeamOffer({ previousStars, targetStars, candidates, rng }) {
+  const improving = previousStars != null && targetStars > previousStars;
+  const options = pickN(candidates, improving ? 2 : 1, rng).map(t => t.id);
+  return { stars: targetStars, options, teamId: improving ? null : (options[0] ?? null) };
+}
