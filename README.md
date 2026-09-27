@@ -10,7 +10,7 @@ npm install
 npm start
 ```
 
-Open http://localhost:3000. Friends on the same Wi-Fi can use http://<this-PC-IP>:3000
+Open http://localhost:3210. Friends on the same Wi-Fi can use http://<this-PC-IP>:3210
 (find the IP with `ipconfig`; allow Node through the Windows firewall when asked).
 
 Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
@@ -39,6 +39,22 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
 
 Everything (teams, controllers, scores, groups, stages, stars) can be edited at any time.
 
+## Yearly team refresh (new FC game)
+
+1. Open the fctoolshub clubs database sorted by overall, e.g.
+   https://fctoolshub.com/en/database/fc27/clubs?sort%5B0%5D=data.overall%3Adesc (change `fc27`).
+2. Press F12 → Console, paste the contents of [tools/export-fctoolshub.js](tools/export-fctoolshub.js),
+   press Enter and wait (a few minutes; it browses slowly because the site rate-limits).
+   `champman-teams.csv` downloads.
+3. ChampMan → Teams → Import from CSV → choose the file.
+4. Refresh the Champions League template (all European top-division clubs):
+
+```bash
+node tools/create-ucl-template.mjs
+```
+
+5. Check **Star tiers**: the new game's OVR spread may need the tiers adjusted so every level has clubs.
+
 ## Star rules
 
 | Result | Next level |
@@ -52,6 +68,9 @@ Everything (teams, controllers, scores, groups, stages, stars) can be edited at 
 | Got a point | 1.5★ |
 | Scored a goal | 1★ |
 | Nothing | 0.5★ |
+
+Default star tiers (FC 27 has no clubs under 54 OVR, so the bottom levels are shifted up):
+0.5★ ≤60, 1★ 61–62, 1.5★ 63, 2★ 64, 2.5★ 65–66, 3★ 67–69, 3.5★ 70–72, 4★ 73–76, 4.5★ 77–81, 5★ 82+.
 
 Going up a level: choose between two random teams of the new level. Otherwise a team is assigned.
 

@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import { starsForOvr, DEFAULT_TIERS, STAR_LEVELS } from '../../src/domain/tiers.js';
 
 test('maps OVR to stars using default tiers', () => {
+  // FC 27 has no clubs under 54 OVR, so the bottom tiers are shifted up to keep every level populated.
   const cases = [[90, 5], [82, 5], [81, 4.5], [77, 4.5], [76, 4], [73, 4], [72, 3.5], [70, 3.5],
-    [69, 3], [67, 3], [66, 2.5], [64, 2.5], [63, 2], [61, 2], [60, 1.5], [56, 1.5], [55, 1], [51, 1], [50, 0.5], [30, 0.5]];
+    [69, 3], [67, 3], [66, 2.5], [65, 2.5], [64, 2], [63, 1.5], [62, 1], [61, 1], [60, 0.5], [54, 0.5], [30, 0.5]];
   for (const [ovr, stars] of cases) assert.equal(starsForOvr(ovr), stars, `ovr ${ovr}`);
 });
 

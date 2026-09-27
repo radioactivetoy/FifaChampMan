@@ -15,7 +15,8 @@ import { registerStatsRoutes } from './web/routes/stats.js';
 
 export function createApp({ db, rng }) {
   const app = express();
-  app.use(express.urlencoded({ extended: false }));
+  // A full FC club database pasted as CSV is ~150 KB; the default limit is 100 KB.
+  app.use(express.urlencoded({ extended: false, limit: '5mb' }));
   app.use((req, res, next) => { req.body ??= {}; next(); });
   app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
 

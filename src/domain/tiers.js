@@ -6,10 +6,10 @@ export const DEFAULT_TIERS = [
   { stars: 4, minOvr: 73 },
   { stars: 3.5, minOvr: 70 },
   { stars: 3, minOvr: 67 },
-  { stars: 2.5, minOvr: 64 },
-  { stars: 2, minOvr: 61 },
-  { stars: 1.5, minOvr: 56 },
-  { stars: 1, minOvr: 51 },
+  { stars: 2.5, minOvr: 65 },
+  { stars: 2, minOvr: 64 },
+  { stars: 1.5, minOvr: 63 },
+  { stars: 1, minOvr: 61 },
   { stars: 0.5, minOvr: 0 },
 ];
 

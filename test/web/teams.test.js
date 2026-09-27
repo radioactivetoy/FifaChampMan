@@ -40,6 +40,21 @@ test('csv import reports errors and imports valid rows', async () => {
   }
 });
 
+test('csv import accepts a full club database (well over 100 KB)', async () => {
+  const app = await startTestApp();
+  try {
+    const url = 'https://cdn.example.com/game_assets/fc27/clubs/dark/000000.png';
+    const rows = Array.from({ length: 800 }, (_, i) => `Club ${i},League,Country,70,${url},${url},${url}`);
+    const csv = ['name,league,country,ovr,badge,league badge,flag', ...rows].join('\n');
+    assert.ok(csv.length > 150_000);
+    const r = await app.post('/teams/import', { csv });
+    assert.equal(r.status, 200);
+    assert.equal(listTeams(app.db).length, 800);
+  } finally {
+    await app.close();
+  }
+});
+
 test('star tiers can be edited', async () => {
   const app = await startTestApp();
   try {
