@@ -24,3 +24,24 @@ test('foreign keys are enforced', () => {
   run(db, "INSERT INTO championships (name) VALUES ('X')");
   assert.throws(() => run(db, 'INSERT INTO championship_players (championship_id, player_id) VALUES (1, 999)'));
 });
+
+test('upgrades an older database with the new columns', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'champman-'));
+  const file = join(dir, 'old.db');
+  const old = new DatabaseSync(file);
+  old.exec(`CREATE TABLE championships (id INTEGER PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', template_id INTEGER, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE TABLE championship_teams (championship_id INTEGER NOT NULL, team_id INTEGER NOT NULL, pot INTEGER, group_letter TEXT, reached TEXT NOT NULL DEFAULT 'group', PRIMARY KEY (championship_id, team_id));
+    INSERT INTO championships (name) VALUES ('Old cup');`);
+  old.close();
+  const db = openDb(file);
+  const cols = table => all(db, `PRAGMA table_info(${table})`).map(c => c.name);
+  assert.ok(cols('championships').includes('group_stage_closed'));
+  assert.ok(cols('championship_teams').includes('points_override'));
+  assert.equal(get(db, 'SELECT group_stage_closed AS c FROM championships').c, 0);
+  db.close();
+  rmSync(dir, { recursive: true, force: true });
+});

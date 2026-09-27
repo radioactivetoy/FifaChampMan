@@ -4,9 +4,23 @@ import { DEFAULT_TIERS } from '../domain/tiers.js';
 
 const schema = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8');
 
+// Columns added after the first release: [table, column, definition]. Added to older databases on open.
+const MIGRATIONS = [
+  ['championships', 'group_stage_closed', 'INTEGER NOT NULL DEFAULT 0'],
+  ['championship_teams', 'points_override', 'INTEGER'],
+];
+
+function migrate(db) {
+  for (const [table, column, definition] of MIGRATIONS) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+    if (!columns.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
 export function openDb(path = ':memory:') {
   const db = new DatabaseSync(path);
   db.exec(schema);
+  migrate(db);
   if (get(db, 'SELECT COUNT(*) AS n FROM tiers').n === 0) {
     for (const t of DEFAULT_TIERS) run(db, 'INSERT INTO tiers (stars, min_ovr) VALUES (?, ?)', t.stars, t.minOvr);
   }

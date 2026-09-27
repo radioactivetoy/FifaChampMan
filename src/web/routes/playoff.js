@@ -12,7 +12,9 @@ export function registerPlayoffRoutes(app, { db, rng }) {
     const matches = listMatches(db, c.id).filter(m => m.stage !== 'group');
     // Qualified teams first, then the rest of the field.
     const ordered = [...c.teams].sort((a, b) => REACHED.indexOf(b.reached) - REACHED.indexOf(a.reached) || b.ovr - a.ovr);
-    const teamItems = ordered.map(t => ({ value: t.teamId, label: `${t.reached !== 'group' ? '✓ ' : ''}${t.name}${t.owner ? ` (${t.owner.playerName})` : ''}` }));
+    // Once the group stage is closed only the qualified teams can be picked.
+    const candidates = c.groupStageClosed ? ordered.filter(t => t.reached !== 'group') : ordered;
+    const teamItems = candidates.map(t => ({ value: t.teamId, label: `${t.reached !== 'group' ? '✓ ' : ''}${t.name}${t.owner ? ` (${t.owner.playerName})` : ''}` }));
     const stageItems = PLAYOFF_STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] }));
     res.send(page({
       title: c.name,

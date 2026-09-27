@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS championships (
   name TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'active',
   template_id INTEGER REFERENCES team_templates(id) ON DELETE SET NULL,
+  group_stage_closed INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -60,6 +61,7 @@ CREATE TABLE IF NOT EXISTS championship_teams (
   pot INTEGER,
   group_letter TEXT,
   reached TEXT NOT NULL DEFAULT 'group',
+  points_override INTEGER,
   PRIMARY KEY (championship_id, team_id)
 );
 

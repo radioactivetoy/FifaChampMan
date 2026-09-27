@@ -32,7 +32,9 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
 5. **Group stage** – generate fixtures (single round: 3 matches per team). Who controls each CPU team
    facing a human is drawn automatically (press **🎲 Draw** on a match to re-draw), then
    enter results. CPU-vs-CPU matches are simulated by the console (result optional).
-   Mark who qualified.
+   Type the CPU teams' points from the FIFA group table (player teams are calculated), then
+   **Close group stage**: two teams per group qualify (the ones you marked, or the top two by points)
+   and only they can be picked in the playoff. **Reopen group stage** undoes it.
 6. **Playoff** – add each match by hand (the CPU controller is drawn automatically), enter results.
 7. **Results** – set how far each team got (up to Champion) and check the stars earned.
    When every player is out (nobody qualified from the groups, or all knocked out in the playoff),

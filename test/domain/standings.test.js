@@ -24,6 +24,12 @@ test('standings sorted by points, goal difference, goals for', () => {
   assert.equal(rows[0].goalDiff, 3);
 });
 
+test('entered points replace calculated points for those teams', () => {
+  const matches = [m(1, 2, 1, 0)];
+  const rows = computeStandings([1, 2, 3, 4], matches, new Map([[3, 7], [4, 2]]));
+  assert.deepEqual(rows.map(r => [r.teamId, r.points, r.pointsEntered]), [[3, 7, true], [1, 3, false], [4, 2, true], [2, 0, false]]);
+});
+
 test('rotation scope: per group, whole playoff', () => {
   assert.equal(scopeOf({ stage: 'group', groupLetter: 'C' }), 'group:C');
   assert.equal(scopeOf({ stage: 'qf' }), 'playoff');

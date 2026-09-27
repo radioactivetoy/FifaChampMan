@@ -91,3 +91,42 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     await app.close();
   }
 });
+
+test('enter CPU team points per group, close the group stage, playoff offers only qualified teams', async () => {
+  const app = await startTestApp();
+  try {
+    const id = await drawnChampionship(app);
+    await app.post(`/championships/${id}/groups/fixtures`);
+    const c = getChampionship(app.db, id);
+    const cpuB = c.teams.filter(t => t.groupLetter === 'B' && !t.owner);
+    const humanB = c.teams.find(t => t.groupLetter === 'B' && t.owner);
+
+    let text = (await app.get(`/championships/${id}/groups`)).text;
+    assert.match(text, new RegExp(`name="points_${cpuB[0].teamId}"`));
+    if (humanB) assert.doesNotMatch(text, new RegExp(`name="points_${humanB.teamId}"`));
+
+    const form = Object.fromEntries(cpuB.map((t, i) => [`points_${t.teamId}`, String(7 - i)]));
+    const r = await app.post(`/championships/${id}/groups/B/points`, form);
+    assert.equal(r.location, `/championships/${id}/groups#group-B`);
+    assert.deepEqual(getChampionship(app.db, id).teams.filter(t => cpuB.some(x => x.teamId === t.teamId)).map(t => t.pointsOverride).sort(),
+      cpuB.map((_, i) => 7 - i).sort());
+
+    assert.match(text, /Close group stage/);
+    await app.post(`/championships/${id}/groups/close`);
+    const closed = getChampionship(app.db, id);
+    assert.equal(closed.groupStageClosed, true);
+    assert.equal(closed.teams.filter(t => t.reached !== 'group').length, 16);
+    text = (await app.get(`/championships/${id}/groups`)).text;
+    assert.match(text, /Group stage closed/);
+    assert.match(text, /Reopen group stage/);
+
+    const playoff = (await app.get(`/championships/${id}/playoff`)).text;
+    const homeSelect = playoff.match(/<select name="homeTeamId">([\s\S]*?)<\/select>/)[1];
+    assert.equal((homeSelect.match(/<option /g) ?? []).length, 16);
+
+    await app.post(`/championships/${id}/groups/reopen`);
+    assert.equal(getChampionship(app.db, id).groupStageClosed, false);
+  } finally {
+    await app.close();
+  }
+});

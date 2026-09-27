@@ -20,8 +20,10 @@ export function listChampionships(db) {
 }
 
 export function getChampionship(db, id) {
-  const c = get(db, 'SELECT id, name, status, template_id AS templateId, created_at AS createdAt FROM championships WHERE id = ?', id);
-  if (!c) throw new UserError('Championship not found', 404);
+  const row = get(db, `SELECT id, name, status, template_id AS templateId, group_stage_closed AS groupStageClosed, created_at AS createdAt
+    FROM championships WHERE id = ?`, id);
+  if (!row) throw new UserError('Championship not found', 404);
+  const c = { ...row, groupStageClosed: row.groupStageClosed === 1 };
   const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
   const players = all(db, `SELECT cp.player_id AS playerId, p.name AS playerName, cp.stars, cp.team_id AS teamId,
         cp.offered_team_ids AS offeredJson, cp.result_stars_override AS resultStarsOverride
@@ -33,7 +35,7 @@ export function getChampionship(db, id) {
       offered: JSON.parse(offeredJson).map(tid => teamsById.get(tid)).filter(Boolean),
     }));
   const ownerByTeam = new Map(players.filter(p => p.teamId).map(p => [p.teamId, p]));
-  const teams = all(db, 'SELECT team_id AS teamId, pot, group_letter AS groupLetter, reached FROM championship_teams WHERE championship_id = ?', id)
+  const teams = all(db, 'SELECT team_id AS teamId, pot, group_letter AS groupLetter, reached, points_override AS pointsOverride FROM championship_teams WHERE championship_id = ?', id)
     .map(ct => ({ ...teamsById.get(ct.teamId), ...ct, owner: ownerByTeam.get(ct.teamId) ?? null }))
     .sort((a, b) => b.ovr - a.ovr || a.name.localeCompare(b.name));
   return { ...c, players, teams };
@@ -235,6 +237,57 @@ export function clearGroupFixtures(db, championshipId) {
   run(db, "DELETE FROM matches WHERE championship_id = ? AND stage = 'group'", championshipId);
 }
 
+// ---------- group standings & closing the group stage ----------
+
+/** Standings of every drawn group, with entered points applied. Returns [{ letter, rows: [{ ...row, position, team }] }]. */
+export function groupStandings(db, championshipId, c = getChampionship(db, championshipId), matches = listMatches(db, championshipId)) {
+  const entered = new Map(c.teams.filter(t => t.pointsOverride != null && !t.owner).map(t => [t.teamId, t.pointsOverride]));
+  return GROUP_LETTERS.map(letter => {
+    const teams = c.teams.filter(t => t.groupLetter === letter);
+    const inGroup = matches.filter(m => m.stage === 'group' && m.groupLetter === letter);
+    const rows = computeStandings(teams.map(t => t.teamId), inGroup, entered)
+      .map((row, i) => ({ ...row, position: i + 1, team: teams.find(t => t.teamId === row.teamId) }));
+    return { letter, rows };
+  }).filter(g => g.rows.length > 0);
+}
+
+/** Points typed in for a CPU team's group (null clears them). Player teams' points are always calculated. */
+export function setGroupPoints(db, championshipId, teamId, points) {
+  if (get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND team_id = ?', championshipId, teamId)) {
+    throw new UserError("A player's team points are calculated from its results");
+  }
+  if (points != null && (!Number.isInteger(points) || points < 0)) throw new UserError('Points must be a whole number, 0 or more');
+  run(db, 'UPDATE championship_teams SET points_override = ? WHERE championship_id = ? AND team_id = ?', points, championshipId, teamId);
+}
+
+/**
+ * Ends the group stage: each group keeps its two qualifiers if exactly two are marked, otherwise the
+ * top two of the standings go through. Everyone else stays at "group" (out). The playoff then only
+ * offers qualified teams.
+ */
+export function closeGroupStage(db, championshipId) {
+  transaction(db, () => {
+    const c = getChampionship(db, championshipId);
+    const groups = groupStandings(db, championshipId, c);
+    if (groups.length !== GROUP_LETTERS.length || groups.some(g => g.rows.length !== 4)) {
+      throw new UserError('Run the group draw first: every group needs 4 teams');
+    }
+    for (const g of groups) {
+      const marked = g.rows.filter(r => r.team.reached !== 'group');
+      const qualified = new Set((marked.length === 2 ? marked : g.rows.slice(0, 2)).map(r => r.teamId));
+      for (const r of g.rows) {
+        if (qualified.has(r.teamId) && r.team.reached === 'group') setReached(db, championshipId, r.teamId, 'r16');
+        if (!qualified.has(r.teamId) && r.team.reached !== 'group') setReached(db, championshipId, r.teamId, 'group');
+      }
+    }
+    run(db, 'UPDATE championships SET group_stage_closed = 1 WHERE id = ?', championshipId);
+  });
+}
+
+export function reopenGroupStage(db, championshipId) {
+  run(db, 'UPDATE championships SET group_stage_closed = 0 WHERE id = ?', championshipId);
+}
+
 // ---------- results ----------
 
 export function setReached(db, championshipId, teamId, reached) {
@@ -273,13 +326,12 @@ export function championshipRecap(db, championshipId) {
   const involvesHuman = m => humanTeamIds.has(m.homeTeamId) || humanTeamIds.has(m.awayTeamId);
   const groupMatches = matches.filter(m => m.stage === 'group');
 
+  const rowsByLetter = new Map(groupStandings(db, championshipId, c, matches).map(g => [g.letter, g.rows]));
   const groups = GROUP_LETTERS
     .filter(letter => c.teams.some(t => t.groupLetter === letter && humanTeamIds.has(t.teamId)))
     .map(letter => {
-      const teams = c.teams.filter(t => t.groupLetter === letter);
       const inGroup = groupMatches.filter(m => m.groupLetter === letter);
-      const standings = computeStandings(teams.map(t => t.teamId), inGroup)
-        .map((row, i) => ({ ...row, position: i + 1, team: teams.find(t => t.teamId === row.teamId) }));
+      const standings = rowsByLetter.get(letter);
       return { letter, standings, matches: inGroup.filter(involvesHuman) };
     });
 

@@ -18,11 +18,17 @@ export function teamRecord(teamId, matches) {
   return r;
 }
 
-export function computeStandings(teamIds, matches) {
+/**
+ * Group table sorted by points, goal difference, goals for.
+ * enteredPoints: Map teamId -> points typed in by hand (e.g. CPU teams whose simulated games were
+ * not entered); those replace the calculated points and are flagged with pointsEntered.
+ */
+export function computeStandings(teamIds, matches, enteredPoints = new Map()) {
   return teamIds
     .map(teamId => {
       const r = teamRecord(teamId, matches);
-      return { teamId, ...r, goalDiff: r.goalsFor - r.goalsAgainst };
+      const entered = enteredPoints.get(teamId);
+      return { teamId, ...r, points: entered ?? r.points, pointsEntered: entered != null, goalDiff: r.goalsFor - r.goalsAgainst };
     })
     .sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor);
 }

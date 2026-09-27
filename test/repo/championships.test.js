@@ -204,3 +204,58 @@ test('allEntries returns one outcome per player per championship', () => {
   assert.equal(entries.length, 3);
   assert.ok(entries.every(e => e.championshipName === 'Cup' && e.resultStars === 0.5));
 });
+
+function drawnWithFixtures() {
+  const { db, players, rng } = setup();
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players, rng });
+  C.fillFieldRandom(db, id, rng);
+  C.runDraw(db, id, rng);
+  C.generateGroupFixtures(db, id, rng);
+  return { db, id, rng, c: C.getChampionship(db, id) };
+}
+
+test('group points can be entered for CPU teams; player team points are calculated', () => {
+  const { db, id, c } = drawnWithFixtures();
+  const human = c.teams.find(t => t.owner);
+  const letter = human.groupLetter;
+  const cpu = c.teams.filter(t => t.groupLetter === letter && !t.owner);
+  C.setGroupPoints(db, id, cpu[0].teamId, 9);
+  assert.throws(() => C.setGroupPoints(db, id, human.teamId, 9), UserError);
+  const group = C.groupStandings(db, id).find(g => g.letter === letter);
+  assert.equal(group.rows[0].teamId, cpu[0].teamId);
+  assert.equal(group.rows[0].points, 9);
+  assert.equal(group.rows[0].pointsEntered, true);
+  assert.equal(C.getChampionship(db, id).teams.find(t => t.teamId === cpu[0].teamId).pointsOverride, 9);
+  C.setGroupPoints(db, id, cpu[0].teamId, null);
+  assert.equal(C.groupStandings(db, id).find(g => g.letter === letter).rows.find(r => r.teamId === cpu[0].teamId).pointsEntered, false);
+});
+
+test('closing the group stage qualifies two per group and can be reopened', () => {
+  const { db, id, c } = drawnWithFixtures();
+  // Group A: two teams already marked by hand -> kept. Other groups: top two by entered points.
+  const groupA = c.teams.filter(t => t.groupLetter === 'A');
+  C.setReached(db, id, groupA[2].teamId, 'r16');
+  C.setReached(db, id, groupA[3].teamId, 'r16');
+  for (const letter of 'BCDEFGH') {
+    c.teams.filter(t => t.groupLetter === letter && !t.owner).forEach((t, i) => C.setGroupPoints(db, id, t.teamId, 9 - i * 3));
+  }
+  C.closeGroupStage(db, id);
+  const after = C.getChampionship(db, id);
+  assert.equal(after.groupStageClosed, true);
+  assert.equal(after.teams.filter(t => t.reached !== 'group').length, 16);
+  assert.deepEqual(after.teams.filter(t => t.groupLetter === 'A' && t.reached === 'r16').map(t => t.teamId).sort(),
+    [groupA[2].teamId, groupA[3].teamId].sort());
+  for (const g of C.groupStandings(db, id).filter(x => x.letter !== 'A')) {
+    const qualified = g.rows.filter(r => after.teams.find(t => t.teamId === r.teamId).reached === 'r16').map(r => r.teamId);
+    assert.deepEqual(qualified, g.rows.slice(0, 2).map(r => r.teamId));
+  }
+  C.reopenGroupStage(db, id);
+  assert.equal(C.getChampionship(db, id).groupStageClosed, false);
+  assert.equal(C.getChampionship(db, id).teams.filter(t => t.reached !== 'group').length, 16); // marks kept
+});
+
+test('closing needs the draw done', () => {
+  const { db, players, rng } = setup();
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players, rng });
+  assert.throws(() => C.closeGroupStage(db, id), UserError);
+});
