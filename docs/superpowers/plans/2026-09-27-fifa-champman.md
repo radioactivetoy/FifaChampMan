@@ -2044,7 +2044,7 @@ test('field, draw and fixtures', () => {
   assert.ok(c.teams.every(t => t.pot >= 1 && t.pot <= 4 && /^[A-H]$/.test(t.groupLetter)));
   C.generateGroupFixtures(db, id, rng);
   const matches = listMatches(db, id);
-  assert.equal(matches.length, 48);
+  assert.equal(matches.length, 96);
   const owned = c.players[0];
   const humanMatch = matches.find(m => m.homeTeamId === owned.teamId);
   assert.equal(humanMatch.homeControllerId, owned.playerId);
@@ -2339,7 +2339,7 @@ export function setPlacement(db, championshipId, teamId, { pot, groupLetter }) {
     pot ?? null, groupLetter ?? null, championshipId, teamId);
 }
 
-/** Creates all 48 group matches. Owners control their teams; CPU controllers are drawn per match later. */
+/** Creates all 96 group matches (8 groups x 12). Owners control their teams; CPU controllers are drawn per match later. */
 export function generateGroupFixtures(db, championshipId) {
   transaction(db, () => {
     if (hasGroupMatches(db, championshipId)) throw new UserError('Group fixtures already exist; clear them first');
@@ -3675,7 +3675,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     const id = await drawnChampionship(app);
     await app.post(`/championships/${id}/groups/fixtures`);
     const matches = listMatches(app.db, id);
-    assert.equal(matches.length, 48);
+    assert.equal(matches.length, 96);
 
     const m = matches[0];
     const [p] = getChampionship(app.db, id).players;
@@ -3701,7 +3701,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     assert.ok(drawn != null && drawn !== ownerOf(vsCpu.homeTeamId).playerId);
 
     await app.post(`/championships/${id}/matches/${m.id}/delete`);
-    assert.equal(listMatches(app.db, id).length, 47);
+    assert.equal(listMatches(app.db, id).length, 95);
 
     await app.post(`/championships/${id}/groups/fixtures/clear`);
     assert.equal(listMatches(app.db, id).length, 0);
