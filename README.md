@@ -34,7 +34,10 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
    enter results. CPU-vs-CPU matches are simulated by the console (result optional).
    Mark who qualified.
 6. **Playoff** – add each match by hand (the CPU controller is drawn automatically), enter results.
-7. **Results** – set how far each team got (up to Champion), check the stars earned, mark finished.
+7. **Results** – set how far each team got (up to Champion) and check the stars earned.
+   When every player is out (nobody qualified from the groups, or all knocked out in the playoff),
+   a banner asks for the winner simulated by the console and closes the championship; if a player
+   wins, it offers to close it.
 8. **Stats** – all-time table.
 
 Everything (teams, controllers, scores, groups, stages, stars) can be edited at any time.

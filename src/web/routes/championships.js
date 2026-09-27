@@ -90,6 +90,15 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     res.redirect(`/championships/${req.params.id}`);
   });
 
+  // Close a decided championship; winnerTeamId records the console-simulated winner when all players are out.
+  app.post('/championships/:id/finish', (req, res) => {
+    const id = Number(req.params.id);
+    const winnerTeamId = intOrNull(req.body.winnerTeamId);
+    if (winnerTeamId != null) C.setReached(db, id, winnerTeamId, 'champion');
+    C.updateChampionship(db, id, { status: 'finished' });
+    res.redirect(`/championships/${id}/results`);
+  });
+
   app.post('/championships/:id/status', (req, res) => {
     C.updateChampionship(db, Number(req.params.id), { status: req.body.status });
     res.redirect(`/championships/${req.params.id}/results`);

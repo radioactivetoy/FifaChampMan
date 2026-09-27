@@ -1,5 +1,6 @@
 import { html, raw, select } from './html.js';
-import { PLAYOFF_STAGES, STAGE_LABELS } from '../domain/stages.js';
+import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS } from '../domain/stages.js';
+import { championshipProgress } from '../domain/progress.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
 
@@ -31,7 +32,28 @@ export function teamFilterBar(teams) {
 export function champNav(c, active) {
   const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results']];
   return html`<p class="muted">${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
+    ${finishBanner(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;
+}
+
+/**
+ * Shown on an open championship once it is decided: a player won, or every player is out —
+ * then the winner simulated by the console is entered and the championship closed.
+ */
+function finishBanner(c) {
+  if (c.status === 'finished') return '';
+  const progress = championshipProgress(c.teams);
+  if (!progress.over) return '';
+  const action = `/championships/${c.id}/finish`;
+  if (progress.champion) {
+    return html`<form method="post" action="${action}" class="banner" data-finish-banner>
+      🏆 ${teamName(progress.champion)} won the championship. <button class="primary">Close championship</button></form>`;
+  }
+  const items = progress.alive.map(t => ({ value: t.teamId, label: `${t.name} (${REACHED_LABELS[t.reached]})` }));
+  return html`<form method="post" action="${action}" class="banner" data-finish-banner>
+    All players are out. Who won in the console simulation?
+    ${select({ name: 'winnerTeamId', items })}
+    <button class="primary">Save winner & close championship</button></form>`;
 }
 
 /** Badge + team name, with the owning player highlighted for human teams. t: championship team row. */
