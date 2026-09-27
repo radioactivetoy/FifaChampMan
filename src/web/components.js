@@ -30,7 +30,7 @@ export function teamFilterBar(teams) {
 }
 
 export function champNav(c, active) {
-  const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results']];
+  const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results'], ['recap', 'Recap']];
   return html`<p class="muted">${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
     ${finishBanner(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;

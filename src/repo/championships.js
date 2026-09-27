@@ -3,7 +3,8 @@ import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
 import { listMatches, insertMatch, drawControllers } from './matches.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
-import { teamRecord } from '../domain/standings.js';
+import { teamRecord, computeStandings } from '../domain/standings.js';
+import { playerStats } from '../domain/stats.js';
 import { fillField, FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
 import { makePots, drawGroups, GROUP_LETTERS } from '../domain/draw.js';
 import { groupFixtures } from '../domain/fixtures.js';
@@ -237,6 +238,50 @@ export function playerOutcome(db, championshipId, playerId) {
 
 export function listOutcomes(db, championshipId) {
   return getChampionship(db, championshipId).players.map(p => ({ ...p, ...playerOutcome(db, championshipId, p.playerId) }));
+}
+
+/**
+ * Everything the recap page shows, limited to what involves the players:
+ * players (result, group standing, own-team and CPU-controller records), their groups
+ * with full standings and the matches their teams played, and their playoff matches.
+ */
+export function championshipRecap(db, championshipId) {
+  const c = getChampionship(db, championshipId);
+  const matches = listMatches(db, championshipId);
+  const humanTeamIds = new Set(c.players.map(p => p.teamId).filter(Boolean));
+  const involvesHuman = m => humanTeamIds.has(m.homeTeamId) || humanTeamIds.has(m.awayTeamId);
+  const groupMatches = matches.filter(m => m.stage === 'group');
+
+  const groups = GROUP_LETTERS
+    .filter(letter => c.teams.some(t => t.groupLetter === letter && humanTeamIds.has(t.teamId)))
+    .map(letter => {
+      const teams = c.teams.filter(t => t.groupLetter === letter);
+      const inGroup = groupMatches.filter(m => m.groupLetter === letter);
+      const standings = computeStandings(teams.map(t => t.teamId), inGroup)
+        .map((row, i) => ({ ...row, position: i + 1, team: teams.find(t => t.teamId === row.teamId) }));
+      return { letter, standings, matches: inGroup.filter(involvesHuman) };
+    });
+
+  const outcomes = listOutcomes(db, championshipId);
+  const stats = playerStats({
+    players: c.players.map(p => ({ id: p.playerId, name: p.playerName })),
+    entries: outcomes.map(o => ({ ...o, championshipId })),
+    matches,
+  });
+  const players = outcomes.map(o => {
+    const row = groups.flatMap(g => g.standings.map(r => ({ ...r, letter: g.letter }))).find(r => r.teamId === o.teamId);
+    return {
+      ...o,
+      groupLetter: row?.letter ?? null,
+      groupPosition: row?.position ?? null,
+      group: row ?? teamRecord(o.teamId, groupMatches),
+      total: o.record,
+      controlled: stats.find(s => s.playerId === o.playerId).cpu,
+    };
+  }).sort((a, b) => REACHED.indexOf(b.reached) - REACHED.indexOf(a.reached)
+    || b.resultStars - a.resultStars || b.group.points - a.group.points || a.playerName.localeCompare(b.playerName));
+
+  return { championship: c, players, groups, playoff: matches.filter(m => m.stage !== 'group' && involvesHuman(m)) };
 }
 
 export function allEntries(db) {

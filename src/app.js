@@ -12,6 +12,7 @@ import { registerGroupRoutes } from './web/routes/groups.js';
 import { registerPlayoffRoutes } from './web/routes/playoff.js';
 import { registerResultRoutes } from './web/routes/results.js';
 import { registerStatsRoutes } from './web/routes/stats.js';
+import { registerRecapRoutes } from './web/routes/recap.js';
 
 export function createApp({ db, rng }) {
   const app = express();
@@ -32,6 +33,7 @@ export function createApp({ db, rng }) {
   registerPlayoffRoutes(app, ctx);
   registerResultRoutes(app, ctx);
   registerStatsRoutes(app, ctx);
+  registerRecapRoutes(app, ctx);
 
   app.use((req, res) => {
     res.status(404).send(page({ title: 'Not found', body: html`<p>Nothing here. <a href="/">Home</a></p>` }));

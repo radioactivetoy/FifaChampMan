@@ -38,7 +38,9 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
    When every player is out (nobody qualified from the groups, or all knocked out in the playoff),
    a banner asks for the winner simulated by the console and closes the championship; if a player
    wins, it offers to close it.
-8. **Stats** – all-time table.
+8. **Recap** – per championship: each player's result and stats (group position, points, goals,
+   all matches, record as CPU controller), the groups with players and all their matches.
+9. **Stats** – all-time table.
 
 Everything (teams, controllers, scores, groups, stages, stars) can be edited at any time.
 
