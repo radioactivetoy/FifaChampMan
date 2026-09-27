@@ -9,6 +9,7 @@ import { fillField, FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../domain/field.js'
 import { makePots, drawGroups, GROUP_LETTERS } from '../domain/draw.js';
 import { groupFixtures } from '../domain/fixtures.js';
 import { REACHED } from '../domain/stages.js';
+import { STAR_LEVELS } from '../domain/tiers.js';
 
 // ---------- championships ----------
 
@@ -72,10 +73,14 @@ function previousChampionshipId(db, playerId, championshipId) {
   return get(db, 'SELECT MAX(championship_id) AS id FROM championship_players WHERE player_id = ? AND championship_id < ?', playerId, championshipId)?.id ?? null;
 }
 
-function offerFor(db, championshipId, playerId, rng) {
+/**
+ * Team offer for a player: from their level (targetStars, or the result of their previous
+ * championship when not given). Going up versus the previous championship offers two teams.
+ */
+function offerFor(db, championshipId, playerId, rng, { targetStars: level } = {}) {
   const prevId = previousChampionshipId(db, playerId, championshipId);
   const prev = prevId ? playerOutcome(db, prevId, playerId) : null;
-  const targetStars = prev?.resultStars ?? 0.5;
+  const targetStars = level ?? prev?.resultStars ?? 0.5;
   const taken = new Set([
     ...all(db, 'SELECT team_id AS teamId, offered_team_ids AS offered FROM championship_players WHERE championship_id = ? AND player_id != ?', championshipId, playerId)
       .flatMap(r => [r.teamId, ...JSON.parse(r.offered)]),
@@ -106,8 +111,24 @@ export function removeChampionshipPlayer(db, championshipId, playerId) {
   run(db, 'DELETE FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
 }
 
+/** New random team(s) at the player's current level (which may have been overridden). */
 export function rerollOffer(db, championshipId, playerId, rng) {
-  transaction(db, () => applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng)));
+  transaction(db, () => {
+    const entry = get(db, 'SELECT stars FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
+    if (!entry) throw new UserError('That player is not in this championship');
+    applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: entry.stars }));
+  });
+}
+
+/** Overrides the player's level for this championship and draws their team(s) from that tier. */
+export function setPlayerLevel(db, championshipId, playerId, stars, rng) {
+  if (!STAR_LEVELS.includes(stars)) throw new UserError(`${stars} is not a star level`);
+  transaction(db, () => {
+    if (!get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId)) {
+      throw new UserError('That player is not in this championship');
+    }
+    applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: stars }));
+  });
 }
 
 /** Replaces the player's team everywhere (field slot, pot, group, matches). */

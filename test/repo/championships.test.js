@@ -49,6 +49,39 @@ test('next championship: going up offers two teams, otherwise assigned', () => {
   assert.ok(b.teamId);
 });
 
+test('player level can be overridden: team re-drawn from that tier and kept on re-draw', () => {
+  const { db, players, rng } = setup();
+  const [ana] = players;
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: [ana], rng });
+  const oldTeam = C.getChampionship(db, id).players[0].teamId;
+
+  C.setPlayerLevel(db, id, ana, 4, rng); // first championship: no previous level, so one team is assigned
+  let p = C.getChampionship(db, id).players[0];
+  assert.equal(p.stars, 4);
+  assert.equal(p.team.stars, 4);
+  assert.notEqual(p.teamId, oldTeam);
+  assert.ok(!C.getChampionship(db, id).teams.some(t => t.teamId === oldTeam)); // old team left the field
+
+  C.rerollOffer(db, id, ana, rng);
+  p = C.getChampionship(db, id).players[0];
+  assert.equal(p.stars, 4);
+  assert.equal(p.team.stars, 4);
+
+  assert.throws(() => C.setPlayerLevel(db, id, ana, 4.2, rng), UserError);
+});
+
+test('raising the level above the previous championship offers two teams', () => {
+  const { db, players, rng } = setup();
+  const [ana] = players;
+  C.createChampionship(db, { name: 'Cup 1', playerIds: [ana], rng }); // played at 0.5★
+  const id = C.createChampionship(db, { name: 'Cup 2', playerIds: [ana], rng });
+  C.setPlayerLevel(db, id, ana, 3, rng);
+  const p = C.getChampionship(db, id).players[0];
+  assert.equal(p.stars, 3);
+  assert.equal(p.offered.length, 2);
+  assert.ok(p.offered.every(t => t.stars === 3));
+});
+
 test('result override drives the next level', () => {
   const { db, players, rng } = setup();
   const c1 = C.createChampionship(db, { name: 'Cup 1', playerIds: [players[0]], rng });

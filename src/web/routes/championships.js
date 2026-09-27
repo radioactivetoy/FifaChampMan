@@ -1,5 +1,6 @@
 import { html, page, select } from '../html.js';
-import { intOrNull, requiredText, toArray } from '../form.js';
+import { intOrNull, numOrNull, requiredText, toArray } from '../form.js';
+import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
@@ -63,7 +64,10 @@ export function registerChampionshipRoutes(app, { db, rng }) {
           <span class="muted">Used by re-draws and the random field.</span></form>
         <table><thead><tr><th>Player</th><th>Level</th><th>Team</th><th>Choose between</th><th></th></tr></thead><tbody>
         ${c.players.map(p => { const base = `/championships/${c.id}/players/${p.playerId}`; return html`<tr>
-          <td>${p.playerName}</td><td>${stars(p.stars)}</td>
+          <td>${p.playerName}</td>
+          <td><form method="post" action="${base}/level" class="inline"
+              onsubmit="return confirm('Change the level and draw a new team from that tier?')">
+            ${select({ name: 'stars', items: STAR_LEVELS.map(s => ({ value: s, label: stars(s) })), selected: p.stars })}<button>Set</button></form></td>
           <td>${p.team ? badge(p.team) : ''}<form method="post" action="${base}/team" class="inline">${select({ name: 'teamId', items: teamItems, selected: p.teamId, blank: '— pick a team —' })}<button>Set</button></form></td>
           <td>${p.offered.length > 1
             ? p.offered.map(t => html`<form method="post" action="${base}/team" class="inline"><input type="hidden" name="teamId" value="${t.id}"><button class="${t.id === p.teamId ? 'primary' : ''}">${badge(t)}${t.name} (${t.ovr})</button></form> `)
@@ -132,6 +136,13 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     const teamId = intOrNull(req.body.teamId);
     if (teamId == null) throw new UserError('Pick a team');
     C.setPlayerTeam(db, Number(req.params.id), Number(req.params.playerId), teamId);
+    res.redirect(`/championships/${req.params.id}`);
+  });
+
+  app.post('/championships/:id/players/:playerId/level', (req, res) => {
+    const level = numOrNull(req.body.stars);
+    if (level == null) throw new UserError('Pick a star level');
+    C.setPlayerLevel(db, Number(req.params.id), Number(req.params.playerId), level, rng);
     res.redirect(`/championships/${req.params.id}`);
   });
 

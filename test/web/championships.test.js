@@ -34,7 +34,16 @@ test('create a championship and manage its players and teams', async () => {
     await app.post(`/championships/${id}/players/${ana}/team`, { teamId: free.id });
     assert.equal(getChampionship(app.db, id).players.find(p => p.playerId === ana).teamId, free.id);
 
+    // Level override from the players table
+    assert.match((await app.get(`/championships/${id}`)).text, new RegExp(`action="/championships/${id}/players/${ben}/level"`));
+    await app.post(`/championships/${id}/players/${ben}/level`, { stars: '3.5' });
+    const benEntry = getChampionship(app.db, id).players.find(p => p.playerId === ben);
+    assert.equal(benEntry.stars, 3.5);
+    assert.equal(benEntry.team.stars, 3.5);
+    assert.equal((await app.post(`/championships/${id}/players/${ben}/level`, { stars: '' })).status, 400);
+
     await app.post(`/championships/${id}/players/${ben}/reroll`);
+    assert.equal(getChampionship(app.db, id).players.find(p => p.playerId === ben).stars, 3.5);
     await app.post(`/championships/${id}/players/${cris}/remove`);
     await app.post(`/championships/${id}`, { name: 'Renamed' });
     assert.equal(getChampionship(app.db, id).name, 'Renamed');
