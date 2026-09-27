@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   setupTeamFilter();
   setupCpuToggle();
+  document.querySelectorAll("table[data-sortable]").forEach(setupSortableTable);
 });
 
 // Hides [data-filter-row] elements that don't match the controls inside [data-filter-bar].
@@ -41,4 +42,27 @@ function setupCpuToggle() {
   };
   toggle.addEventListener('change', apply);
   apply();
+}
+
+// Click a header to sort by that column (numbers numerically, using a cell's data-sort when present); click again to reverse.
+function setupSortableTable(table) {
+  const headers = [...table.tHead.rows[0].cells];
+  headers.forEach((th, col) => {
+    th.style.cursor = 'pointer';
+    th.title = 'Sort';
+    th.addEventListener('click', () => {
+      const desc = th.dataset.dir !== 'desc';
+      headers.forEach(h => { delete h.dataset.dir; h.textContent = h.textContent.replace(/ [▲▼]$/, ''); });
+      th.dataset.dir = desc ? 'desc' : 'asc';
+      th.textContent += desc ? ' ▼' : ' ▲';
+      const key = row => { const cell = row.cells[col]; return cell.dataset.sort ?? cell.textContent.trim(); };
+      const rows = [...table.tBodies[0].rows].sort((a, b) => {
+        const [x, y] = [key(a), key(b)];
+        const [nx, ny] = [Number(x), Number(y)];
+        const cmp = !Number.isNaN(nx) && !Number.isNaN(ny) && x !== '' && y !== '' ? nx - ny : x.localeCompare(y);
+        return desc ? -cmp : cmp;
+      });
+      table.tBodies[0].append(...rows);
+    });
+  });
 }

@@ -284,6 +284,18 @@ export function championshipRecap(db, championshipId) {
   return { championship: c, players, groups, playoff: matches.filter(m => m.stage !== 'group' && involvesHuman(m)) };
 }
 
+/** Every championship (oldest first) with its winning team and the player who owned it, if any. */
+export function listChampions(db) {
+  const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
+  return all(db, `SELECT c.id AS championshipId, c.name AS championshipName, c.status, ct.team_id AS teamId, p.name AS playerName
+      FROM championships c
+      LEFT JOIN championship_teams ct ON ct.championship_id = c.id AND ct.reached = 'champion'
+      LEFT JOIN championship_players cp ON cp.championship_id = c.id AND cp.team_id = ct.team_id
+      LEFT JOIN players p ON p.id = cp.player_id
+      ORDER BY c.id`)
+    .map(r => ({ ...r, team: teamsById.get(r.teamId) ?? null }));
+}
+
 export function allEntries(db) {
   return all(db, `SELECT cp.championship_id AS championshipId, c.name AS championshipName, cp.player_id AS playerId
       FROM championship_players cp JOIN championships c ON c.id = cp.championship_id ORDER BY cp.championship_id`)

@@ -21,8 +21,8 @@ function addResult(rec, gf, ga) {
 export function playerStats({ players, entries, matches }) {
   const ownerOf = new Map(entries.map(e => [`${e.championshipId}:${e.teamId}`, e.playerId]));
   const byPlayer = new Map(players.map(p => [p.id, {
-    playerId: p.id, name: p.name, championships: 0, titles: 0, bestReached: null,
-    own: emptyRecord(), cpu: emptyRecord(), history: [],
+    playerId: p.id, name: p.name, championships: 0, titles: 0, finals: 0, qualified: 0, bestReached: null,
+    avgStars: null, lastStars: null, own: emptyRecord(), cpu: emptyRecord(), history: [],
   }]));
 
   for (const e of entries) {
@@ -30,8 +30,15 @@ export function playerStats({ players, entries, matches }) {
     if (!s) continue;
     s.championships++;
     if (e.reached === 'champion') s.titles++;
+    if (rank(e.reached) >= rank('final')) s.finals++;
+    if (rank(e.reached) >= rank('r16')) s.qualified++;
     if (rank(e.reached) > rank(s.bestReached)) s.bestReached = e.reached;
-    s.history.push({ championshipId: e.championshipId, championshipName: e.championshipName, stars: e.stars, reached: e.reached, resultStars: e.resultStars });
+    s.history.push({ championshipId: e.championshipId, championshipName: e.championshipName, teamId: e.teamId, stars: e.stars, reached: e.reached, resultStars: e.resultStars });
+  }
+  for (const s of byPlayer.values()) {
+    if (s.history.length === 0) continue;
+    s.avgStars = Math.round((s.history.reduce((sum, h) => sum + h.resultStars, 0) / s.history.length) * 100) / 100;
+    s.lastStars = s.history.at(-1).resultStars;
   }
 
   for (const m of matches) {
@@ -50,4 +57,42 @@ export function playerStats({ players, entries, matches }) {
 
   return [...byPlayer.values()].sort((a, b) =>
     b.titles - a.titles || rank(b.bestReached) - rank(a.bestReached) || a.name.localeCompare(b.name));
+}
+
+const sidesOf = m => [
+  { teamId: m.homeTeamId, controllerId: m.homeControllerId, goalsFor: m.homeScore, goalsAgainst: m.awayScore },
+  { teamId: m.awayTeamId, controllerId: m.awayControllerId, goalsFor: m.awayScore, goalsAgainst: m.homeScore },
+];
+
+/**
+ * Record of every player against every other player they faced, whoever's team each used
+ * (own team or a CPU team they controlled). Returns { [playerId]: { [opponentId]: record } }.
+ */
+export function headToHead(matches) {
+  const h = {};
+  for (const m of matches) {
+    if (!hasResult(m)) continue;
+    const [home, away] = sidesOf(m);
+    if (home.controllerId == null || away.controllerId == null || home.controllerId === away.controllerId) continue;
+    for (const [me, them] of [[home, away], [away, home]]) {
+      h[me.controllerId] ??= {};
+      h[me.controllerId][them.controllerId] ??= emptyRecord();
+      addResult(h[me.controllerId][them.controllerId], me.goalsFor, me.goalsAgainst);
+    }
+  }
+  return h;
+}
+
+/** The largest winning margins where a player controlled the winning side (ties: more goals first). */
+export function biggestWins(matches, limit = 5) {
+  return matches.filter(hasResult).flatMap(m => {
+    const [home, away] = sidesOf(m);
+    const [winner, loser] = m.homeScore > m.awayScore ? [home, away] : m.awayScore > m.homeScore ? [away, home] : [];
+    if (!winner || winner.controllerId == null) return [];
+    return [{
+      match: m, winnerId: winner.controllerId, loserId: loser.controllerId ?? null,
+      winnerTeamId: winner.teamId, loserTeamId: loser.teamId, goalsFor: winner.goalsFor, goalsAgainst: winner.goalsAgainst,
+    }];
+  }).sort((a, b) => (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst) || b.goalsFor - a.goalsFor)
+    .slice(0, limit);
 }

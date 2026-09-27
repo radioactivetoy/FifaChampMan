@@ -37,3 +37,13 @@ tr[data-cpu-only] { display: none; }
 body.show-cpu tr[data-cpu-only] { display: table-row; }
 .banner { background: #fff7e0; border: 1px solid #f0c75e; border-radius: 8px; padding: 10px 14px; margin: 8px 0 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .danger-zone { border-color: #f1b5ae; background: #fff6f5; max-width: 720px; }
+.stat-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; margin: 8px 0 16px; }
+.stat-card .stat-value { font-size: 20px; font-weight: 700; margin: 2px 0; }
+.scroll-x { overflow-x: auto; }
+table.grid td, table.grid th { text-align: center; border-left: 1px solid var(--line); }
+.reached-champion { background: #fff3c4; }
+.reached-final { background: #fdf7df; }
+.reached-sf, .reached-qf { background: #eef6ee; }
+.reached-r16 { background: #f3f8f3; }
+.h2h-up { background: #e8f5e9; }
+.h2h-down { background: #fdecea; }
