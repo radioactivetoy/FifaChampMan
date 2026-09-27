@@ -71,7 +71,7 @@ test('field, draw and fixtures', () => {
   assert.ok(c.teams.every(t => t.pot >= 1 && t.pot <= 4 && /^[A-H]$/.test(t.groupLetter)));
   C.generateGroupFixtures(db, id);
   const matches = listMatches(db, id);
-  assert.equal(matches.length, 96);
+  assert.equal(matches.length, 48);
   const owned = c.players[0];
   const humanMatch = matches.find(m => m.homeTeamId === owned.teamId);
   assert.equal(humanMatch.homeControllerId, owned.playerId);

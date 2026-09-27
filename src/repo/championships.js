@@ -192,7 +192,7 @@ export function setPlacement(db, championshipId, teamId, { pot, groupLetter }) {
     pot ?? null, groupLetter ?? null, championshipId, teamId);
 }
 
-/** Creates all 96 group matches (8 groups x 12). Owners control their teams; CPU controllers are drawn per match later. */
+/** Creates all 48 group matches (8 groups x 6, single round). Owners control their teams; CPU controllers are drawn per match later. */
 export function generateGroupFixtures(db, championshipId) {
   transaction(db, () => {
     if (hasGroupMatches(db, championshipId)) throw new UserError('Group fixtures already exist; clear them first');

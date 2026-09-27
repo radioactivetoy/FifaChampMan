@@ -1,0 +1,34 @@
+:root { --bg: #f6f7f9; --fg: #1d2330; --muted: #6b7280; --accent: #1f5fbf; --line: #d9dde3; --danger: #b42318; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.45 system-ui, sans-serif; background: var(--bg); color: var(--fg); }
+header { background: #0b1f44; }
+header nav { display: flex; gap: 4px; padding: 8px 16px; flex-wrap: wrap; }
+header nav a { color: #fff; text-decoration: none; padding: 6px 10px; border-radius: 6px; }
+header nav a:hover { background: rgba(255,255,255,.12); }
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+h1 { margin: 8px 0 16px; }
+h2 { margin-top: 28px; }
+table { border-collapse: collapse; width: 100%; background: #fff; margin: 8px 0 16px; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: middle; }
+th { font-size: 13px; color: var(--muted); font-weight: 600; }
+.right { text-align: right; }
+input, select, button { font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+button { cursor: pointer; background: #eef2f8; }
+button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+button.danger { color: var(--danger); }
+input.num { width: 4.5em; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.inline { display: inline; }
+.muted { color: var(--muted); }
+.error { color: var(--danger); font-weight: 600; }
+.owner { color: var(--accent); font-weight: 600; }
+.tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+.tabs a { padding: 8px 12px; text-decoration: none; color: var(--fg); border-radius: 6px 6px 0 0; }
+.tabs a.active { background: #fff; border: 2px solid var(--line); border-bottom-color: #fff; margin-bottom: -2px; }
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 12px 0; }
+.card { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.card h3 { margin: 4px 0; }
+.score { white-space: nowrap; text-align: center; }
+.actions { white-space: nowrap; }
+textarea { width: 100%; min-height: 200px; font-family: ui-monospace, monospace; }
+img.badge { width: 20px; height: 20px; object-fit: contain; vertical-align: middle; margin-right: 6px; }

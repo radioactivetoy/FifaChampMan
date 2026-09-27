@@ -34,7 +34,7 @@ These resolve ambiguities in the original request. Implement exactly this.
 3. **Team assignment for a new championship:** target stars = result stars of the player's previous championship (0.5 if none). If target > previous level → offered **2 random teams** of that tier to choose from. Otherwise (first championship, same or lower) → **1 random team assigned**. Teams already taken/offered to other players or already in the field are excluded. Always manually overridable, re-drawable.
 4. **Field:** 32 teams = all human teams + CPU teams chosen randomly per star tier using editable quotas (default `5:4, 4.5:4, 4:4, 3.5:3, 3:3, 2.5:3, 2:3, 1.5:3, 1:3, 0.5:2` = 32; human teams count toward their tier's quota; shortages are topped up randomly, overflow trimmed randomly). Teams can be added/removed manually.
 5. **Draw:** classic CL, 8 groups (A–H) of 4. Pots = field sorted by OVR desc, 8 per pot. Teams drawn pot by pot in random order; each goes to the first group (alphabetically) that has no team from its pot, has no team from the same country, and keeps the rest of the draw solvable. If impossible with the country rule, the country rule is dropped. Human teams follow the same rules (two humans can share a group). Pot and group are manually editable.
-6. **Group fixtures:** double round robin, 6 matchdays, classic CL order.
+6. **Group fixtures:** single round robin — each team plays the other three once (3 matchdays, 6 matches per group, 48 in total).
 7. **Controllers:** a human team is always controlled by its owner (set automatically when fixtures/matches are created). Because we don't know in advance in which order matches will be played, CPU controllers are **not** pre-assigned: when you are about to play a match you press **🎲 Draw** on that match, and a CPU team playing a human team gets a random controller from the championship's players, excluding the opponent's owner, choosing only among eligible players with the **fewest turns so far in the same rotation scope** (counted over matches that already have a controller — "nobody repeats until everyone has played"). Then you enter the result. Scope = the group for the group stage, the whole playoff for knockout matches. CPU-vs-CPU matches are simulated by the console: they get no controllers and entering their result is optional. All controllers are editable and re-drawable.
 8. **Qualification & playoff:** entered manually. Each field team has a `reached` value (`group`, `r16`, `qf`, `sf`, `final`, `champion`) set by hand. Playoff matches (stage, optional leg, teams, score, optional penalties) are added by hand; controllers are suggested using rule 7.
 9. **Stats per player (all championships):** championships played, titles, best finish, own-team record (W/D/L, GF/GA), record while controlling CPU teams, and star history.
@@ -101,7 +101,7 @@ test/domain/*.test.js, test/repo/*.test.js, test/web/*.test.js
   "engines": { "node": ">=24" },
   "scripts": {
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "express": "^5.1.0"
@@ -2044,7 +2044,7 @@ test('field, draw and fixtures', () => {
   assert.ok(c.teams.every(t => t.pot >= 1 && t.pot <= 4 && /^[A-H]$/.test(t.groupLetter)));
   C.generateGroupFixtures(db, id, rng);
   const matches = listMatches(db, id);
-  assert.equal(matches.length, 96);
+  assert.equal(matches.length, 48);
   const owned = c.players[0];
   const humanMatch = matches.find(m => m.homeTeamId === owned.teamId);
   assert.equal(humanMatch.homeControllerId, owned.playerId);
@@ -2339,7 +2339,7 @@ export function setPlacement(db, championshipId, teamId, { pot, groupLetter }) {
     pot ?? null, groupLetter ?? null, championshipId, teamId);
 }
 
-/** Creates all 96 group matches (8 groups x 12). Owners control their teams; CPU controllers are drawn per match later. */
+/** Creates all 48 group matches (8 groups x 6, single round). Owners control their teams; CPU controllers are drawn per match later. */
 export function generateGroupFixtures(db, championshipId) {
   transaction(db, () => {
     if (hasGroupMatches(db, championshipId)) throw new UserError('Group fixtures already exist; clear them first');
@@ -3675,7 +3675,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     const id = await drawnChampionship(app);
     await app.post(`/championships/${id}/groups/fixtures`);
     const matches = listMatches(app.db, id);
-    assert.equal(matches.length, 96);
+    assert.equal(matches.length, 48);
 
     const m = matches[0];
     const [p] = getChampionship(app.db, id).players;
@@ -3701,7 +3701,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     assert.ok(drawn != null && drawn !== ownerOf(vsCpu.homeTeamId).playerId);
 
     await app.post(`/championships/${id}/matches/${m.id}/delete`);
-    assert.equal(listMatches(app.db, id).length, 95);
+    assert.equal(listMatches(app.db, id).length, 47);
 
     await app.post(`/championships/${id}/groups/fixtures/clear`);
     assert.equal(listMatches(app.db, id).length, 0);

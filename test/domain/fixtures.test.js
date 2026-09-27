@@ -2,13 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { groupFixtures } from '../../src/domain/fixtures.js';
 
-test('12 matches over 6 matchdays, every ordered pair once, one game per team per matchday', () => {
+test('single round: 6 matches over 3 matchdays, every pair once, one game per team per matchday', () => {
   const fx = groupFixtures([10, 20, 30, 40]);
-  assert.equal(fx.length, 12);
-  const pairs = new Set(fx.map(m => `${m.homeTeamId}-${m.awayTeamId}`));
-  assert.equal(pairs.size, 12);
-  for (const a of [10, 20, 30, 40]) for (const b of [10, 20, 30, 40]) if (a !== b) assert.ok(pairs.has(`${a}-${b}`));
-  for (let md = 1; md <= 6; md++) {
+  assert.equal(fx.length, 6);
+  const pairs = new Set(fx.map(m => [m.homeTeamId, m.awayTeamId].sort().join('-')));
+  assert.equal(pairs.size, 6);
+  for (const team of [10, 20, 30, 40]) {
+    assert.equal(fx.filter(m => m.homeTeamId === team || m.awayTeamId === team).length, 3);
+  }
+  for (let md = 1; md <= 3; md++) {
     const day = fx.filter(m => m.matchday === md);
     assert.equal(day.length, 2);
     assert.equal(new Set(day.flatMap(m => [m.homeTeamId, m.awayTeamId])).size, 4);
