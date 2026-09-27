@@ -4,7 +4,10 @@ import { championshipProgress } from '../domain/progress.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
 
-const icon = url => (url ? html`<img class="badge" src="${url}" alt="" loading="lazy">` : '');
+// Badges use the site's "light" images (for light backgrounds); if one is missing, fall back to "dark" once.
+const icon = url => (url
+  ? html`<img class="badge" src="${url}" alt="" loading="lazy" onerror="this.onerror=null;this.src=this.src.replace('/light/','/dark/')">`
+  : '');
 
 /** Club badge, league badge and country flag images (from imported URLs), or nothing. */
 export const badge = t => icon(t.badgeUrl);

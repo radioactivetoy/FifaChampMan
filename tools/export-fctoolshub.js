@@ -34,7 +34,7 @@
         name: img[0].alt || a.querySelector('span')?.innerText.trim(),
         league: img[1]?.alt ?? '', country: img[2]?.alt ?? '',
         ovr: a.querySelector('.font-bold')?.innerText.trim(),
-        badge: img[0].src,
+        badge: img[0].src.replace('/clubs/dark/', '/clubs/light/'),
         leagueBadge: (img[1]?.src ?? '').replace('/leagues/dark/', '/leagues/light/'),
         flag: img[2]?.src ?? '',
       });
