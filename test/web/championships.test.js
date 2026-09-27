@@ -40,8 +40,17 @@ test('create a championship and manage its players and teams', async () => {
     assert.equal(getChampionship(app.db, id).name, 'Renamed');
     assert.match((await app.get('/championships')).text, /Renamed/);
 
-    await app.post(`/championships/${id}/delete`);
+    // Deleting needs the exact championship name typed in
+    assert.match((await app.get(`/championships/${id}`)).text, /name="confirmName"/);
+    assert.equal((await app.post(`/championships/${id}/delete`)).status, 400);
+    assert.equal((await app.post(`/championships/${id}/delete`, { confirmName: 'renamed' })).status, 400);
+    assert.equal(getChampionship(app.db, id).name, 'Renamed');
+    const del = await app.post(`/championships/${id}/delete`, { confirmName: ' Renamed ' });
+    assert.equal(del.location, '/championships');
     assert.equal((await app.get(`/championships/${id}`)).status, 404);
+    for (const table of ['championship_players', 'championship_teams', 'matches']) {
+      assert.equal(app.db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE championship_id = ?`).get(id).n, 0, table);
+    }
   } finally {
     await app.close();
   }

@@ -76,7 +76,15 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         ${others.length ? html`<form method="post" action="/championships/${c.id}/players" class="row">
           ${select({ name: 'playerId', items: others.map(p => ({ value: p.id, label: p.name })) })}<button>Add player</button></form>` : ''}
         <h2>Danger zone</h2>
-        <form method="post" action="/championships/${c.id}/delete" onsubmit="return confirm('Delete this championship and all its matches?')"><button class="danger">Delete championship</button></form>`,
+        <form method="post" action="/championships/${c.id}/delete" class="card danger-zone"
+          onsubmit="return confirm('Permanently delete this championship and all its data? This cannot be undone.')">
+          <p><strong>Delete this championship.</strong> Its players, teams, draw, matches and results are removed
+            for good and it disappears from the stats. This cannot be undone — back up <code>champman.db</code> first if unsure.</p>
+          <p class="row"><label>Type <strong>${c.name}</strong> to confirm:
+            <input name="confirmName" autocomplete="off" required data-confirm-name="${c.name}"
+              oninput="this.form.querySelector('button').disabled = this.value.trim() !== this.dataset.confirmName"></label>
+            <button class="danger" disabled>Delete championship</button></p>
+        </form>`,
     }));
   });
 
@@ -105,7 +113,11 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   });
 
   app.post('/championships/:id/delete', (req, res) => {
-    C.deleteChampionship(db, Number(req.params.id));
+    const c = C.getChampionship(db, Number(req.params.id));
+    if (String(req.body.confirmName ?? '').trim() !== c.name) {
+      throw new UserError(`To delete, type the championship name exactly: "${c.name}"`);
+    }
+    C.deleteChampionship(db, c.id);
     res.redirect('/championships');
   });
 
