@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCpuToggle();
   document.querySelectorAll("table[data-sortable]").forEach(setupSortableTable);
   setupViewSwitch();
+  markCurrentNav();
 });
 
 // Hides [data-filter-row] elements that don't match the controls inside [data-filter-bar].
@@ -75,4 +76,13 @@ function setupViewSwitch() {
     document.querySelectorAll('[data-h2h-view]').forEach(v => { v.hidden = v.dataset.h2hView !== button.dataset.h2hShow; });
     buttons.forEach(b => b.classList.toggle('primary', b === button));
   }));
+}
+
+// Highlights the header link of the section being viewed.
+function markCurrentNav() {
+  const path = location.pathname === '/' ? '/championships' : location.pathname;
+  for (const a of document.querySelectorAll('header nav a')) {
+    const href = a.getAttribute('href');
+    a.classList.toggle('current', path === href || path.startsWith(`${href}/`));
+  }
 }

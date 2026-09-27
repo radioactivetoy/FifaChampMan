@@ -33,7 +33,9 @@ export function page({ title, body }) {
   return '<!doctype html>' + html`<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title} · ChampMan</title><link rel="stylesheet" href="/style.css"><script src="/filter.js" defer></script></head>
-<body><header><nav>
+<body><header><div class="bar">
+<a class="brand" href="/"><span class="brand-mark">★</span><span>ChampMan<small>EA FC Champions League</small></span></a>
+<nav>
 <a href="/championships">Championships</a><a href="/players">Players</a><a href="/teams">Teams</a><a href="/templates">Templates</a><a href="/stats">Stats</a><a href="/settings/tiers">Star tiers</a>
-</nav></header><main><h1>${title}</h1>${body}</main></body></html>`;
+</nav></div></header><main><h1>${title}</h1>${body}</main></body></html>`;
 }

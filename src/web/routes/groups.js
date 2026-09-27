@@ -26,7 +26,7 @@ export function registerGroupRoutes(app, { db, rng }) {
             <button class="${qualified ? 'primary' : ''}">${qualified ? `✓ ${REACHED_LABELS[t.reached]}` : 'No'}</button></form></td>
         </tr>`; })}
         </tbody></table>
-        <table><tbody>${groupMatches.map(m => matchRow(c, m))}</tbody></table></section>`;
+        <table class="matches"><tbody>${groupMatches.map(m => matchRow(c, m))}</tbody></table></section>`;
     };
     res.send(page({
       title: c.name,

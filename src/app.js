@@ -19,7 +19,8 @@ export function createApp({ db, rng }) {
   // A full FC club database pasted as CSV is ~150 KB; the default limit is 100 KB.
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
   app.use((req, res, next) => { req.body ??= {}; next(); });
-  app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
+  // maxAge 0: browsers revalidate style.css / filter.js on each load, so updates show up immediately.
+  app.use(express.static(fileURLToPath(new URL('../public', import.meta.url)), { maxAge: 0 }));
 
   const ctx = { db, rng };
   app.get('/', (req, res) => res.redirect('/championships'));

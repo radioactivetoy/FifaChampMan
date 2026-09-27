@@ -31,7 +31,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${PLAYOFF_STAGES.map(stage => {
           const stageMatches = matches.filter(m => m.stage === stage);
-          return stageMatches.length ? html`<h2>${STAGE_LABELS[stage]}</h2><table><tbody>${stageMatches.map(m => matchRow(c, m, { playoff: true }))}</tbody></table>` : '';
+          return stageMatches.length ? html`<h2>${STAGE_LABELS[stage]}</h2><table class="matches"><tbody>${stageMatches.map(m => matchRow(c, m, { playoff: true }))}</tbody></table>` : '';
         })}`,
     }));
   });
