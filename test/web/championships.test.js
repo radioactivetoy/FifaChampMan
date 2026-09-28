@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { startTestApp } from '../helpers.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import { getChampionship } from '../../src/repo/championships.js';
-import { listTeams } from '../../src/repo/teams.js';
+import { listTeams, saveTeam } from '../../src/repo/teams.js';
 import { saveTemplate, setTemplateTeams } from '../../src/repo/templates.js';
 
 test('create a championship and manage its players and teams', async () => {
@@ -69,6 +69,28 @@ test('creating without players is a user error', async () => {
   const app = await startTestApp();
   try {
     assert.equal((await app.post('/championships', { name: 'Empty' })).status, 400);
+  } finally {
+    await app.close();
+  }
+});
+
+test('a new championship picks an edition, defaulting to the current one, and only offers teams from it', async () => {
+  const app = await startTestApp();
+  try {
+    saveTeam(app.db, { name: 'FC27 team', edition: 'FC 27', ovr: 80 });
+    saveTeam(app.db, { name: 'FC26 team', edition: 'FC 26', ovr: 95 });
+    const [ana] = seedPlayers(app.db, ['Ana']);
+
+    const newForm = (await app.get('/championships/new')).text;
+    assert.match(newForm, /name="edition"[^>]*value="FC 27"/);
+
+    const r = await app.post('/championships', { name: 'Cup', playerIds: [ana], edition: 'FC 27' });
+    const id = Number(r.location.split('/').pop());
+    assert.equal(getChampionship(app.db, id).edition, 'FC 27');
+
+    const page = (await app.get(`/championships/${id}`)).text;
+    assert.match(page, /FC 27 · In progress/);
+    assert.doesNotMatch(page, /FC26 team/); // never offered as a team option, even at a higher OVR
   } finally {
     await app.close();
   }

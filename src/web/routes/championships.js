@@ -3,8 +3,9 @@ import { intOrNull, numOrNull, requiredText, toArray } from '../form.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
-import { listTeams } from '../../repo/teams.js';
+import { listTeams, listEditions } from '../../repo/teams.js';
 import { listTemplates } from '../../repo/templates.js';
+import { DEFAULT_EDITION } from '../../domain/editions.js';
 import * as C from '../../repo/championships.js';
 import { UserError } from '../../errors.js';
 
@@ -30,10 +31,14 @@ export function registerChampionshipRoutes(app, { db, rng }) {
 
   app.get('/championships/new', (req, res) => {
     const players = listPlayers(db);
+    const editions = listEditions(db);
     res.send(page({
       title: 'New championship',
       body: html`<form method="post" action="/championships">
         <p><label>Name <input name="name" value="Championship ${new Date().getFullYear()}" required></label></p>
+        <p><label>Edition <input name="edition" list="editions" value="${DEFAULT_EDITION}"></label>
+          <span class="muted">Which FC game's teams this championship draws from.</span></p>
+        <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
         <p><label>Team pool ${templateSelect(db, null)}</label> <a href="/config" class="muted">manage templates</a></p>
         <p>Who plays this time?</p>
         ${players.map(p => html`<p><label><input type="checkbox" name="playerIds" value="${p.id}"> ${p.name}</label></p>`)}
@@ -47,6 +52,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
       name: requiredText(req.body.name, 'Name'),
       playerIds: toArray(req.body.playerIds).map(Number),
       templateId: intOrNull(req.body.templateId),
+      edition: String(req.body.edition ?? '').trim() || DEFAULT_EDITION,
       rng,
     });
     res.redirect(`/championships/${id}`);
@@ -54,7 +60,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
 
   app.get('/championships/:id', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
-    const teamItems = listTeams(db).map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` }));
+    const teamItems = listTeams(db, { edition: c.edition }).map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` }));
     const others = listPlayers(db).filter(p => !c.players.some(cp => cp.playerId === p.id));
     res.send(page({
       title: c.name,
