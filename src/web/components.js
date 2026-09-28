@@ -142,17 +142,18 @@ const ROUND_STAGES = PLAYOFF_STAGES.filter(s => s !== 'final'); // ['r16', 'qf',
 
 /**
  * One playoff leg, as a compact scoreboard row (badge, team dropdown, score) per side — the classic
- * bracket look, instead of matchRow's information-dense table row. Everything else matchRow offers
- * (controllers, penalties, stage/leg, swap/redraw/delete) still exists here, just tucked behind a
- * click to expand rather than always visible — nothing is actually removed. Field names match
- * matchRow's (`${side}TeamId_${m.id}` etc.), so the shared bulk-save form and its parsing don't care
- * which markup produced them.
+ * bracket look, instead of matchRow's information-dense table row. The score rows are plain markup,
+ * always visible; everything else matchRow offers (controllers, penalties, stage/leg, swap/redraw/
+ * delete) still exists, just tucked inside its own small "⋯ more" disclosure below them — nothing is
+ * actually removed. Interactive controls are deliberately kept OUT of any <summary>: a <select>/
+ * <input> nested inside one is a known accessibility footgun (screen readers can flatten or skip
+ * them), so only the plain text "⋯ more" is a summary here. Field names match matchRow's
+ * (`${side}TeamId_${m.id}` etc.), so the shared bulk-save form and its parsing don't care which
+ * markup produced them. byId/teamItems/playerItems are passed in (computed once per page in
+ * playoffBracket) rather than rebuilt per match.
  */
-function bracketMatch(c, m, formId) {
+function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
   const base = `/championships/${c.id}/matches/${m.id}`;
-  const byId = new Map(c.teams.map(t => [t.teamId, t]));
-  const playerItems = c.players.map(p => ({ value: p.playerId, label: p.playerName }));
-  const teamItems = c.teams.map(t => ({ value: t.teamId, label: teamLabel(t) }));
   const num = (name, value) => html`<input form="${formId}" name="${name}_${m.id}" type="number" min="0" class="num" value="${value ?? ''}">`;
   const scoreRow = side => html`<div class="bracket-match-row">
     ${byId.get(m[`${side}TeamId`]) ? badge(byId.get(m[`${side}TeamId`])) : ''}
@@ -160,63 +161,73 @@ function bracketMatch(c, m, formId) {
     ${num(`${side}Score`, m[`${side}Score`])}
   </div>`;
   const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: '— CPU —' });
-  return html`<details class="bracket-match"${isCpuOnly(c, m) ? raw(' data-cpu-only') : ''}>
-    <summary>${scoreRow('home')}${scoreRow('away')}</summary>
-    <div class="bracket-match-extra">
-      <label class="row">Stage ${select({ name: `stage_${m.id}`, form: formId, items: PLAYOFF_STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] })), selected: m.stage })}
-        leg ${num('leg', m.leg)}</label>
-      <label class="row">Home controller ${controller('home')}</label>
-      <label class="row">Away controller ${controller('away')}</label>
-      <p class="row"><small class="muted">Pens</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}</p>
-      <p class="row">
-        <form method="post" action="${base}/swap" class="inline"><button title="Swap home and away">⇄</button></form>
-        <form method="post" action="${base}/reroll" class="inline"><button title="Draw a random player to control the CPU team">🎲 Draw</button></form>
-        <form method="post" action="${base}/delete" class="inline" onsubmit="return confirm('Delete this match?')"><button class="danger">✕ Delete</button></form>
-      </p>
-    </div>
-  </details>`;
+  return html`<div class="bracket-match"${isCpuOnly(c, m) ? raw(' data-cpu-only') : ''}>
+    ${scoreRow('home')}${scoreRow('away')}
+    <details class="bracket-match-more">
+      <summary>⋯ more</summary>
+      <div class="bracket-match-extra">
+        <label class="row">Stage ${select({ name: `stage_${m.id}`, form: formId, items: PLAYOFF_STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] })), selected: m.stage })}
+          leg ${num('leg', m.leg)}</label>
+        <label class="row">Home controller ${controller('home')}</label>
+        <label class="row">Away controller ${controller('away')}</label>
+        <div class="row"><small class="muted">Pens</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}</div>
+        <div class="row">
+          <form method="post" action="${base}/swap" class="inline"><button title="Swap home and away">⇄</button></form>
+          <form method="post" action="${base}/reroll" class="inline"><button title="Draw a random player to control the CPU team">🎲 Draw</button></form>
+          <form method="post" action="${base}/delete" class="inline" onsubmit="return confirm('Delete this match?')"><button class="danger">✕ Delete</button></form>
+        </div>
+      </div>
+    </details>
+  </div>`;
 }
 
 /** One tie's card: both legs plus the aggregate line once decided. `connect`: 'right' | 'left' | null (final has none). */
-function bracketTie(c, tie, stage, formIdOf, byId, connect, paired) {
+function bracketTie(c, tie, stage, formIdOf, byId, teamItems, playerItems, connect, paired) {
   const agg = tieAggregate(tie);
   const winner = agg?.winnerId != null ? byId.get(agg.winnerId) : null;
   const [homeId, awayId] = [tie.matches[0].homeTeamId, tie.matches[0].awayTeamId];
   const connectClass = connect ? ` connect-${connect}${paired ? ' paired' : ''}` : '';
   return html`<div class="bracket-tie${connectClass}">
-    ${tie.matches.map(m => bracketMatch(c, m, formIdOf(stage)))}
+    ${tie.matches.map(m => bracketMatch(c, m, formIdOf(stage), byId, teamItems, playerItems))}
     ${agg ? html`<p class="muted bracket-agg">Agg ${agg.goals[homeId] ?? 0}-${agg.goals[awayId] ?? 0}${winner ? html` · <strong>${winner.name}</strong> through` : agg.winnerId === null ? html` · level (penalties/replay decide)` : ''}</p>` : ''}
   </div>`;
 }
 
 /**
  * The elbow joining a pair of ties (indices 2j, 2j+1 of `count` total in this round) to the single
- * tie they feed in the next round: a vertical bar spanning exactly between the pair's two centres,
- * plus a short stub continuing on toward that next tie. These are exact percentages, not a CSS
- * approximation — `justify-content: space-around` places tie i's centre at (i+0.5)/count of the
- * container's height, so a pair's midpoint (which is also where the next round's tie lands, by the
- * same formula one level up) is fully determined by `count` and the pair's index alone.
+ * tie they feed in the next round: a vertical bar plus a short stub continuing on toward that next
+ * tie. `top`/`height` here are only a *rough starting guess*, assuming every tie in the round is the
+ * same height and `justify-content: space-around` spaces them with no gap — neither holds in
+ * general (a CPU-only tie collapses when hidden, a two-legged tie is taller than a one-legged one,
+ * an expanded "⋯ more" grows, and the 18px `gap` itself shifts things). `public/filter.js`'s
+ * `setupBracketConnectors` measures the real, rendered tie positions after load (and after anything
+ * that can change a tie's height) and overwrites these with the true pixel values — this CSS/inline
+ * guess only avoids a visible jump for the split second before that JS runs (or if it doesn't, e.g.
+ * with JS disabled).
  */
 function pairConnector(pairIndex, count, side) {
   const top = ((2 * pairIndex + 0.5) / count) * 100;
   const height = (1 / count) * 100;
-  return html`<div class="bracket-pair-connector side-${side}" style="top:${top}%;height:${height}%"></div>`;
+  return html`<div class="bracket-pair-connector side-${side}" data-pair-index="${pairIndex}" style="top:${top}%;height:${height}%"></div>`;
 }
 
 /**
  * The playoff as a two-sided bracket tree, like a real knockout draw: each round's ties split into
  * a left half and a right half (this app never assigns a tie to a "side" — there's no seeding, matches
- * are added by hand — so the split is purely positional, by the order ties were first added; see
- * `domain/stages.js`'s `splitTies`), rounds narrowing inward from both edges toward a single Final
- * column in the middle. Where a round's tie count is exactly double the next round's (the normal,
- * fully-populated case), pairs are joined by a real elbow connector (`pairConnector`); otherwise each
- * tie just gets a short stub hinting at the shape, since there's nothing to actually pair it with.
- * Editing is unchanged — every matchRow inside still targets `formIdOf(stage)` via its `form`
- * attribute, so the caller's one "Save results" button per stage (rendered separately, not inside
- * this tree) saves everything in that stage together, exactly as before.
+ * are added by hand — so the split is purely positional; see `domain/stages.js`'s `splitTies`), rounds
+ * narrowing inward from both edges toward a single Final column in the middle. Where a round's tie count is exactly double the
+ * next round's (the normal, fully-populated case), pairs are joined by a real elbow connector
+ * (`pairConnector` — see its own doc comment on why the browser, not this function, has the final say
+ * on exactly where); otherwise each tie just gets a short stub hinting at the shape, since there's
+ * nothing to actually pair it with. Editing is unchanged — every bracketMatch inside still targets
+ * `formIdOf(stage)` via its `form` attribute, so the caller's one "Save results" button per stage
+ * (rendered separately, not inside this tree) saves everything in that stage together, exactly as
+ * before.
  */
 export function playoffBracket(c, matches, formIdOf) {
   const byId = new Map(c.teams.map(t => [t.teamId, t]));
+  const teamItems = c.teams.map(t => ({ value: t.teamId, label: teamLabel(t) }));
+  const playerItems = c.players.map(p => ({ value: p.playerId, label: p.playerName }));
   const tiesByStage = new Map(PLAYOFF_STAGES.map(stage => [stage, groupTies(matches.filter(m => m.stage === stage))]));
 
   // The heading sits outside the ties' own flex box, so `space-around`/`center` below only ever
@@ -227,7 +238,7 @@ export function playoffBracket(c, matches, formIdOf) {
     const pairs = paired ? Array.from({ length: nextTies.length }, (_, j) => pairConnector(j, ties.length, connect)) : '';
     return html`<div class="bracket-round${extraClass}">
       <h3>${STAGE_LABELS[stage]}</h3>
-      <div class="bracket-round-ties">${ties.map(tie => bracketTie(c, tie, stage, formIdOf, byId, connect, paired))}${pairs}</div>
+      <div class="bracket-round-ties">${ties.map(tie => bracketTie(c, tie, stage, formIdOf, byId, teamItems, playerItems, connect, paired))}${pairs}</div>
     </div>`;
   };
 

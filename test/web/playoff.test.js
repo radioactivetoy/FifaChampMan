@@ -148,10 +148,18 @@ test('a bracket match shows a compact scoreboard by default; controller/pens/leg
     const [m] = listMatches(app.db, id);
 
     const text = (await app.get(`/championships/${id}/playoff`)).text;
-    // Closed by default: no `open` attribute on the <details>.
-    assert.doesNotMatch(text, /<details class="bracket-match"[^>]*\bopen\b/);
-    assert.match(text, new RegExp(`<details class="bracket-match"[^>]*>\\s*<summary>[\\s\\S]*?name="homeTeamId_${m.id}"[\\s\\S]*?name="homeScore_${m.id}"[\\s\\S]*?name="awayTeamId_${m.id}"[\\s\\S]*?name="awayScore_${m.id}"[\\s\\S]*?</summary>`));
-    // The rest still exists, just inside the expandable body, not the always-visible summary.
+    // The compact scoreboard (team + score) is plain, always-visible markup -- not inside any <details>,
+    // so no summary/disclosure widget can swallow or hide these interactive controls from assistive tech.
+    const matchStart = text.indexOf(`class="bracket-match"`);
+    const moreStart = text.indexOf('bracket-match-more', matchStart);
+    const scoreboardHtml = text.slice(matchStart, moreStart);
+    for (const name of [`homeTeamId_${m.id}`, `homeScore_${m.id}`, `awayTeamId_${m.id}`, `awayScore_${m.id}`]) {
+      assert.ok(scoreboardHtml.includes(`name="${name}"`), `expected ${name} in the always-visible scoreboard`);
+    }
+    // Closed by default: no `open` attribute on the "more" details.
+    assert.doesNotMatch(text, /<details class="bracket-match-more"[^>]*\bopen\b/);
+    // The rest still exists, just inside the expandable body, and its own <summary> has no form controls.
+    assert.match(text, /<summary>⋯ more<\/summary>/);
     assert.match(text, new RegExp(`bracket-match-extra[\\s\\S]*?name="homeControllerId_${m.id}"[\\s\\S]*?name="awayControllerId_${m.id}"[\\s\\S]*?name="homePens_${m.id}"[\\s\\S]*?name="awayPens_${m.id}"`));
     assert.match(text, new RegExp(`/championships/${id}/matches/${m.id}/swap`));
     assert.match(text, new RegExp(`/championships/${id}/matches/${m.id}/delete`));
@@ -182,7 +190,7 @@ test('a fully-paired round (2x the next round\'s ties) gets a real elbow connect
     assert.equal((text.match(/class="bracket-tie connect-right paired"/g) ?? []).length, 2);
     assert.equal((text.match(/class="bracket-tie connect-left paired"/g) ?? []).length, 2);
     // One elbow per side: a pair of 2 R16 ties (count=2) -> exactly one pair, spanning the whole column.
-    const connectors = [...text.matchAll(/class="bracket-pair-connector side-(right|left)" style="top:(\d+(?:\.\d+)?)%;height:(\d+(?:\.\d+)?)%"/g)];
+    const connectors = [...text.matchAll(/class="bracket-pair-connector side-(right|left)" data-pair-index="\d+" style="top:(\d+(?:\.\d+)?)%;height:(\d+(?:\.\d+)?)%"/g)];
     assert.equal(connectors.length, 2);
     for (const [, , top, height] of connectors) {
       assert.equal(Number(top), 25); // (2*0+0.5)/2 * 100

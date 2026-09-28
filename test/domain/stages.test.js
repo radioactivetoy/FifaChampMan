@@ -34,11 +34,17 @@ test('tieAggregate sums goals across legs regardless of who was home; null while
   assert.equal(tieAggregate(unplayed), null);
 });
 
-test('splitTies alternates ties left/right by listing order, for a two-sided bracket; the left side gets the extra one when odd', () => {
+test('splitTies alternates ties left/right individually, for a two-sided bracket; the left side gets the extra one when odd', () => {
   const ties = [{ key: 'a' }, { key: 'b' }, { key: 'c' }, { key: 'd' }, { key: 'e' }];
   const [left, right] = splitTies(ties);
   assert.deepEqual(left.map(t => t.key), ['a', 'c', 'e']);
   assert.deepEqual(right.map(t => t.key), ['b', 'd']);
+
+  // The universally-important case this must get right: exactly two ties (e.g. the two semi-finals)
+  // land one per side, never both on the same one.
+  const [sfLeft, sfRight] = splitTies([{ key: 'sfLeft' }, { key: 'sfRight' }]);
+  assert.deepEqual(sfLeft.map(t => t.key), ['sfLeft']);
+  assert.deepEqual(sfRight.map(t => t.key), ['sfRight']);
 
   assert.deepEqual(splitTies([]), [[], []]);
 

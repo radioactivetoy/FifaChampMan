@@ -282,16 +282,19 @@ tbody tr:last-child > :last-child { border-bottom-right-radius: var(--radius); }
 .bracket-round-ties { display: flex; flex-direction: column; justify-content: space-around; gap: 18px; flex: 1; position: relative; }
 .bracket-tie { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: relative; }
 .bracket-agg { text-align: center; margin: 6px 8px; }
-/* A compact scoreboard row: badge, team dropdown, score — the classic bracket look. */
-details.bracket-match { border-bottom: 1px solid var(--line); }
-details.bracket-match:last-child { border-bottom: 0; }
-details.bracket-match > summary { cursor: pointer; list-style: none; padding: 4px 6px; }
-details.bracket-match > summary::-webkit-details-marker { display: none; }
-details.bracket-match[data-cpu-only] { display: none; }
-body.show-cpu details.bracket-match[data-cpu-only] { display: block; background: var(--surface-2); }
-.bracket-match-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+/* A compact scoreboard row: badge, team dropdown, score — the classic bracket look. Plain markup
+   (not inside any <summary>): a <select>/<input> nested in a <summary> is a known accessibility
+   footgun (screen readers can flatten or skip nested controls), so the only <summary> here is the
+   text-only "⋯ more" toggle for bracket-match-more below. */
+.bracket-match { border-bottom: 1px solid var(--line); padding: 2px 0; }
+.bracket-match:last-child { border-bottom: 0; }
+.bracket-match[data-cpu-only] { display: none; }
+body.show-cpu .bracket-match[data-cpu-only] { display: block; background: var(--surface-2); }
+.bracket-match-row { display: flex; align-items: center; gap: 6px; padding: 2px 6px; }
 .bracket-match-row select { flex: 1; min-width: 0; }
 .bracket-match-row input.num { width: 3em; flex: 0 0 auto; }
+details.bracket-match-more > summary { cursor: pointer; list-style: none; padding: 2px 6px; color: var(--muted); font-size: 12px; }
+details.bracket-match-more > summary::-webkit-details-marker { display: none; }
 .bracket-match-extra { padding: 4px 6px 8px; border-top: 1px dashed var(--line); }
 .bracket-match-extra .row { margin: 6px 0; }
 /* A stub toward the next round on that side. Full-length (24px, the whole gap) when there's nothing
@@ -305,13 +308,17 @@ body.show-cpu details.bracket-match[data-cpu-only] { display: block; background:
 .bracket-tie.connect-left::after { left: -24px; }
 .bracket-tie.connect-right.paired::after { width: 12px; right: -12px; }
 .bracket-tie.connect-left.paired::after { width: 12px; left: -12px; }
-/* The elbow itself: a vertical bar spanning exactly between a pair's two centres (top/height set
-   inline per pair, computed server-side — see playoffBracket's pairConnector), plus a stub
-   continuing the other 12px into the next round's tie, landing exactly on its own centre. */
-.bracket-pair-connector { position: absolute; width: 0; border-left: 2px solid var(--muted); }
-.bracket-pair-connector.side-right { right: -12px; }
-.bracket-pair-connector.side-left { left: -12px; }
-.bracket-pair-connector::after { content: ""; position: absolute; top: 50%; width: 12px; height: 2px; background: var(--muted); }
+/* The elbow itself: a vertical bar spanning between a pair's two centres (top/height set inline —
+   see pairConnector's and setupBracketConnectors' doc comments for why those get overwritten with
+   exact pixel values after render), plus a stub continuing on into the next round's tie, landing on
+   its own centre. A solid background bar, not a 0-width box with a border: the latter can render a
+   subpixel off depending on device pixel ratio. */
+.bracket-pair-connector { position: absolute; width: 2px; background: var(--muted); }
+.bracket-pair-connector.side-right { right: -13px; }
+.bracket-pair-connector.side-left { left: -13px; }
+.bracket-pair-connector::after { content: ""; position: absolute; top: 50%; width: 11px; height: 2px; background: var(--muted); }
+.bracket-pair-connector.side-right::after { left: 100%; }
+.bracket-pair-connector.side-left::after { right: 100%; }
 .bracket-pair-connector.side-right::after { left: 0; }
 .bracket-pair-connector.side-left::after { right: 0; }
 .bracket-final .bracket-round-ties { justify-content: center; }

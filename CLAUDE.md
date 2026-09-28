@@ -139,19 +139,28 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   a stage's matches into ties (up to two legs between the same two teams, derived at render time — no
   "bracket slot" is stored), `tieAggregate` sums goals per team across legs for the aggregate/winner line,
   and `splitTies` divides each round's ties into a left half and a right half — purely by the order they
-  were added, since nothing here assigns a tie to a "side" of the draw (no seeding); the split alternates
-  left/right by index rather than cutting the list in half, so a tie already placed never jumps sides
-  just because one more was added to the round. `components.js`'s `playoffBracket` lays out R16→QF→SF on
-  the left, the mirror image on the right, and Final centred between them. Each match (`bracketMatch`) is a
-  compact scoreboard row — badge, team dropdown, score — with the controller/leg/penalties/swap/redraw/
-  delete controls that used to always show tucked inside a native `<details>`, collapsed until clicked, so
-  the box stays clean but nothing is actually lost. Where a round's tie count is exactly double the next
-  round's (the normal, fully-populated case), adjacent ties get a real elbow connector (`pairConnector`) —
-  a vertical bar joining their two centres plus a stub into the merged tie, positioned with server-computed
-  percentages (exact, not a CSS approximation: `justify-content: space-around` places tie *i* of *n* at
-  `(i+0.5)/n` of the container), not just the plain per-tie stub used when there's nothing to pair with
-  (e.g. semi-final → final, always 1-to-1 per side). There is no seeding algorithm and no auto-advancing a
-  winner into the next round — that stays entirely manual.
+  were added, since nothing here assigns a tie to a "side" of the draw (no seeding); ties alternate
+  left/right *individually* (0 left, 1 right, 2 left, ...) rather than as pairs, because a round with
+  exactly two ties (e.g. the two semi-finals feeding one final) must always land one per side — pairing
+  them instead was tried and reverted for dumping both onto one side in exactly that case. There's no
+  seeding, so a round's local pairing (which two ties visually merge into the next one) is also just a
+  positional guess, not a claim about which matches actually feed which. `components.js`'s `playoffBracket`
+  lays out R16→QF→SF on the left, the mirror image on the right, and Final centred between them.
+  Each match (`bracketMatch`) is a compact scoreboard row — badge, team dropdown, score — always plain,
+  visible markup; the controller/leg/penalties/swap/redraw/delete controls that used to always show live
+  inside their own small "⋯ more" `<details>` below it, collapsed until clicked, so the box stays clean but
+  nothing is actually lost. Deliberately NOT inside a `<summary>` together with the scoreboard: a
+  `<select>`/`<input>` nested in a `<summary>` is a known accessibility footgun, so the only `<summary>`
+  anywhere here is that plain "⋯ more" text. Where a round's tie count is exactly double the next round's
+  (the normal, fully-populated case), adjacent ties get a real elbow connector (`pairConnector`) — a
+  vertical bar joining their two centres plus a stub into the merged tie. Its server-rendered `top`/`height`
+  are only a rough starting guess (assuming every tie in the round is the same height, evenly spaced with
+  no gap — neither holds once a CPU-only tie collapses when hidden, ties have a different number of legs,
+  or a "⋯ more" is expanded); `public/filter.js`'s `setupBracketConnectors` measures the real rendered tie
+  positions after load — and again on resize, on any "⋯ more" toggle, and on the CPU-matches checkbox — and
+  overwrites the guess with the true pixel values, so the line always actually touches both ties regardless
+  of their real heights. There is no seeding algorithm and no auto-advancing a winner into the next round —
+  that stays entirely manual.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no

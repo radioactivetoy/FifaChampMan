@@ -43,9 +43,18 @@ export function tieAggregate(tie) {
 /**
  * Splits a round's ties into two halves for a two-sided bracket (draw feeds in from both sides
  * toward the final). This app never assigns a tie to a bracket "side" — there's no seeding, matches
- * are added by hand — so the split is purely positional: alternating left/right by listing order
- * (not a straight first-half/second-half cut) so that adding one more tie to the round never moves
- * an existing tie to the other side. Returns [left, right]; an odd tie count puts the extra one left.
+ * are added by hand — so the split is purely positional, by the order ties were first added. Returns
+ * [left, right]; an odd tie count puts the extra one on the left.
+ *
+ * Ties alternate left/right *individually* (0 left, 1 right, 2 left, ...), not in pairs of two —
+ * pairing them (0&1 together, 2&3 together) was tried and reverted: it keeps two ties a user entered
+ * back-to-back visually adjacent within their side, which sounds nicer, but it's wrong for the most
+ * common shape of all — a round with exactly two ties, one per side (e.g. the two semi-finals feeding
+ * one final) — pairing would dump both of them on the left and leave the right side's column empty.
+ * Individual alternation gets that universally-important case right, at the cost of a round with,
+ * say, 8 ties not visually pairing "as entered" (tie 0 pairs with 2, not 1) — there's no seeding data
+ * to do better than a positional guess either way, so this picks the version that's never outright
+ * broken over the version that merely isn't the guess a particular user expected.
  */
 export function splitTies(ties) {
   return [ties.filter((_, i) => i % 2 === 0), ties.filter((_, i) => i % 2 === 1)];
