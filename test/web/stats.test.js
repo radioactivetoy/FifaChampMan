@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { startTestApp } from '../helpers.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import * as C from '../../src/repo/championships.js';
+import { createChampionship, getChampionship } from '../../src/repo/championships.js';
 import { listMatches, updateMatch } from '../../src/repo/matches.js';
 import { createRng } from '../../src/domain/rng.js';
 
@@ -48,6 +49,30 @@ test('stats page: leaderboard, history grid, head to head, champions and biggest
     assert.match(text, /4–0/);
     assert.match(text, /Cup 1/);
     assert.match(text, /Most titles/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('the stats page can be filtered to one edition; unfiltered shows every edition combined', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db, 8);
+    const [ana] = seedPlayers(app.db, ['Ana']);
+    const rng = createRng(1);
+    const oldId = createChampionship(app.db, { name: 'Old cup', playerIds: [ana], edition: 'FC 26', rng });
+    C.setReached(app.db, oldId, getChampionship(app.db, oldId).players[0].teamId, 'champion');
+    C.updateChampionship(app.db, oldId, { status: 'finished' });
+    const newId = createChampionship(app.db, { name: 'New cup', playerIds: [ana], edition: 'FC 27', rng });
+    C.updateChampionship(app.db, newId, { status: 'finished' });
+
+    const all = (await app.get('/stats')).text;
+    assert.match(all, /Old cup/);
+    assert.match(all, /New cup/);
+
+    const fc27Only = (await app.get('/stats?edition=FC%2027')).text;
+    assert.doesNotMatch(fc27Only, /Old cup/);
+    assert.match(fc27Only, /New cup/);
   } finally {
     await app.close();
   }

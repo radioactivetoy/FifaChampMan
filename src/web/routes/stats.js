@@ -1,4 +1,4 @@
-import { html, page, raw } from '../html.js';
+import { html, page, raw, select } from '../html.js';
 import { stars, badge } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
@@ -36,11 +36,17 @@ function highlight(stats, label, score, show, eligible = () => true) {
 export function registerStatsRoutes(app, { db }) {
   app.get('/stats', (req, res) => {
     const players = listPlayers(db);
-    const entries = allEntries(db);
-    const matches = listAllMatches(db);
+    const entriesAll = allEntries(db);
+    const matchesAll = listAllMatches(db);
+    const championsAll = listChampions(db);
+    const editions = [...new Set(entriesAll.map(e => e.edition))].sort().reverse();
+    const edition = editions.includes(req.query.edition) ? req.query.edition : null;
+    const champIds = edition ? new Set(entriesAll.filter(e => e.edition === edition).map(e => e.championshipId)) : null;
+    const entries = champIds ? entriesAll.filter(e => champIds.has(e.championshipId)) : entriesAll;
+    const matches = champIds ? matchesAll.filter(m => champIds.has(m.championshipId)) : matchesAll;
+    const champions = champIds ? championsAll.filter(c => champIds.has(c.championshipId)) : championsAll;
     const stats = playerStats({ players, entries, matches });
     const h2h = headToHead({ matches, entries });
-    const champions = listChampions(db);
     const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
     const playerName = new Map(players.map(p => [p.id, p.name]));
     const teamLabel = id => { const t = teamsById.get(id); return t ? html`${badge(t)}${t.name}` : '?'; };
@@ -50,6 +56,11 @@ export function registerStatsRoutes(app, { db }) {
     res.send(page({
       title: 'Stats',
       body: html`
+        <form method="get" class="row">
+          <label>Edition ${select({ name: 'edition', items: editions.map(e => ({ value: e, label: e })), selected: edition, blank: 'All editions' })}</label>
+          <button>Filter</button>
+        </form>
+
         <div class="stat-cards">
           ${highlight(stats, 'Most titles', s => s.titles, s => `${s.titles} title${s.titles === 1 ? '' : 's'}`)}
           ${highlight(stats, 'Best win rate (own team, 3+ games)', s => pct(s.own.won, s.own.played), s => `${pct(s.own.won, s.own.played)}% of ${s.own.played} games`, s => s.own.played >= 3)}
