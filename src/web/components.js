@@ -1,5 +1,5 @@
 import { html, raw, select } from './html.js';
-import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS } from '../domain/stages.js';
+import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate } from '../domain/stages.js';
 import { championshipProgress } from '../domain/progress.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
@@ -136,4 +136,33 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
       <form method="post" action="${base}/reroll" class="inline"><button title="Draw a random player to control the CPU team">🎲 Draw</button></form>
       <form method="post" action="${base}/delete" class="inline" onsubmit="return confirm('Delete this match?')"><button class="danger">✕</button></form></td>
   </tr>`;
+}
+
+/**
+ * The playoff as a bracket tree: one column per stage, each showing its ties (up to two legs
+ * between the same two teams) with the aggregate score once decided. Editing is unchanged — every
+ * matchRow inside still targets `formIdOf(stage)` via its `form` attribute, so the caller's one
+ * "Save results" button per stage (rendered separately, not inside this tree) saves everything in
+ * that column together, exactly as the flat per-stage list used to.
+ */
+export function playoffBracket(c, matches, formIdOf) {
+  const byId = new Map(c.teams.map(t => [t.teamId, t]));
+  const columns = PLAYOFF_STAGES.map(stage => {
+    const stageMatches = matches.filter(m => m.stage === stage);
+    if (stageMatches.length === 0) return '';
+    const ties = groupTies(stageMatches);
+    return html`<div class="bracket-round">
+      <h3>${STAGE_LABELS[stage]}</h3>
+      ${ties.map(tie => {
+        const agg = tieAggregate(tie);
+        const winner = agg?.winnerId != null ? byId.get(agg.winnerId) : null;
+        const [homeId, awayId] = [tie.matches[0].homeTeamId, tie.matches[0].awayTeamId];
+        return html`<div class="bracket-tie">
+          <table class="matches"><tbody>${tie.matches.map(m => matchRow(c, m, { playoff: true, formId: formIdOf(stage) }))}</tbody></table>
+          ${agg ? html`<p class="muted bracket-agg">Agg ${agg.goals[homeId] ?? 0}-${agg.goals[awayId] ?? 0}${winner ? html` · <strong>${winner.name}</strong> through` : agg.winnerId === null ? html` · level (penalties/replay decide)` : ''}</p>` : ''}
+        </div>`;
+      })}
+    </div>`;
+  });
+  return html`<div class="bracket scroll-x">${columns}</div>`;
 }
