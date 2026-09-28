@@ -21,7 +21,7 @@ npm start                                  # http://localhost:3210 (3000 is rese
 npm test                                   # node --test "test/**/*.test.js"
 node --test test/domain/draw.test.js       # one file
 node --test --test-name-pattern "draw" test/domain/draw.test.js   # one test by name
-node tools/create-ucl-template.mjs [db]    # (re)build the "UEFA Champions League" team template
+node tools/create-ucl-template.mjs <edition> [db]       # (re)build the "UEFA Champions League" template for one edition
 ```
 
 Env: `PORT`, `DB_PATH` (default `champman.db` in the repo root — the user's real data; back it up before
@@ -93,6 +93,19 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
 - **Team offers**: going up vs the previous championship → two teams to choose from; same/down/first time →
   one assigned. A per-championship level override re-draws from that tier; Re-draw keeps the current level.
   Optional team template restricts the pool.
+- **FIFA/FC edition**: teams and championships each carry a free-text `edition` (`domain/editions.js`'s
+  `DEFAULT_EDITION`, currently `"FC 27"`) — no fixed list, just a `<datalist>` of editions already in use
+  (`repo/teams.js`'s `listEditions`) to avoid typos when a new game's database is imported. A championship
+  only ever draws its team pool (`teamPool` in `repo/championships.js`) from its own edition — team offers,
+  the random field fill, the field "add team" picker and the player/team-assignment dropdown are all scoped
+  by it — so two editions' teams can be loaded side by side without a championship ever mixing them. The
+  Teams admin page and the template editor stay edition-agnostic (you manage every team you own from one
+  page) and just get an extra client-side filter alongside stars/league/country. `/stats` takes a
+  `?edition=` filter; left blank it shows every edition's history combined, as before this feature existed.
+  Team names are `UNIQUE` per `(name, edition)`, not globally — an existing database's `teams` table is
+  rebuilt once on first open after upgrading (`db/connection.js`'s `migrateTeamsEdition`; SQLite can't
+  `ALTER TABLE` a `UNIQUE` constraint away) to make that possible; **back up the database file before
+  upgrading**, same as any other change that touches schema or data.
 - **Group stage**: 8 groups of 4, single round (6 matches per group, 48 total, matchdays 1–3). FIFA's order
   differs, so matchday and home/away (⇄ swap) are editable. Each group is a collapsible `<details
   id="group-X" class="group-details">` (open by default only for groups with a player's team) with a summary
@@ -121,7 +134,9 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
 
 ## Team data
 
-Imported as CSV (Teams → Import). The source is the fctoolshub FC27 clubs database; its `/api/` is disallowed
+Imported as CSV (Teams → Import), into a chosen edition (free text, defaulting to the current one) — existing
+teams with the same name *in that edition* are updated; a different edition's team of the same name is a
+separate row. The source is the fctoolshub FC27 clubs database; its `/api/` is disallowed
 by robots.txt and it rate-limits (HTTP 429), so there is no scraper — `tools/export-fctoolshub.js` is a slow
 browser-console script the user runs about once a year. Badge URLs must use the `/light/` image variants
 (the `/dark/` ones are white crests, invisible on the light UI); `<img>` falls back to `/dark/` once on error.
