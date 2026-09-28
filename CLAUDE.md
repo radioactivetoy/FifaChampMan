@@ -21,7 +21,7 @@ npm start                                  # http://localhost:3210 (3000 is rese
 npm test                                   # node --test "test/**/*.test.js"
 node --test test/domain/draw.test.js       # one file
 node --test --test-name-pattern "draw" test/domain/draw.test.js   # one test by name
-node tools/create-ucl-template.mjs [db]    # (re)build the "UEFA Champions League" team template
+node tools/create-ucl-template.mjs <edition> [db]   # (re)build the "UEFA Champions League (<edition>)" team template
 ```
 
 Env: `PORT`, `DB_PATH` (default `champman.db` in the repo root — the user's real data; back it up before
