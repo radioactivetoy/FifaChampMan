@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCpuToggle();
   document.querySelectorAll("table[data-sortable]").forEach(setupSortableTable);
   setupViewSwitch();
-  setupGroupsToggle();
+  setupGroupsPersistence();
   markCurrentNav();
 });
 
@@ -79,10 +79,40 @@ function setupViewSwitch() {
   }));
 }
 
-// Expand-all / collapse-all buttons for the group-stage page's <details class="group-details">.
-function setupGroupsToggle() {
+// Group-stage collapse/expand state, remembered per championship in this browser. Without this,
+// any action (saving a score, marking Qualified, drawing a controller...) is a full page reload,
+// and the server always renders its own defaults — silently undoing whatever the user had
+// manually collapsed or expanded, which looks like "everything snaps open again after a click".
+function setupGroupsPersistence() {
   const groups = [...document.querySelectorAll('details.group-details')];
   if (groups.length === 0) return;
+  const champMatch = location.pathname.match(/^\/championships\/(\d+)\/groups/);
+  if (!champMatch) return;
+  const storageKey = letter => `champman.group.${champMatch[1]}.${letter}`;
+  const letterOf = d => d.id.slice('group-'.length);
+
+  // Apply what the user last chose for each group, before the browser paints (this runs before
+  // 'toggle' listeners are attached below, so restoring doesn't re-write what it just read).
+  for (const d of groups) {
+    try {
+      const stored = localStorage.getItem(storageKey(letterOf(d)));
+      if (stored != null) d.open = stored === '1';
+    } catch { /* storage unavailable */ }
+  }
+
+  // Remember every future toggle: clicking a summary directly, or via the buttons/link below.
+  for (const d of groups) {
+    d.addEventListener('toggle', () => {
+      try { localStorage.setItem(storageKey(letterOf(d)), d.open ? '1' : '0'); } catch { /* storage unavailable */ }
+    });
+  }
+
+  // A redirect back to one group (?open=X, right after doing something there) opens it even if
+  // it had been remembered as collapsed.
+  const openLetter = new URLSearchParams(location.search).get('open');
+  const target = openLetter && document.getElementById(`group-${openLetter}`);
+  if (target) target.open = true;
+
   for (const button of document.querySelectorAll('[data-groups-toggle]')) {
     button.addEventListener('click', () => {
       const open = button.dataset.groupsToggle === 'expand';

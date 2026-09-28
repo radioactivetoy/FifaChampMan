@@ -50,7 +50,8 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   handler renders it (400/404), anything else is a 500.
 - `public/filter.js` — the only client JS: team list filtering, CPU-match toggle (localStorage), sortable
   tables (`table[data-sortable]`, cells may carry `data-sort`), head-to-head view switch, group-stage
-  expand/collapse-all (`details.group-details`), nav highlight. It's a classic (non-module) script loaded with
+  collapse/expand persistence (`setupGroupsPersistence`, localStorage — see below), nav highlight. It's a
+  classic (non-module) script loaded with
   `defer`, so its top-level `function` declarations are globally callable/inspectable — handy when debugging
   in a browser console, but note a hash-only navigation (`a#x` → `a#y`) does **not** reload the script, so
   re-testing a fix needs a full navigation in between.
@@ -91,6 +92,11 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   letter)` (`components.js`) — `?open=X#group-X` — so the server renders that group already expanded: the
   browser's one native anchor jump lands on the final, already-settled layout, with no JS reopening a
   collapsed `<details>` after load (that used to yank the scroll a second time, right after the first jump).
+  Every action here is a full page reload, and the server always renders from its own defaults — so the
+  client persists each group's actual open/closed state per championship in localStorage
+  (`champman.group.<championshipId>.<letter>`, via a `toggle` listener on each `<details>`) and reapplies it
+  before `?open=X` is honored; without this, any click anywhere on the page would silently reset every group
+  a player had manually collapsed or expanded back to the server default.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no
