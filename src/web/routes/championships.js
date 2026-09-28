@@ -1,5 +1,5 @@
 import { html, page, select } from '../html.js';
-import { intOrNull, numOrNull, requiredText, toArray } from '../form.js';
+import { intOrNull, numOrNull, requiredText, toArray, textOrDefault } from '../form.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
@@ -52,7 +52,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
       name: requiredText(req.body.name, 'Name'),
       playerIds: toArray(req.body.playerIds).map(Number),
       templateId: intOrNull(req.body.templateId),
-      edition: String(req.body.edition ?? '').trim() || DEFAULT_EDITION,
+      edition: textOrDefault(req.body.edition, DEFAULT_EDITION),
       rng,
     });
     res.redirect(`/championships/${id}`);

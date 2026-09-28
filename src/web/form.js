@@ -21,3 +21,6 @@ export function requiredText(v, field) {
   if (!s) throw new UserError(`${field} is required`);
   return s;
 }
+
+/** A trimmed optional text field, falling back to fallback when blank/missing. */
+export const textOrDefault = (v, fallback) => String(v ?? '').trim() || fallback;

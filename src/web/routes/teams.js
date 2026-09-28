@@ -1,5 +1,5 @@
 import { html, page, select } from '../html.js';
-import { intOrNull, numOrNull, requiredText } from '../form.js';
+import { intOrNull, numOrNull, requiredText, textOrDefault } from '../form.js';
 import { stars, badge, leagueBadge, flag, teamFilterBar, filterAttrs } from '../components.js';
 import { listTeams, saveTeam, deleteTeam, importTeams, listEditions } from '../../repo/teams.js';
 import { parseTeamsCsv } from '../../domain/csv.js';
@@ -16,7 +16,7 @@ function teamFromForm(body) {
   if (starsOverride != null && !STAR_LEVELS.includes(starsOverride)) throw new UserError(`${starsOverride} is not a star level`);
   return {
     name: requiredText(body.name, 'Name'),
-    edition: String(body.edition ?? '').trim() || DEFAULT_EDITION,
+    edition: textOrDefault(body.edition, DEFAULT_EDITION),
     country: String(body.country ?? '').trim(), league: String(body.league ?? '').trim(),
     ovr, starsOverride,
     badgeUrl: String(body.badgeUrl ?? '').trim(),
@@ -87,7 +87,7 @@ export function registerTeamRoutes(app, { db }) {
 
   app.post('/teams/import', (req, res) => {
     const csv = String(req.body.csv ?? '');
-    const edition = String(req.body.edition ?? '').trim() || DEFAULT_EDITION;
+    const edition = textOrDefault(req.body.edition, DEFAULT_EDITION);
     const { teams, errors } = parseTeamsCsv(csv);
     const imported = importTeams(db, teams, edition);
     res.send(page({
