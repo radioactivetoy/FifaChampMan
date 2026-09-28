@@ -58,7 +58,7 @@ test('playoff page renders a bracket tree; a two-legged tie shows its aggregate 
 
     let text = (await app.get(`/championships/${id}/playoff`)).text;
     assert.match(text, /class="bracket scroll-x"/);
-    assert.equal((text.match(/class="bracket-tie"/g) ?? []).length, 1); // one tie box for both legs
+    assert.equal((text.match(/class="bracket-tie(?:\s|")/g) ?? []).length, 1); // one tie box for both legs
 
     const r = await app.post(`/championships/${id}/playoff/qf/matches`, {
       [`homeScore_${leg1.id}`]: '3', [`awayScore_${leg1.id}`]: '1',
@@ -89,6 +89,48 @@ test('each playoff stage\'s Save results button names its own stage', async () =
     // stages' buttons all stacked at the bottom of the bracket, an unlabeled one is ambiguous
     // about which stage's still-unsaved scores it submits.
     assert.match(text, /Save Quarter-final results/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('the playoff bracket splits each round into two sides converging on a shared Final column', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const rng = createRng(1);
+    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
+    fillFieldRandom(app.db, id, rng);
+    const teams = getChampionship(app.db, id).teams;
+
+    // 4 distinct R16 ties (8 teams), single leg each, to check the 2/2 split.
+    for (let i = 0; i < 4; i++) {
+      await app.post(`/championships/${id}/playoff`, { stage: 'r16', homeTeamId: teams[i * 2].teamId, awayTeamId: teams[i * 2 + 1].teamId });
+    }
+
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.equal((text.match(/class="bracket-tie connect-right"/g) ?? []).length, 2);
+    assert.equal((text.match(/class="bracket-tie connect-left"/g) ?? []).length, 2);
+    // Both halves render their own "Round of 16" column heading, either side of the (empty) middle.
+    assert.equal((text.match(/<h3>Round of 16<\/h3>/g) ?? []).length, 2);
+  } finally {
+    await app.close();
+  }
+});
+
+test('a Final tie sits in its own centred column with no connector line', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const rng = createRng(1);
+    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
+    fillFieldRandom(app.db, id, rng);
+    const [teamA, teamB] = getChampionship(app.db, id).teams;
+    await app.post(`/championships/${id}/playoff`, { stage: 'final', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
+
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(text, /class="bracket-round bracket-final"/);
+    assert.match(text, /class="bracket-tie">/); // no connect- suffix on the final's own tie
   } finally {
     await app.close();
   }

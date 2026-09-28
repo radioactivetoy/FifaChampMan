@@ -1,5 +1,5 @@
 import { html, raw, select } from './html.js';
-import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate } from '../domain/stages.js';
+import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, splitTies } from '../domain/stages.js';
 import { championshipProgress } from '../domain/progress.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
@@ -138,31 +138,46 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
   </tr>`;
 }
 
+const ROUND_STAGES = PLAYOFF_STAGES.filter(s => s !== 'final'); // ['r16', 'qf', 'sf'] — 'final' sits in the centre, unsplit
+
+/** One tie's card: both legs plus the aggregate line once decided. `connect`: 'right' | 'left' | null (final has none). */
+function bracketTie(c, tie, stage, formIdOf, byId, connect) {
+  const agg = tieAggregate(tie);
+  const winner = agg?.winnerId != null ? byId.get(agg.winnerId) : null;
+  const [homeId, awayId] = [tie.matches[0].homeTeamId, tie.matches[0].awayTeamId];
+  return html`<div class="bracket-tie${connect ? ` connect-${connect}` : ''}">
+    <table class="matches"><tbody>${tie.matches.map(m => matchRow(c, m, { playoff: true, formId: formIdOf(stage) }))}</tbody></table>
+    ${agg ? html`<p class="muted bracket-agg">Agg ${agg.goals[homeId] ?? 0}-${agg.goals[awayId] ?? 0}${winner ? html` · <strong>${winner.name}</strong> through` : agg.winnerId === null ? html` · level (penalties/replay decide)` : ''}</p>` : ''}
+  </div>`;
+}
+
 /**
- * The playoff as a bracket tree: one column per stage, each showing its ties (up to two legs
- * between the same two teams) with the aggregate score once decided. Editing is unchanged — every
- * matchRow inside still targets `formIdOf(stage)` via its `form` attribute, so the caller's one
- * "Save results" button per stage (rendered separately, not inside this tree) saves everything in
- * that column together, exactly as the flat per-stage list used to.
+ * The playoff as a two-sided bracket tree, like a real knockout draw: each round's ties split into
+ * a left half and a right half (this app never assigns a tie to a "side" — there's no seeding, matches
+ * are added by hand — so the split is purely positional, by the order ties were first added; see
+ * `domain/stages.js`'s `splitTies`), rounds narrowing inward from both edges toward a single Final
+ * column in the middle. Editing is unchanged — every matchRow inside still targets `formIdOf(stage)`
+ * via its `form` attribute, so the caller's one "Save results" button per stage (rendered separately,
+ * not inside this tree) saves everything in that stage together, exactly as before.
  */
 export function playoffBracket(c, matches, formIdOf) {
   const byId = new Map(c.teams.map(t => [t.teamId, t]));
-  const columns = PLAYOFF_STAGES.map(stage => {
-    const stageMatches = matches.filter(m => m.stage === stage);
-    if (stageMatches.length === 0) return '';
-    const ties = groupTies(stageMatches);
-    return html`<div class="bracket-round">
-      <h3>${STAGE_LABELS[stage]}</h3>
-      ${ties.map(tie => {
-        const agg = tieAggregate(tie);
-        const winner = agg?.winnerId != null ? byId.get(agg.winnerId) : null;
-        const [homeId, awayId] = [tie.matches[0].homeTeamId, tie.matches[0].awayTeamId];
-        return html`<div class="bracket-tie">
-          <table class="matches"><tbody>${tie.matches.map(m => matchRow(c, m, { playoff: true, formId: formIdOf(stage) }))}</tbody></table>
-          ${agg ? html`<p class="muted bracket-agg">Agg ${agg.goals[homeId] ?? 0}-${agg.goals[awayId] ?? 0}${winner ? html` · <strong>${winner.name}</strong> through` : agg.winnerId === null ? html` · level (penalties/replay decide)` : ''}</p>` : ''}
-        </div>`;
-      })}
-    </div>`;
-  });
-  return html`<div class="bracket scroll-x">${columns}</div>`;
+  const tiesByStage = new Map(PLAYOFF_STAGES.map(stage => [stage, groupTies(matches.filter(m => m.stage === stage))]));
+
+  const column = (stage, ties, connect) => (ties.length === 0 ? '' : html`<div class="bracket-round">
+    <h3>${STAGE_LABELS[stage]}</h3>
+    ${ties.map(tie => bracketTie(c, tie, stage, formIdOf, byId, connect))}
+  </div>`);
+
+  const splitByStage = new Map(ROUND_STAGES.map(stage => [stage, splitTies(tiesByStage.get(stage))]));
+  const leftColumns = ROUND_STAGES.map(stage => column(stage, splitByStage.get(stage)[0], 'right'));
+  const rightColumns = [...ROUND_STAGES].reverse().map(stage => column(stage, splitByStage.get(stage)[1], 'left'));
+  const finalTies = tiesByStage.get('final');
+  const finalColumn = finalTies.length === 0 ? '' : html`<div class="bracket-round bracket-final">
+    <h3>${STAGE_LABELS.final}</h3>
+    ${finalTies.map(tie => bracketTie(c, tie, 'final', formIdOf, byId, null))}
+  </div>`;
+
+  if (leftColumns.every(col => col === '') && rightColumns.every(col => col === '') && finalColumn === '') return '';
+  return html`<div class="bracket scroll-x">${leftColumns}${finalColumn}${rightColumns}</div>`;
 }

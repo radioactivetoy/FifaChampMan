@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { groupTies, tieAggregate } from '../../src/domain/stages.js';
+import { groupTies, tieAggregate, splitTies } from '../../src/domain/stages.js';
 
 test('groupTies pairs up to two legs between the same two teams, in first-seen order', () => {
   const matches = [
@@ -32,4 +32,17 @@ test('tieAggregate sums goals across legs regardless of who was home; null while
 
   const unplayed = groupTies([{ id: 1, homeTeamId: 10, awayTeamId: 20, homeScore: null, awayScore: null }])[0];
   assert.equal(tieAggregate(unplayed), null);
+});
+
+test('splitTies divides ties into two halves by order, for a two-sided bracket; the first half gets the extra one when odd', () => {
+  const ties = [{ key: 'a' }, { key: 'b' }, { key: 'c' }, { key: 'd' }, { key: 'e' }];
+  const [left, right] = splitTies(ties);
+  assert.deepEqual(left.map(t => t.key), ['a', 'b', 'c']);
+  assert.deepEqual(right.map(t => t.key), ['d', 'e']);
+
+  assert.deepEqual(splitTies([]), [[], []]);
+
+  const [oneLeft, oneRight] = splitTies([{ key: 'only' }]);
+  assert.deepEqual(oneLeft.map(t => t.key), ['only']);
+  assert.deepEqual(oneRight, []);
 });
