@@ -37,7 +37,9 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   `createRng` in tests, so draws are deterministic). Key modules: `draw.js` (CL draw: pot by pot, first
   alphabetical group that keeps the rest solvable, no same-country, drops that rule if impossible),
   `controllers.js` (CPU-controller rotation), `rating.js` (result stars ladder + team offers),
-  `progress.js` (who is out / championship over), `standings.js`, `stats.js`, `field.js`, `csv.js`.
+  `progress.js` (who is out / championship over), `standings.js`, `stats.js`, `field.js`, `csv.js`,
+  `stages.js` (stage/reached constants, controller-rotation scope, and `groupTies`/`tieAggregate` for the
+  playoff bracket).
 - `src/repo/` — SQL. Use the `all/get/run` helpers from `db/connection.js` (they copy node:sqlite's
   null-prototype rows into plain objects — `deepEqual` fails otherwise). `transaction()` nests by joining the
   outer one. `championships.js` is the aggregate: `getChampionship(db, id)` returns `{…, players, teams}`
@@ -125,6 +127,17 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   (`champman.group.<championshipId>.<letter>`, via a `toggle` listener on each `<details>`) and reapplies it
   before `?open=X` is honored; without this, any click anywhere on the page would silently reset every group
   a player had manually collapsed or expanded back to the server default.
+  Closing the group stage (`POST /championships/:id/groups/close`) redirects to
+  `/championships/:id/groups/closed`, a read-only summary of the 16 qualifiers that flags any team with
+  at least one group match still missing a score (`closedGroupSummary` in `repo/championships.js`) —
+  catches a premature close before the playoff seeding is trusted. Reopening goes back to `/groups`.
+- **Playoff**: matches are still added and edited exactly as before (pick stage, optional leg, two teams
+  from a dropdown, restricted to qualified teams once the group stage is closed) — nothing about creation
+  is automatic. The Playoff tab renders them as a bracket tree: `domain/stages.js`'s `groupTies` groups a
+  stage's matches into ties (up to two legs between the same two teams, derived at render time — no
+  "bracket slot" is stored), and `tieAggregate` sums goals per team across legs for the aggregate/winner
+  line; `components.js`'s `playoffBracket` lays the ties out in one column per stage. There is no seeding
+  algorithm and no auto-advancing a winner into the next round — that stays entirely manual.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no
