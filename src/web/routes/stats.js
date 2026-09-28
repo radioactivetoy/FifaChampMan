@@ -40,8 +40,9 @@ export function registerStatsRoutes(app, { db }) {
     const matchesAll = listAllMatches(db);
     const championsAll = listChampions(db);
     const editions = [...new Set(entriesAll.map(e => e.edition))].sort().reverse();
-    const edition = editions.includes(req.query.edition) ? req.query.edition : null;
-    const champIds = edition ? new Set(entriesAll.filter(e => e.edition === edition).map(e => e.championshipId)) : null;
+    // Named apart from any row's own `.edition` field (e.g. a championship's) — this is only ever the ?edition= filter choice.
+    const selectedEdition = editions.includes(req.query.edition) ? req.query.edition : null;
+    const champIds = selectedEdition ? new Set(entriesAll.filter(e => e.edition === selectedEdition).map(e => e.championshipId)) : null;
     const entries = champIds ? entriesAll.filter(e => champIds.has(e.championshipId)) : entriesAll;
     const matches = champIds ? matchesAll.filter(m => champIds.has(m.championshipId)) : matchesAll;
     const champions = champIds ? championsAll.filter(c => champIds.has(c.championshipId)) : championsAll;
@@ -57,7 +58,7 @@ export function registerStatsRoutes(app, { db }) {
       title: 'Stats',
       body: html`
         <form method="get" class="row">
-          <label>Edition ${select({ name: 'edition', items: editions.map(e => ({ value: e, label: e })), selected: edition, blank: 'All editions' })}</label>
+          <label>Edition ${select({ name: 'edition', items: editions.map(e => ({ value: e, label: e })), selected: selectedEdition, blank: 'All editions' })}</label>
           <button>Filter</button>
         </form>
 
