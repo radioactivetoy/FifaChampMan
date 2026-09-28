@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll("table[data-sortable]").forEach(setupSortableTable);
   setupViewSwitch();
   setupGroupsPersistence();
+  setupBracketConnectors();
   markCurrentNav();
 });
 
@@ -119,6 +120,38 @@ function setupGroupsPersistence() {
       groups.forEach(d => { d.open = open; });
     });
   }
+}
+
+// The playoff bracket's elbow connectors (.bracket-pair-connector) are rendered with an inline
+// top/height guess that assumes every tie in a round is the same height and evenly spaced with no
+// gap — neither is true in general (a CPU-vs-CPU tie collapses to nothing when hidden, a two-legged
+// tie is taller than a one-legged one, opening a match's "⋯ more" grows it, and the round's own 18px
+// gap shifts things regardless). This measures each pair's two real, rendered tie positions and
+// overwrites the guess with the exact pixel values, so the line always actually touches both
+// ties — re-run whenever something that can change a tie's height happens, not just once on load.
+function setupBracketConnectors() {
+  const rounds = [...document.querySelectorAll('.bracket-round-ties')];
+  if (rounds.length === 0) return;
+  const reposition = () => {
+    for (const round of rounds) {
+      const ties = [...round.querySelectorAll('.bracket-tie')];
+      const roundTop = round.getBoundingClientRect().top;
+      for (const connector of round.querySelectorAll('.bracket-pair-connector')) {
+        const j = Number(connector.dataset.pairIndex);
+        const a = ties[2 * j], b = ties[2 * j + 1];
+        if (!a || !b) continue; // shouldn't happen — playoffBracket only emits a connector when both exist
+        const centreOf = tie => { const r = tie.getBoundingClientRect(); return r.top + r.height / 2 - roundTop; };
+        const [centreA, centreB] = [centreOf(a), centreOf(b)];
+        connector.style.top = `${Math.min(centreA, centreB)}px`;
+        connector.style.height = `${Math.abs(centreB - centreA)}px`;
+      }
+    }
+  };
+  reposition();
+  window.addEventListener('resize', reposition);
+  window.addEventListener('load', reposition); // late-loading fonts/images can still shift heights slightly
+  document.querySelectorAll('details.bracket-match-more').forEach(d => d.addEventListener('toggle', reposition));
+  document.querySelector('[data-cpu-toggle]')?.addEventListener('change', reposition);
 }
 
 // Highlights the header link of the section being viewed.
