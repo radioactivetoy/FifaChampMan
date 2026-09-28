@@ -34,7 +34,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
       title: 'New championship',
       body: html`<form method="post" action="/championships">
         <p><label>Name <input name="name" value="Championship ${new Date().getFullYear()}" required></label></p>
-        <p><label>Team pool ${templateSelect(db, null)}</label> <a href="/templates" class="muted">manage templates</a></p>
+        <p><label>Team pool ${templateSelect(db, null)}</label> <a href="/config" class="muted">manage templates</a></p>
         <p>Who plays this time?</p>
         ${players.map(p => html`<p><label><input type="checkbox" name="playerIds" value="${p.id}"> ${p.name}</label></p>`)}
         <p class="muted">Teams are drawn automatically from each player's star level (0.5★ for newcomers).</p>

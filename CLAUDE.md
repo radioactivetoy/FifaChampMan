@@ -59,13 +59,23 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   anchors, but an animated scroll across a long page reads as more distracting than a plain instant jump, not
   less; see `groupUrl()` below for how the anchor lands cleanly without either.
 
-Schema lives in `src/db/schema.sql` (all `CREATE … IF NOT EXISTS`). When adding a column to an existing
-table, also add it to `MIGRATIONS` in `db/connection.js` — `openDb` ALTERs older databases on start.
+Schema lives in `src/db/schema.sql` (all `CREATE … IF NOT EXISTS`, so a brand-new *table* just works on an
+older database — `db.exec(schema)` runs unconditionally on every `openDb()`). A new *column* on an existing
+table needs an entry in `MIGRATIONS` in `db/connection.js` instead (`CREATE TABLE IF NOT EXISTS` won't add it
+to a table that already exists) — `openDb` ALTERs older databases on start. Two settings tables are seeded the
+same way on first open, from a domain default constant: `tiers` from `DEFAULT_TIERS` (`domain/tiers.js`),
+`field_quotas` from `DEFAULT_FIELD_QUOTAS` (`domain/field.js`).
 
 ## Domain rules that are easy to get wrong
 
-- **Stars**: team stars = manual `stars_override` or the tier its OVR falls in (tiers table, editable).
-  FC 27 has no club under 54 OVR, so default tiers are shifted (0.5★ ≤ 60 … 5★ ≥ 82).
+- **Stars**: team stars = manual `stars_override` or the tier its OVR falls in (tiers table, editable on
+  `/config`). FC 27 has no club under 54 OVR, so default tiers are shifted (0.5★ ≤ 60 … 5★ ≥ 82).
+- **Config page** (`/config`, `web/routes/config.js`) is the one place for global settings: star tiers, the
+  random field's default "teams per star level" quotas (`field_quotas` table, `repo/settings.js`, used by
+  `draw.js` as the pre-filled defaults on a championship's Field & draw tab — that form can still override them
+  for one fill) and the team-templates list/create form (edited via `/templates/:id`, unchanged). The default
+  quotas model an actual Champions League field: almost all slots at 2★ (~64 OVR) and up, none below — real
+  minnows don't reach the group stage.
 - **Result stars** (next championship's level): stage reached first (champion 5, final 4.5, sf 4, qf 3.5,
   r16 3), else own-team record over the championship (a win 2, a point 1.5, a goal 1, else 0.5).
   Overridable per player. Only the player's own team counts, not CPU teams they controlled.

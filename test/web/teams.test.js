@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestApp } from '../helpers.js';
-import { listTeams, listTiers } from '../../src/repo/teams.js';
+import { listTeams } from '../../src/repo/teams.js';
 
 test('add, edit, filter and delete teams', async () => {
   const app = await startTestApp();
@@ -55,12 +55,13 @@ test('csv import accepts a full club database (well over 100 KB)', async () => {
   }
 });
 
-test('star tiers can be edited', async () => {
+test('teams page links to Config instead of the old standalone tiers/templates pages', async () => {
   const app = await startTestApp();
   try {
-    assert.match((await app.get('/settings/tiers')).text, /tier_4\.5/);
-    await app.post('/settings/tiers', { 'tier_4.5': '78' });
-    assert.equal(listTiers(app.db).find(t => t.stars === 4.5).minOvr, 78);
+    const text = (await app.get('/teams')).text;
+    assert.match(text, /href="\/config"/);
+    assert.doesNotMatch(text, /href="\/settings\/tiers"/);
+    assert.doesNotMatch(text, /href="\/templates">/); // the list page moved; /templates/:id edit links are unaffected
   } finally {
     await app.close();
   }

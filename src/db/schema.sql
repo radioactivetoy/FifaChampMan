@@ -5,6 +5,12 @@ CREATE TABLE IF NOT EXISTS tiers (
   min_ovr INTEGER NOT NULL
 );
 
+-- Default "teams per star level" quotas the random field fill starts from (Config page; editable).
+CREATE TABLE IF NOT EXISTS field_quotas (
+  stars REAL PRIMARY KEY,
+  quota INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS teams (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,

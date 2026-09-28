@@ -1,7 +1,7 @@
 import { html, page, select } from '../html.js';
 import { intOrNull, numOrNull, requiredText } from '../form.js';
 import { stars, badge, leagueBadge, flag, teamFilterBar, filterAttrs } from '../components.js';
-import { listTeams, saveTeam, deleteTeam, importTeams, listTiers, updateTier } from '../../repo/teams.js';
+import { listTeams, saveTeam, deleteTeam, importTeams } from '../../repo/teams.js';
 import { parseTeamsCsv } from '../../domain/csv.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { UserError } from '../../errors.js';
@@ -41,7 +41,7 @@ export function registerTeamRoutes(app, { db }) {
     res.send(page({
       title: 'Teams',
       body: html`
-        <p><a href="/teams/import">Import from CSV</a> · <a href="/templates">Team templates</a> · <a href="/settings/tiers">Edit star tiers</a></p>
+        <p><a href="/teams/import">Import from CSV</a> · <a href="/config">Config (star tiers, field defaults, templates)</a></p>
         <form method="post" action="/teams" class="row">
           <input name="name" placeholder="Name" required><input name="country" placeholder="Country">
           <input name="league" placeholder="League"><input name="ovr" type="number" min="1" max="99" placeholder="OVR" class="num" required>
@@ -96,23 +96,5 @@ export function registerTeamRoutes(app, { db }) {
   app.post('/teams/:id/delete', (req, res) => {
     deleteTeam(db, Number(req.params.id));
     res.redirect('/teams');
-  });
-
-  app.get('/settings/tiers', (req, res) => {
-    res.send(page({
-      title: 'Star tiers',
-      body: html`<p class="muted">A team gets the highest star level whose minimum OVR it reaches (unless its stars are set by hand).</p>
-        <form method="post" action="/settings/tiers"><table><thead><tr><th>Stars</th><th>Minimum OVR</th></tr></thead><tbody>
-        ${listTiers(db).map(t => html`<tr><td>${stars(t.stars)}</td><td><input name="tier_${t.stars}" type="number" min="0" max="99" class="num" value="${t.minOvr}"></td></tr>`)}
-        </tbody></table><button class="primary">Save tiers</button></form>`,
-    }));
-  });
-
-  app.post('/settings/tiers', (req, res) => {
-    for (const t of listTiers(db)) {
-      const minOvr = intOrNull(req.body[`tier_${t.stars}`]);
-      if (minOvr != null) updateTier(db, t.stars, minOvr);
-    }
-    res.redirect('/settings/tiers');
   });
 }

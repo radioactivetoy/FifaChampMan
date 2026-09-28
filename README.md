@@ -22,9 +22,9 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
 1. **Players** – add everyone once. Stats are kept for all players.
 2. **Teams** – import the FC 27 club list as CSV (copied from the fctoolshub FC27 clubs database
    into a spreadsheet): name, overall, league, country, and optionally club badge, league badge and
-   country flag image URLs and stars. Filter by stars/league/country, fix any team's stars by hand,
-   and adjust **Star tiers** if needed.
-   **Templates** – save named sets of teams to use as a championship's team pool.
+   country flag image URLs and stars. Filter by stars/league/country, fix any team's stars by hand.
+   **Config** – star tiers, the "Fill field randomly" default team counts per star level, and team
+   templates (named sets of teams to use as a championship's team pool) all live here.
 3. **Championships → New** – pick the template (or all teams) and tick who plays this time.
    Everyone gets a team from their star level; players going up choose between two.
 4. **Field & draw** – fill the 32-team field randomly by star quotas, then run the group draw
@@ -62,7 +62,7 @@ Everything (teams, controllers, scores, groups, stages, stars) can be edited at 
 node tools/create-ucl-template.mjs
 ```
 
-5. Check **Star tiers**: the new game's OVR spread may need the tiers adjusted so every level has clubs.
+5. Check **Config → Star tiers**: the new game's OVR spread may need the tiers adjusted so every level has clubs.
 
 ## Star rules
 

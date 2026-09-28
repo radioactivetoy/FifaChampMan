@@ -2,22 +2,11 @@ import { html, page, raw } from '../html.js';
 import { requiredText, toArray } from '../form.js';
 import { stars, badge, leagueBadge, flag, teamFilterBar, filterAttrs } from '../components.js';
 import { listTeams } from '../../repo/teams.js';
-import { listTemplates, getTemplate, saveTemplate, setTemplateTeams, deleteTemplate } from '../../repo/templates.js';
+import { getTemplate, saveTemplate, setTemplateTeams, deleteTemplate } from '../../repo/templates.js';
 
+// The template list and create form live on the Config page (/config); this file only has the
+// create action and the per-template edit/delete pages.
 export function registerTemplateRoutes(app, { db }) {
-  app.get('/templates', (req, res) => {
-    const templates = listTemplates(db);
-    res.send(page({
-      title: 'Team templates',
-      body: html`<p class="muted">A template is a named set of teams. A championship using a template only draws teams from it.</p>
-        <form method="post" action="/templates" class="row"><input name="name" placeholder="Template name" required><button class="primary">Create template</button></form>
-        <table><thead><tr><th>Name</th><th>Teams</th><th></th></tr></thead><tbody>
-        ${templates.map(t => html`<tr><td><a href="/templates/${t.id}">${t.name}</a></td><td>${t.teamCount}</td>
-          <td><form method="post" action="/templates/${t.id}/delete" class="inline" onsubmit="return confirm('Delete this template?')"><button class="danger">Delete</button></form></td></tr>`)}
-        </tbody></table>`,
-    }));
-  });
-
   app.post('/templates', (req, res) => {
     const id = saveTemplate(db, { name: requiredText(req.body.name, 'Name') });
     res.redirect(`/templates/${id}`);
@@ -29,7 +18,8 @@ export function registerTemplateRoutes(app, { db }) {
     const teams = listTeams(db);
     res.send(page({
       title: t.name,
-      body: html`<form method="post" action="/templates/${t.id}">
+      body: html`<p><a href="/config">← Config</a></p>
+      <form method="post" action="/templates/${t.id}">
         <p class="row"><input name="name" value="${t.name}" required><button class="primary">Save template</button>
           <span class="muted">${selected.size} teams selected</span></p>
         ${teamFilterBar(teams)}
@@ -57,6 +47,6 @@ export function registerTemplateRoutes(app, { db }) {
 
   app.post('/templates/:id/delete', (req, res) => {
     deleteTemplate(db, Number(req.params.id));
-    res.redirect('/templates');
+    res.redirect('/config');
   });
 }

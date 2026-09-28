@@ -9,6 +9,14 @@ test('creates schema and seeds default tiers', () => {
   assert.deepEqual(tiers[0], { stars: 5, minOvr: 82 });
 });
 
+test('creates schema and seeds default field quotas summing to 32', () => {
+  const db = openDb(':memory:');
+  const quotas = all(db, 'SELECT stars, quota FROM field_quotas ORDER BY stars DESC');
+  assert.equal(quotas.length, 10);
+  assert.deepEqual(quotas[0], { stars: 5, quota: 4 });
+  assert.equal(quotas.reduce((sum, q) => sum + q.quota, 0), 32);
+});
+
 test('transaction rolls back on error and supports nesting', () => {
   const db = openDb(':memory:');
   assert.throws(() => transaction(db, () => {

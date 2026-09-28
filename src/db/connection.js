@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { DEFAULT_TIERS } from '../domain/tiers.js';
+import { DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
 
 const schema = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8');
 
@@ -23,6 +24,9 @@ export function openDb(path = ':memory:') {
   migrate(db);
   if (get(db, 'SELECT COUNT(*) AS n FROM tiers').n === 0) {
     for (const t of DEFAULT_TIERS) run(db, 'INSERT INTO tiers (stars, min_ovr) VALUES (?, ?)', t.stars, t.minOvr);
+  }
+  if (get(db, 'SELECT COUNT(*) AS n FROM field_quotas').n === 0) {
+    for (const [stars, quota] of Object.entries(DEFAULT_FIELD_QUOTAS)) run(db, 'INSERT INTO field_quotas (stars, quota) VALUES (?, ?)', Number(stars), quota);
   }
   return db;
 }

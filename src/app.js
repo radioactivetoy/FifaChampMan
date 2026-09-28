@@ -5,6 +5,7 @@ import { html, page } from './web/html.js';
 import { registerPlayerRoutes } from './web/routes/players.js';
 import { registerTeamRoutes } from './web/routes/teams.js';
 import { registerTemplateRoutes } from './web/routes/templates.js';
+import { registerConfigRoutes } from './web/routes/config.js';
 import { registerChampionshipRoutes } from './web/routes/championships.js';
 import { registerDrawRoutes } from './web/routes/draw.js';
 import { registerMatchRoutes } from './web/routes/matches.js';
@@ -27,6 +28,7 @@ export function createApp({ db, rng }) {
   registerPlayerRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
   registerTemplateRoutes(app, ctx);
+  registerConfigRoutes(app, ctx);
   registerChampionshipRoutes(app, ctx);
   registerDrawRoutes(app, ctx);
   registerMatchRoutes(app, ctx);

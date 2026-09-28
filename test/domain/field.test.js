@@ -20,9 +20,10 @@ test('fills 32 unique teams including humans, humans count toward their tier', (
   for (const h of humans) assert.ok(ids.includes(h));
   const byId = new Map(pool.map(t => [t.id, t]));
   const count = stars => ids.filter(id => byId.get(id).stars === stars).length;
-  assert.equal(count(0.5), 2);
+  assert.equal(count(0.5), 2); // the two human teams; the default quota for 0.5★ is 0 CPU slots
   assert.equal(count(5), 4);
-  assert.equal(count(3), 3);
+  assert.equal(count(3), 5);
+  assert.equal(count(1), 0);
 });
 
 test('tops up from other tiers when a tier is short', () => {

@@ -15,7 +15,7 @@ test('create a template, pick its teams, rename and delete it', async () => {
     assert.deepEqual(getTemplate(app.db, id), { id, name: 'CL 26/27', teamIds: [a, c] });
     await app.post(`/templates/${id}`, { name: 'CL 26/27', teamIds: [b] });
     assert.deepEqual(getTemplate(app.db, id).teamIds, [b]);
-    assert.match((await app.get('/templates')).text, /CL 26\/27/);
+    assert.match((await app.get('/config')).text, /CL 26\/27/); // the template list now lives on the Config page
     await app.post(`/templates/${id}/delete`);
     assert.equal(listTemplates(app.db).length, 0);
   } finally {

@@ -2,7 +2,10 @@ import { shuffle } from './rng.js';
 
 export const FIELD_SIZE = 32;
 
-export const DEFAULT_FIELD_QUOTAS = { 5: 4, 4.5: 4, 4: 4, 3.5: 3, 3: 3, 2.5: 3, 2: 3, 1.5: 3, 1: 3, 0.5: 2 };
+// A real Champions League field is almost entirely mid-table-or-better sides from strong leagues,
+// or big fish from smaller ones — essentially nobody below "decent" (2★, ~64 OVR) makes the group
+// stage. Weighted toward the top and tapering off, editable on the Config page.
+export const DEFAULT_FIELD_QUOTAS = { 5: 4, 4.5: 6, 4: 6, 3.5: 6, 3: 5, 2.5: 3, 2: 2, 1.5: 0, 1: 0, 0.5: 0 };
 
 /**
  * teams: [{ id, stars }] — every team available.

@@ -36,6 +36,6 @@ export function page({ title, body }) {
 <body><header><div class="bar">
 <a class="brand" href="/"><span class="brand-mark">★</span><span>ChampMan<small>EA FC Champions League</small></span></a>
 <nav>
-<a href="/championships">Championships</a><a href="/players">Players</a><a href="/teams">Teams</a><a href="/templates">Templates</a><a href="/stats">Stats</a><a href="/settings/tiers">Star tiers</a>
+<a href="/championships">Championships</a><a href="/players">Players</a><a href="/teams">Teams</a><a href="/stats">Stats</a><a href="/config">Config</a>
 </nav></div></header><main><h1>${title}</h1>${body}</main></body></html>`;
 }

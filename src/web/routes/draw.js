@@ -2,9 +2,10 @@ import { html, page, select } from '../html.js';
 import { intOrNull } from '../form.js';
 import { champNav, stars, teamName } from '../components.js';
 import { listTeams } from '../../repo/teams.js';
+import { fieldQuotasMap } from '../../repo/settings.js';
 import * as C from '../../repo/championships.js';
 import { GROUP_LETTERS } from '../../domain/draw.js';
-import { FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../../domain/field.js';
+import { FIELD_SIZE } from '../../domain/field.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { UserError } from '../../errors.js';
 
@@ -16,14 +17,15 @@ export function registerDrawRoutes(app, { db, rng }) {
     const c = C.getChampionship(db, Number(req.params.id));
     const inField = new Set(c.teams.map(t => t.teamId));
     const available = listTeams(db).filter(t => !inField.has(t.id));
+    const defaultQuotas = fieldQuotasMap(db);
     const base = `/championships/${c.id}`;
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'draw')}
         <h2>Field (${c.teams.length}/${FIELD_SIZE})</h2>
         <form method="post" action="${base}/field/fill" class="row" onsubmit="return confirm('Replace all CPU teams with a new random selection?')">
-          <span class="muted">Teams per star level (human teams count):</span>
-          ${[...STAR_LEVELS].reverse().map(s => html`<label>${stars(s)} <input name="quota_${s}" type="number" min="0" class="num" value="${DEFAULT_FIELD_QUOTAS[s] ?? 0}"></label>`)}
+          <span class="muted">Teams per star level (human teams count; edit the <a href="/config">Config page</a> defaults):</span>
+          ${[...STAR_LEVELS].reverse().map(s => html`<label>${stars(s)} <input name="quota_${s}" type="number" min="0" class="num" value="${defaultQuotas[s] ?? 0}"></label>`)}
           <button>Fill field randomly</button>
         </form>
         <form method="post" action="${base}/field/add" class="row">
@@ -54,7 +56,8 @@ export function registerDrawRoutes(app, { db, rng }) {
   });
 
   app.post('/championships/:id/field/fill', (req, res) => {
-    const quotas = Object.fromEntries(STAR_LEVELS.map(s => [s, intOrNull(req.body[`quota_${s}`]) ?? DEFAULT_FIELD_QUOTAS[s] ?? 0]));
+    const defaultQuotas = fieldQuotasMap(db);
+    const quotas = Object.fromEntries(STAR_LEVELS.map(s => [s, intOrNull(req.body[`quota_${s}`]) ?? defaultQuotas[s] ?? 0]));
     C.fillFieldRandom(db, Number(req.params.id), rng, quotas);
     res.redirect(`/championships/${req.params.id}/draw`);
   });
