@@ -134,11 +134,15 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   catches a premature close before the playoff seeding is trusted. Reopening goes back to `/groups`.
 - **Playoff**: matches are still added and edited exactly as before (pick stage, optional leg, two teams
   from a dropdown, restricted to qualified teams once the group stage is closed) — nothing about creation
-  is automatic. The Playoff tab renders them as a bracket tree: `domain/stages.js`'s `groupTies` groups a
-  stage's matches into ties (up to two legs between the same two teams, derived at render time — no
-  "bracket slot" is stored), and `tieAggregate` sums goals per team across legs for the aggregate/winner
-  line; `components.js`'s `playoffBracket` lays the ties out in one column per stage. There is no seeding
-  algorithm and no auto-advancing a winner into the next round — that stays entirely manual.
+  is automatic. The Playoff tab renders them as a two-sided bracket tree, converging from both edges
+  toward one Final column in the middle, like a real knockout draw: `domain/stages.js`'s `groupTies` groups
+  a stage's matches into ties (up to two legs between the same two teams, derived at render time — no
+  "bracket slot" is stored), `tieAggregate` sums goals per team across legs for the aggregate/winner line,
+  and `splitTies` divides each round's ties into a left half and a right half — purely by the order they
+  were added, since nothing here assigns a tie to a "side" of the draw (no seeding). `components.js`'s
+  `playoffBracket` lays out R16→QF→SF on the left, the mirror image on the right, and Final centred between
+  them. There is no seeding algorithm and no auto-advancing a winner into the next round — that stays
+  entirely manual.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no
