@@ -139,10 +139,19 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   a stage's matches into ties (up to two legs between the same two teams, derived at render time — no
   "bracket slot" is stored), `tieAggregate` sums goals per team across legs for the aggregate/winner line,
   and `splitTies` divides each round's ties into a left half and a right half — purely by the order they
-  were added, since nothing here assigns a tie to a "side" of the draw (no seeding). `components.js`'s
-  `playoffBracket` lays out R16→QF→SF on the left, the mirror image on the right, and Final centred between
-  them. There is no seeding algorithm and no auto-advancing a winner into the next round — that stays
-  entirely manual.
+  were added, since nothing here assigns a tie to a "side" of the draw (no seeding); the split alternates
+  left/right by index rather than cutting the list in half, so a tie already placed never jumps sides
+  just because one more was added to the round. `components.js`'s `playoffBracket` lays out R16→QF→SF on
+  the left, the mirror image on the right, and Final centred between them. Each match (`bracketMatch`) is a
+  compact scoreboard row — badge, team dropdown, score — with the controller/leg/penalties/swap/redraw/
+  delete controls that used to always show tucked inside a native `<details>`, collapsed until clicked, so
+  the box stays clean but nothing is actually lost. Where a round's tie count is exactly double the next
+  round's (the normal, fully-populated case), adjacent ties get a real elbow connector (`pairConnector`) —
+  a vertical bar joining their two centres plus a stub into the merged tie, positioned with server-computed
+  percentages (exact, not a CSS approximation: `justify-content: space-around` places tie *i* of *n* at
+  `(i+0.5)/n` of the container), not just the plain per-tie stub used when there's nothing to pair with
+  (e.g. semi-final → final, always 1-to-1 per side). There is no seeding algorithm and no auto-advancing a
+  winner into the next round — that stays entirely manual.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no

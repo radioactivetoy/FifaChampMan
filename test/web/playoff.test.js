@@ -135,3 +135,60 @@ test('a Final tie sits in its own centred column with no connector line', async 
     await app.close();
   }
 });
+
+test('a bracket match shows a compact scoreboard by default; controller/pens/leg/actions are tucked behind a click to expand', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const rng = createRng(1);
+    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
+    fillFieldRandom(app.db, id, rng);
+    const [teamA, teamB] = getChampionship(app.db, id).teams;
+    await app.post(`/championships/${id}/playoff`, { stage: 'qf', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
+    const [m] = listMatches(app.db, id);
+
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    // Closed by default: no `open` attribute on the <details>.
+    assert.doesNotMatch(text, /<details class="bracket-match"[^>]*\bopen\b/);
+    assert.match(text, new RegExp(`<details class="bracket-match"[^>]*>\\s*<summary>[\\s\\S]*?name="homeTeamId_${m.id}"[\\s\\S]*?name="homeScore_${m.id}"[\\s\\S]*?name="awayTeamId_${m.id}"[\\s\\S]*?name="awayScore_${m.id}"[\\s\\S]*?</summary>`));
+    // The rest still exists, just inside the expandable body, not the always-visible summary.
+    assert.match(text, new RegExp(`bracket-match-extra[\\s\\S]*?name="homeControllerId_${m.id}"[\\s\\S]*?name="awayControllerId_${m.id}"[\\s\\S]*?name="homePens_${m.id}"[\\s\\S]*?name="awayPens_${m.id}"`));
+    assert.match(text, new RegExp(`/championships/${id}/matches/${m.id}/swap`));
+    assert.match(text, new RegExp(`/championships/${id}/matches/${m.id}/delete`));
+  } finally {
+    await app.close();
+  }
+});
+
+test('a fully-paired round (2x the next round\'s ties) gets a real elbow connector at the exact midpoint of each pair', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const rng = createRng(1);
+    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
+    fillFieldRandom(app.db, id, rng);
+    const teams = getChampionship(app.db, id).teams;
+
+    // 4 R16 ties (splits 2/2) and 2 QF ties (splits 1/1) -- each side's R16 pair (2 ties) exactly
+    // doubles its side's QF count (1 tie), so both sides should get a real elbow, not just a stub.
+    for (let i = 0; i < 4; i++) {
+      await app.post(`/championships/${id}/playoff`, { stage: 'r16', homeTeamId: teams[i * 2].teamId, awayTeamId: teams[i * 2 + 1].teamId });
+    }
+    for (let i = 4; i < 6; i++) {
+      await app.post(`/championships/${id}/playoff`, { stage: 'qf', homeTeamId: teams[i * 2].teamId, awayTeamId: teams[i * 2 + 1].teamId });
+    }
+
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.equal((text.match(/class="bracket-tie connect-right paired"/g) ?? []).length, 2);
+    assert.equal((text.match(/class="bracket-tie connect-left paired"/g) ?? []).length, 2);
+    // One elbow per side: a pair of 2 R16 ties (count=2) -> exactly one pair, spanning the whole column.
+    const connectors = [...text.matchAll(/class="bracket-pair-connector side-(right|left)" style="top:(\d+(?:\.\d+)?)%;height:(\d+(?:\.\d+)?)%"/g)];
+    assert.equal(connectors.length, 2);
+    for (const [, , top, height] of connectors) {
+      assert.equal(Number(top), 25); // (2*0+0.5)/2 * 100
+      assert.equal(Number(height), 50); // (1/2) * 100
+    }
+  } finally {
+    await app.close();
+  }
+});
