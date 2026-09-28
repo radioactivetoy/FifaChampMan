@@ -43,10 +43,10 @@ export function tieAggregate(tie) {
 /**
  * Splits a round's ties into two halves for a two-sided bracket (draw feeds in from both sides
  * toward the final). This app never assigns a tie to a bracket "side" — there's no seeding, matches
- * are added by hand — so the split is purely positional, by the order ties were first added. Returns
- * [left, right]; an odd tie count puts the extra one on the left.
+ * are added by hand — so the split is purely positional: alternating left/right by listing order
+ * (not a straight first-half/second-half cut) so that adding one more tie to the round never moves
+ * an existing tie to the other side. Returns [left, right]; an odd tie count puts the extra one left.
  */
 export function splitTies(ties) {
-  const mid = Math.ceil(ties.length / 2);
-  return [ties.slice(0, mid), ties.slice(mid)];
+  return [ties.filter((_, i) => i % 2 === 0), ties.filter((_, i) => i % 2 === 1)];
 }

@@ -164,19 +164,17 @@ export function playoffBracket(c, matches, formIdOf) {
   const byId = new Map(c.teams.map(t => [t.teamId, t]));
   const tiesByStage = new Map(PLAYOFF_STAGES.map(stage => [stage, groupTies(matches.filter(m => m.stage === stage))]));
 
-  const column = (stage, ties, connect) => (ties.length === 0 ? '' : html`<div class="bracket-round">
+  // The heading sits outside the ties' own flex box, so `space-around`/`center` below only ever
+  // repositions the ties themselves — never drags the <h3> to a different height between columns.
+  const column = (stage, ties, connect, extraClass = '') => (ties.length === 0 ? '' : html`<div class="bracket-round${extraClass}">
     <h3>${STAGE_LABELS[stage]}</h3>
-    ${ties.map(tie => bracketTie(c, tie, stage, formIdOf, byId, connect))}
+    <div class="bracket-round-ties">${ties.map(tie => bracketTie(c, tie, stage, formIdOf, byId, connect))}</div>
   </div>`);
 
   const splitByStage = new Map(ROUND_STAGES.map(stage => [stage, splitTies(tiesByStage.get(stage))]));
   const leftColumns = ROUND_STAGES.map(stage => column(stage, splitByStage.get(stage)[0], 'right'));
   const rightColumns = [...ROUND_STAGES].reverse().map(stage => column(stage, splitByStage.get(stage)[1], 'left'));
-  const finalTies = tiesByStage.get('final');
-  const finalColumn = finalTies.length === 0 ? '' : html`<div class="bracket-round bracket-final">
-    <h3>${STAGE_LABELS.final}</h3>
-    ${finalTies.map(tie => bracketTie(c, tie, 'final', formIdOf, byId, null))}
-  </div>`;
+  const finalColumn = column('final', tiesByStage.get('final'), null, ' bracket-final');
 
   if (leftColumns.every(col => col === '') && rightColumns.every(col => col === '') && finalColumn === '') return '';
   return html`<div class="bracket scroll-x">${leftColumns}${finalColumn}${rightColumns}</div>`;

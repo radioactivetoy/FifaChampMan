@@ -276,8 +276,10 @@ tbody tr:last-child > :last-child { border-bottom-right-radius: var(--radius); }
 
 /* ---------- playoff bracket ---------- */
 .bracket { display: flex; align-items: stretch; gap: 24px; padding: 4px 4px 18px; }
-.bracket-round { display: flex; flex-direction: column; justify-content: space-around; gap: 18px; min-width: 260px; }
+.bracket-round { display: flex; flex-direction: column; min-width: 260px; }
 .bracket-round h3 { text-align: center; }
+/* The heading's own box stays a fixed size; only the ties below it stretch/space out to fill the column. */
+.bracket-round-ties { display: flex; flex-direction: column; justify-content: space-around; gap: 18px; flex: 1; }
 .bracket-tie { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; position: relative; }
 .bracket-tie table.matches { margin: 0; box-shadow: none; border: 0; }
 .bracket-agg { text-align: center; margin: 6px 4px 2px; }
@@ -287,7 +289,7 @@ tbody tr:last-child > :last-child { border-bottom-right-radius: var(--radius); }
 }
 .bracket-tie.connect-right::after { right: -24px; }
 .bracket-tie.connect-left::after { left: -24px; }
-.bracket-final { justify-content: center; }
+.bracket-final .bracket-round-ties { justify-content: center; }
 .bracket-final h3 { color: var(--gold); }
 
 @media (max-width: 760px) {

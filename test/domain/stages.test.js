@@ -34,15 +34,27 @@ test('tieAggregate sums goals across legs regardless of who was home; null while
   assert.equal(tieAggregate(unplayed), null);
 });
 
-test('splitTies divides ties into two halves by order, for a two-sided bracket; the first half gets the extra one when odd', () => {
+test('splitTies alternates ties left/right by listing order, for a two-sided bracket; the left side gets the extra one when odd', () => {
   const ties = [{ key: 'a' }, { key: 'b' }, { key: 'c' }, { key: 'd' }, { key: 'e' }];
   const [left, right] = splitTies(ties);
-  assert.deepEqual(left.map(t => t.key), ['a', 'b', 'c']);
-  assert.deepEqual(right.map(t => t.key), ['d', 'e']);
+  assert.deepEqual(left.map(t => t.key), ['a', 'c', 'e']);
+  assert.deepEqual(right.map(t => t.key), ['b', 'd']);
 
   assert.deepEqual(splitTies([]), [[], []]);
 
   const [oneLeft, oneRight] = splitTies([{ key: 'only' }]);
   assert.deepEqual(oneLeft.map(t => t.key), ['only']);
   assert.deepEqual(oneRight, []);
+});
+
+test('splitTies never moves an already-placed tie to the other side as more ties are added', () => {
+  const ties = [{ key: 'a' }, { key: 'b' }, { key: 'c' }, { key: 'd' }, { key: 'e' }, { key: 'f' }];
+  let sideOf = new Map();
+  for (let n = 1; n <= ties.length; n++) {
+    const [left, right] = splitTies(ties.slice(0, n));
+    const newest = ties[n - 1].key;
+    for (const tie of left) if (sideOf.has(tie.key)) assert.equal(sideOf.get(tie.key), 'left', `${tie.key} moved sides after adding ${newest}`);
+    for (const tie of right) if (sideOf.has(tie.key)) assert.equal(sideOf.get(tie.key), 'right', `${tie.key} moved sides after adding ${newest}`);
+    sideOf = new Map([...left.map(t => [t.key, 'left']), ...right.map(t => [t.key, 'right'])]);
+  }
 });
