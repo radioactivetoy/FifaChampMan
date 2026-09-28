@@ -297,6 +297,11 @@ test('closedGroupSummary lists the 16 qualifiers and flags any missing a group r
   C.setReached(db, id, teamX.teamId, 'r16');
   C.setReached(db, id, teamY.teamId, 'r16');
 
+  // A CPU team in group B whose points get overridden by hand instead of every match being
+  // scored — that override already makes its standings trustworthy, so it should NOT be flagged
+  // even though one of its matches is left unplayed (unlike teamX below, which has neither).
+  const groupBCpu = C.getChampionship(db, id).teams.find(t => t.groupLetter === 'B' && !t.owner);
+
   const groupMatches = listMatches(db, id).filter(m => m.stage === 'group');
   // Pick a match that involves teamX but not teamY: teamX and teamY are group A's pot-1 and
   // pot-2 teams (getChampionship sorts by OVR desc, which matches pot order), so they always play
@@ -305,10 +310,13 @@ test('closedGroupSummary lists the 16 qualifiers and flags any missing a group r
   const unplayed = groupMatches.find(m =>
     (m.homeTeamId === teamX.teamId || m.awayTeamId === teamX.teamId) &&
     m.homeTeamId !== teamY.teamId && m.awayTeamId !== teamY.teamId);
+  const unplayedB = groupMatches.find(m =>
+    m.groupLetter === 'B' && (m.homeTeamId === groupBCpu.teamId || m.awayTeamId === groupBCpu.teamId));
   for (const m of groupMatches) {
-    if (m.id === unplayed.id) continue;
+    if (m.id === unplayed.id || m.id === unplayedB.id) continue;
     updateMatch(db, m.id, { homeScore: 1, awayScore: 0 });
   }
+  C.setGroupPoints(db, id, groupBCpu.teamId, 9);
   C.closeGroupStage(db, id);
 
   const summary = C.closedGroupSummary(db, id);
@@ -318,5 +326,10 @@ test('closedGroupSummary lists the 16 qualifiers and flags any missing a group r
   const groupA = summary.find(g => g.letter === 'A');
   assert.equal(groupA.rows.find(r => r.teamId === teamX.teamId).missingResults, true);
   assert.equal(groupA.rows.find(r => r.teamId === teamY.teamId).missingResults, false);
-  for (const g of summary.filter(g => g.letter !== 'A')) assert.ok(g.rows.every(r => !r.missingResults));
+  for (const g of summary.filter(g => g.letter !== 'A' && g.letter !== 'B')) assert.ok(g.rows.every(r => !r.missingResults));
+
+  const groupB = summary.find(g => g.letter === 'B');
+  const groupBRow = groupB.rows.find(r => r.teamId === groupBCpu.teamId);
+  assert.ok(groupBRow, 'the pointsOverride team should have qualified with 9 points');
+  assert.equal(groupBRow.missingResults, false);
 });

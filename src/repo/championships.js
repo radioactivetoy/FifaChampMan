@@ -305,7 +305,7 @@ export function closedGroupSummary(db, championshipId) {
       .filter(r => r.team.reached !== 'group')
       .map(r => ({
         ...r,
-        missingResults: matches.some(m => (m.homeTeamId === r.teamId || m.awayTeamId === r.teamId) && !hasResult(m)),
+        missingResults: !r.pointsEntered && matches.some(m => (m.homeTeamId === r.teamId || m.awayTeamId === r.teamId) && !hasResult(m)),
       })),
   }));
 }
