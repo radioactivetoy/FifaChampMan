@@ -5,6 +5,7 @@ import { seedTeams, seedPlayers } from '../seed.js';
 import { createChampionship, getChampionship, fillFieldRandom, runDraw } from '../../src/repo/championships.js';
 import { listMatches, getMatch, updateMatch } from '../../src/repo/matches.js';
 import { createRng } from '../../src/domain/rng.js';
+import { groupUrl } from '../../src/web/components.js';
 
 async function drawnChampionship(app) {
   seedTeams(app.db);
@@ -197,6 +198,41 @@ test('enter CPU team points per group, close the group stage, playoff offers onl
 
     await app.post(`/championships/${id}/groups/reopen`);
     assert.equal(getChampionship(app.db, id).groupStageClosed, false);
+  } finally {
+    await app.close();
+  }
+});
+
+test('closing the group stage redirects to a summary of qualified teams, flagging any missing a result', async () => {
+  const app = await startTestApp();
+  try {
+    const id = await drawnChampionship(app);
+    await app.post(`/championships/${id}/groups/fixtures`);
+    const groupMatches = listMatches(app.db, id).filter(m => m.stage === 'group');
+    const c = getChampionship(app.db, id);
+    const [teamX, teamY] = c.teams.filter(t => t.groupLetter === 'A');
+    await app.post(`/championships/${id}/teams/${teamX.teamId}/reached`, { reached: 'r16', back: 'groups' });
+    await app.post(`/championships/${id}/teams/${teamY.teamId}/reached`, { reached: 'r16', back: 'groups' });
+
+    const unplayed = groupMatches.find(m => (m.homeTeamId === teamX.teamId || m.awayTeamId === teamX.teamId)
+      && m.homeTeamId !== teamY.teamId && m.awayTeamId !== teamY.teamId); // exclude the teamX-vs-teamY leg — see Task 2's note on why
+    for (const m of groupMatches) {
+      if (m.id === unplayed.id) continue;
+      await app.post(`/championships/${id}/matches/${m.id}`, { homeScore: '1', awayScore: '0' });
+    }
+
+    const r = await app.post(`/championships/${id}/groups/close`);
+    assert.equal(r.location, `/championships/${id}/groups/closed`);
+
+    const text = (await app.get(`/championships/${id}/groups/closed`)).text;
+    assert.match(text, /Group stage closed — qualified teams/);
+    assert.match(text, /⚠ 1 qualified team has at least one group match with no score entered/);
+    assert.ok(text.includes(`href="${groupUrl(id, 'A')}"`));
+
+    // Revisiting after reopening bounces back to the group-stage page.
+    await app.post(`/championships/${id}/groups/reopen`);
+    const bounced = await app.get(`/championships/${id}/groups/closed`, { redirect: 'manual' });
+    assert.equal(bounced.status, 302);
   } finally {
     await app.close();
   }

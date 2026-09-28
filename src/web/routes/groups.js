@@ -52,7 +52,7 @@ export function registerGroupRoutes(app, { db, rng }) {
     };
     const closeControls = c.groupStageClosed
       ? html`<form method="post" action="${base}/groups/reopen" class="banner">
-          ✓ Group stage closed — the 16 qualified teams go to the <a href="${base}/playoff">Playoff</a>.
+          ✓ Group stage closed — see the <a href="${base}/groups/closed">qualified teams</a> or head to the <a href="${base}/playoff">Playoff</a>.
           <button>Reopen group stage</button></form>`
       : standings.size === GROUP_LETTERS.length
         ? html`<form method="post" action="${base}/groups/close" class="row"
@@ -110,7 +110,33 @@ export function registerGroupRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/groups/close', (req, res) => {
     C.closeGroupStage(db, Number(req.params.id));
-    res.redirect(`/championships/${req.params.id}/groups`);
+    res.redirect(`/championships/${req.params.id}/groups/closed`);
+  });
+
+  app.get('/championships/:id/groups/closed', (req, res) => {
+    const c = C.getChampionship(db, Number(req.params.id));
+    if (!c.groupStageClosed) return res.redirect(`/championships/${c.id}/groups`);
+    const base = `/championships/${c.id}`;
+    const summary = C.closedGroupSummary(db, c.id);
+    const missingCount = summary.reduce((n, g) => n + g.rows.filter(r => r.missingResults).length, 0);
+    res.send(page({
+      title: c.name,
+      body: html`${champNav(c, 'groups')}
+        <h2>Group stage closed — qualified teams</h2>
+        <p class="muted">${missingCount
+          ? `⚠ ${missingCount} qualified team${missingCount === 1 ? '' : 's'} ${missingCount === 1 ? 'has' : 'have'} at least one group match with no score entered — fix those before trusting these standings.`
+          : 'Every qualified team has all its group results entered.'}</p>
+        <table><thead><tr><th>Group</th><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th></th></tr></thead><tbody>
+        ${summary.flatMap(g => g.rows.map(r => html`<tr>
+          <td>${g.letter}</td><td class="muted">${r.position}</td><td>${teamName(r.team)}</td>
+          <td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td>
+          <td>${r.goalsFor}</td><td>${r.goalsAgainst}</td><td>${r.goalDiff}</td><td><strong>${r.points}</strong></td>
+          <td>${r.missingResults ? html`<a class="error" href="${groupUrl(c.id, g.letter)}">⚠ Missing results</a>` : html`<span class="muted">✓ complete</span>`}</td>
+        </tr>`))}
+        </tbody></table>
+        <p class="row"><a href="${base}/playoff"><button class="primary">Go to Playoff</button></a>
+          <form method="post" action="${base}/groups/reopen" class="inline"><button>Reopen group stage</button></form></p>`,
+    }));
   });
 
   app.post('/championships/:id/groups/reopen', (req, res) => {
