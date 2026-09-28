@@ -35,7 +35,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
         ${PLAYOFF_STAGES.filter(stage => matches.some(m => m.stage === stage)).map(stage =>
           html`<form id="playoff-${stage}" method="post" action="/championships/${c.id}/playoff/${stage}/matches"></form>`)}
         ${playoffBracket(c, matches, stage => `playoff-${stage}`)}
-        ${PLAYOFF_STAGES.map(stage => saveResultsButton(`playoff-${stage}`, matches.filter(m => m.stage === stage).length))}`,
+        ${PLAYOFF_STAGES.map(stage => saveResultsButton(`playoff-${stage}`, matches.filter(m => m.stage === stage).length, { label: `Save ${STAGE_LABELS[stage]} results` }))}`,
     }));
   });
 

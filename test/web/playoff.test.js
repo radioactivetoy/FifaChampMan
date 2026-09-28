@@ -72,3 +72,24 @@ test('playoff page renders a bracket tree; a two-legged tie shows its aggregate 
     await app.close();
   }
 });
+
+test('each playoff stage\'s Save results button names its own stage', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const rng = createRng(1);
+    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
+    fillFieldRandom(app.db, id, rng);
+    const [teamA, teamB] = getChampionship(app.db, id).teams;
+
+    await app.post(`/championships/${id}/playoff`, { stage: 'qf', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
+
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    // The button must name its stage, not just read the generic "Save results" — with several
+    // stages' buttons all stacked at the bottom of the bracket, an unlabeled one is ambiguous
+    // about which stage's still-unsaved scores it submits.
+    assert.match(text, /Save Quarter-final results/);
+  } finally {
+    await app.close();
+  }
+});

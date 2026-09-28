@@ -134,8 +134,8 @@ export function registerGroupRoutes(app, { db, rng }) {
           <td>${r.missingResults ? html`<a class="error" href="${groupUrl(c.id, g.letter)}">⚠ Missing results</a>` : html`<span class="muted">✓ complete</span>`}</td>
         </tr>`))}
         </tbody></table>
-        <p class="row"><a href="${base}/playoff"><button class="primary">Go to Playoff</button></a>
-          <form method="post" action="${base}/groups/reopen" class="inline"><button>Reopen group stage</button></form></p>`,
+        <div class="row"><a href="${base}/playoff"><button class="primary">Go to Playoff</button></a>
+          <form method="post" action="${base}/groups/reopen" class="inline"><button>Reopen group stage</button></form></div>`,
     }));
   });
 

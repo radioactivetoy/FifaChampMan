@@ -129,7 +129,8 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   a player had manually collapsed or expanded back to the server default.
   Closing the group stage (`POST /championships/:id/groups/close`) redirects to
   `/championships/:id/groups/closed`, a read-only summary of the 16 qualifiers that flags any team with
-  at least one group match still missing a score (`closedGroupSummary` in `repo/championships.js`) —
+  at least one group match still missing a score (unless its points were entered by hand via
+  `points_override`, which the standings already trust) (`closedGroupSummary` in `repo/championships.js`) —
   catches a premature close before the playoff seeding is trusted. Reopening goes back to `/groups`.
 - **Playoff**: matches are still added and edited exactly as before (pick stage, optional leg, two teams
   from a dropdown, restricted to qualified teams once the group stage is closed) — nothing about creation
