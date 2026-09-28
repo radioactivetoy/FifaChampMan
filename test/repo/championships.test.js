@@ -262,18 +262,14 @@ test('closing needs the draw done', () => {
 
 test('a championship draws its team pool from its own edition only', () => {
   const db = openDb();
-  // All three OVRs stay under the 1★ tier's minOvr (61, per DEFAULT_TIERS) so they're all candidates
-  // for a first-time player's 0.5★ offer by star level alone — the edition filter is what must exclude FC26 A.
-  saveTeam(db, { name: 'FC27 A', edition: 'FC 27', ovr: 55 });
-  saveTeam(db, { name: 'FC27 B', edition: 'FC 27', ovr: 50 });
-  saveTeam(db, { name: 'FC26 A', edition: 'FC 26', ovr: 60 });
+  saveTeam(db, { name: 'FC26 A', edition: 'FC 26', ovr: 55 }); // the only 0.5★ team in the whole database
   const [ana] = seedPlayers(db, ['Ana']);
   const rng = createRng(1);
 
   const id = C.createChampionship(db, { name: 'Cup', playerIds: [ana], edition: 'FC 27', rng });
   const c = C.getChampionship(db, id);
   assert.equal(c.edition, 'FC 27');
-  assert.ok(['FC27 A', 'FC27 B'].includes(c.players[0].team.name)); // never the FC 26 team, even though it's a better OVR
+  assert.equal(c.players[0].team, null); // no FC 27 team exists at this level, so none is assigned — the FC 26 team must never be offered
 });
 
 test('createChampionship without an edition defaults to the current one', () => {
