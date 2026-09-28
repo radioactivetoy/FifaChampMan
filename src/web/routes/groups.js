@@ -1,5 +1,5 @@
 import { html, page } from '../html.js';
-import { champNav, matchRow, teamName, cpuToggle, isCpuOnly, fillControllersButton } from '../components.js';
+import { champNav, matchRow, teamName, badge, cpuToggle, isCpuOnly, fillControllersButton } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, countMissingControllers } from '../../repo/matches.js';
 import { GROUP_LETTERS } from '../../domain/draw.js';
@@ -24,7 +24,13 @@ export function registerGroupRoutes(app, { db, rng }) {
         ? html`<td><strong>${r.points}</strong></td>`
         : html`<td><input form="${pointsForm}" name="points_${r.teamId}" type="number" min="0" class="num"
             value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="Points from the FIFA table (empty = calculated)"></td>`);
-      return html`<section id="group-${letter}"><h2>Group ${letter}</h2>
+      const hasHuman = rows.some(r => r.team.owner);
+      // Human groups start open so results are one click away; the rest stay collapsed to cut down scrolling.
+      return html`<details id="group-${letter}" class="group-details"${hasHuman ? ' open' : ''}>
+        <summary>
+          <span class="group-letter">Group ${letter}</span>
+          <span class="group-teams">${rows.map(r => html`<span class="group-team-chip${r.team.reached !== 'group' ? ' qualified' : ''}">${badge(r.team)}${r.team.name}${r.team.owner ? html` <span class="owner">${r.team.owner.playerName}</span>` : ''}</span>`)}</span>
+        </summary>
         <form id="${pointsForm}" method="post" action="${base}/groups/${letter}/points"></form>
         <table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Qualified</th></tr></thead><tbody>
         ${rows.map(r => { const t = r.team; const qualified = t.reached !== 'group'; return html`<tr>
@@ -38,7 +44,7 @@ export function registerGroupRoutes(app, { db, rng }) {
         </tbody></table>
         ${rows.some(r => !r.team.owner) ? html`<p class="row"><button form="${pointsForm}">Save points</button>
           <span class="muted">Type the CPU teams' points from the FIFA group table; player teams are calculated from their results.</span></p>` : ''}
-        <table class="matches"><tbody>${groupMatches.map(m => matchRow(c, m))}</tbody></table></section>`;
+        <table class="matches"><tbody>${groupMatches.map(m => matchRow(c, m))}</tbody></table></details>`;
     };
     const closeControls = c.groupStageClosed
       ? html`<form method="post" action="${base}/groups/reopen" class="banner">
@@ -64,6 +70,10 @@ export function registerGroupRoutes(app, { db, rng }) {
         ${closeControls}
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
+        ${standings.size ? html`<p class="row">
+          <button type="button" data-groups-toggle="expand">Expand all groups</button>
+          <button type="button" data-groups-toggle="collapse">Collapse all groups</button>
+        </p>` : ''}
         ${GROUP_LETTERS.map(groupSection)}`,
     }));
   });

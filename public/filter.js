@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setupCpuToggle();
   document.querySelectorAll("table[data-sortable]").forEach(setupSortableTable);
   setupViewSwitch();
+  setupGroupsToggle();
+  openTargetGroup();
   markCurrentNav();
 });
 
@@ -76,6 +78,29 @@ function setupViewSwitch() {
     document.querySelectorAll('[data-h2h-view]').forEach(v => { v.hidden = v.dataset.h2hView !== button.dataset.h2hShow; });
     buttons.forEach(b => b.classList.toggle('primary', b === button));
   }));
+}
+
+// Expand-all / collapse-all buttons for the group-stage page's <details class="group-details">.
+function setupGroupsToggle() {
+  const groups = [...document.querySelectorAll('details.group-details')];
+  if (groups.length === 0) return;
+  for (const button of document.querySelectorAll('[data-groups-toggle]')) {
+    button.addEventListener('click', () => {
+      const open = button.dataset.groupsToggle === 'expand';
+      groups.forEach(d => { d.open = open; });
+    });
+  }
+}
+
+// If the URL points at a #group-X, open it even if it was collapsed (the id sits on the
+// <details> itself, so the browser's own fragment-opens-ancestor-details behavior doesn't apply).
+function openTargetGroup() {
+  if (!location.hash) return;
+  const target = document.getElementById(location.hash.slice(1));
+  if (target?.tagName === 'DETAILS' && !target.open) {
+    target.open = true;
+    target.scrollIntoView();
+  }
 }
 
 // Highlights the header link of the section being viewed.

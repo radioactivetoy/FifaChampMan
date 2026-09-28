@@ -49,7 +49,13 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   `routes/`, all wired in `src/app.js`. Throw `UserError(message, status)` for user-facing errors; the error
   handler renders it (400/404), anything else is a 500.
 - `public/filter.js` — the only client JS: team list filtering, CPU-match toggle (localStorage), sortable
-  tables (`table[data-sortable]`, cells may carry `data-sort`), head-to-head view switch, nav highlight.
+  tables (`table[data-sortable]`, cells may carry `data-sort`), head-to-head view switch, group-stage
+  expand/collapse-all (`details.group-details`) plus opening the group named in the URL hash on load (needed
+  because the id sits on the `<details>` itself, so the browser's native "opening a closed details that
+  contains the fragment target" behavior doesn't fire), nav highlight. It's a classic (non-module) script
+  loaded with `defer`, so its top-level `function` declarations are globally callable/inspectable — handy
+  when debugging in a browser console, but note a hash-only navigation (`a#x` → `a#y`) does **not** reload the
+  script, so re-testing a fix needs a full navigation in between.
   `public/style.css` — tokens on `:root`, phone layout under `@media (max-width: 760px)` (match rows become
   stacked grids there).
 
@@ -67,7 +73,10 @@ table, also add it to `MIGRATIONS` in `db/connection.js` — `openDb` ALTERs old
   one assigned. A per-championship level override re-draws from that tier; Re-draw keeps the current level.
   Optional team template restricts the pool.
 - **Group stage**: 8 groups of 4, single round (6 matches per group, 48 total, matchdays 1–3). FIFA's order
-  differs, so matchday and home/away (⇄ swap) are editable.
+  differs, so matchday and home/away (⇄ swap) are editable. Each group is a collapsible `<details
+  id="group-X" class="group-details">` (open by default only for groups with a player's team) with a summary
+  chip row (`.group-team-chip`, green when qualified) so the page fits on screen without opening every group;
+  "Expand/collapse all groups" buttons and hash-navigation both drive it (see `public/filter.js` above).
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no

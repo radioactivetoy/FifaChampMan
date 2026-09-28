@@ -92,6 +92,27 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
   }
 });
 
+test('groups are collapsible: human groups open by default, others closed, with expand/collapse-all controls', async () => {
+  const app = await startTestApp();
+  try {
+    const id = await drawnChampionship(app);
+    await app.post(`/championships/${id}/groups/fixtures`);
+    const c = getChampionship(app.db, id);
+    const humanLetters = new Set(c.teams.filter(t => t.owner).map(t => t.groupLetter));
+
+    const text = (await app.get(`/championships/${id}/groups`)).text;
+    assert.match(text, /data-groups-toggle="expand"/);
+    assert.match(text, /data-groups-toggle="collapse"/);
+    for (const letter of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']) {
+      const re = new RegExp(`<details id="group-${letter}"[^>]*>`);
+      const [tag] = text.match(re);
+      assert.equal(/\bopen\b/.test(tag), humanLetters.has(letter), `group ${letter}: ${tag}`);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
 test('enter CPU team points per group, close the group stage, playoff offers only qualified teams', async () => {
   const app = await startTestApp();
   try {
