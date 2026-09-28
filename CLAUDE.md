@@ -102,6 +102,11 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   Teams admin page and the template editor stay edition-agnostic (you manage every team you own from one
   page) and just get an extra client-side filter alongside stars/league/country. `/stats` takes a
   `?edition=` filter; left blank it shows every edition's history combined, as before this feature existed.
+  A championship's edition is set at creation but not locked in: like name/status/team pool, it has its own
+  edit form on the overview page (`POST /championships/:id/edition`) so a typo (e.g. "FC27") that would
+  otherwise leave the championship with zero teams available can be fixed without recreating it. Changing it
+  does not touch the existing field or matches — those stay as they were, from whatever edition they were
+  drawn against.
   Team names are `UNIQUE` per `(name, edition)`, not globally — an existing database's `teams` table is
   rebuilt once on first open after upgrading (`db/connection.js`'s `migrateTeamsEdition`; SQLite can't
   `ALTER TABLE` a `UNIQUE` constraint away) to make that possible; **back up the database file before

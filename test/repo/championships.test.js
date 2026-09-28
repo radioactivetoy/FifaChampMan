@@ -277,3 +277,10 @@ test('createChampionship without an edition defaults to the current one', () => 
   const id = C.createChampionship(db, { name: 'Cup', playerIds: players, rng });
   assert.equal(C.getChampionship(db, id).edition, 'FC 27');
 });
+
+test('updateChampionship can change a championship\'s edition', () => {
+  const { db, players, rng } = setup();
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players, edition: 'FC 27', rng });
+  C.updateChampionship(db, id, { edition: 'FC 26' });
+  assert.equal(C.getChampionship(db, id).edition, 'FC 26');
+});

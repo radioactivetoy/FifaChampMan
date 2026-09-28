@@ -51,9 +51,10 @@ export function createChampionship(db, { name, playerIds, templateId = null, edi
   });
 }
 
-export function updateChampionship(db, id, { name, status, templateId }) {
+export function updateChampionship(db, id, { name, status, templateId, edition }) {
   if (name !== undefined) run(db, 'UPDATE championships SET name = ? WHERE id = ?', name, id);
   if (templateId !== undefined) run(db, 'UPDATE championships SET template_id = ? WHERE id = ?', templateId, id);
+  if (edition !== undefined) run(db, 'UPDATE championships SET edition = ? WHERE id = ?', edition, id);
   if (status !== undefined) {
     if (!['active', 'finished'].includes(status)) throw new UserError(`Unknown status "${status}"`);
     run(db, 'UPDATE championships SET status = ? WHERE id = ?', status, id);

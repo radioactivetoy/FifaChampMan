@@ -2,9 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestApp } from '../helpers.js';
 import { seedTeams, seedPlayers } from '../seed.js';
-import { getChampionship } from '../../src/repo/championships.js';
+import { getChampionship, createChampionship } from '../../src/repo/championships.js';
 import { listTeams, saveTeam } from '../../src/repo/teams.js';
 import { saveTemplate, setTemplateTeams } from '../../src/repo/templates.js';
+import { createRng } from '../../src/domain/rng.js';
 
 test('create a championship and manage its players and teams', async () => {
   const app = await startTestApp();
@@ -91,6 +92,28 @@ test('a new championship picks an edition, defaulting to the current one, and on
     const page = (await app.get(`/championships/${id}`)).text;
     assert.match(page, /FC 27 · In progress/);
     assert.doesNotMatch(page, /FC26 team/); // never offered as a team option, even at a higher OVR
+  } finally {
+    await app.close();
+  }
+});
+
+test('a championship\'s edition can be changed after creation', async () => {
+  const app = await startTestApp();
+  try {
+    const rng = createRng(1);
+    const [ana] = seedPlayers(app.db, ['Ana']);
+    const id = createChampionship(app.db, { name: 'Cup', playerIds: [ana], edition: 'FC 27', rng });
+
+    const r = await app.post(`/championships/${id}/edition`, { edition: 'FC 26' });
+    assert.equal(r.location, `/championships/${id}`);
+    assert.equal(getChampionship(app.db, id).edition, 'FC 26');
+
+    // A blank submission falls back to the current default, same as every other edition field in the app.
+    const r2 = await app.post(`/championships/${id}/edition`, { edition: '' });
+    assert.equal(getChampionship(app.db, id).edition, 'FC 27');
+
+    const page = (await app.get(`/championships/${id}`)).text;
+    assert.match(page, /name="edition"[^>]*value="FC 27"/);
   } finally {
     await app.close();
   }

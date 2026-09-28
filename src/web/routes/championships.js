@@ -62,12 +62,17 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     const c = C.getChampionship(db, Number(req.params.id));
     const teamItems = listTeams(db, { edition: c.edition }).map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` }));
     const others = listPlayers(db).filter(p => !c.players.some(cp => cp.playerId === p.id));
+    const editions = listEditions(db);
     res.send(page({
       title: c.name,
       body: html`${champNav(c, '')}
         <form method="post" action="/championships/${c.id}" class="row"><input name="name" value="${c.name}" required><button>Rename</button></form>
         <form method="post" action="/championships/${c.id}/template" class="row">Team pool ${templateSelect(db, c.templateId)}<button>Save</button>
           <span class="muted">Used by re-draws and the random field.</span></form>
+        <form method="post" action="/championships/${c.id}/edition" class="row">
+          <label>Edition <input name="edition" list="editions" value="${c.edition}"></label><button>Save</button>
+          <span class="muted">Changing this does not update the field or existing matches; check them after a change.</span></form>
+        <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
         <table><thead><tr><th>Player</th><th>Level</th><th>Team</th><th>Choose between</th><th></th></tr></thead><tbody>
         ${c.players.map(p => { const base = `/championships/${c.id}/players/${p.playerId}`; return html`<tr>
           <td>${p.playerName}</td>
@@ -105,6 +110,11 @@ export function registerChampionshipRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/template', (req, res) => {
     C.updateChampionship(db, Number(req.params.id), { templateId: intOrNull(req.body.templateId) });
+    res.redirect(`/championships/${req.params.id}`);
+  });
+
+  app.post('/championships/:id/edition', (req, res) => {
+    C.updateChampionship(db, Number(req.params.id), { edition: textOrDefault(req.body.edition, DEFAULT_EDITION) });
     res.redirect(`/championships/${req.params.id}`);
   });
 
