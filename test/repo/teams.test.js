@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb, run } from '../../src/db/connection.js';
-import { listTeams, getTeam, saveTeam, importTeams, deleteTeam, listTiers, updateTier } from '../../src/repo/teams.js';
+import { listTeams, getTeam, saveTeam, importTeams, deleteTeam, listTiers, updateTier, listEditions } from '../../src/repo/teams.js';
 import { UserError } from '../../src/errors.js';
 
 test('save, edit and list teams with computed stars', () => {
@@ -10,7 +10,7 @@ test('save, edit and list teams with computed stars', () => {
   saveTeam(db, { name: 'Celtic', ovr: 70 });
   assert.deepEqual(listTeams(db).map(t => [t.name, t.stars]), [['Arsenal', 5], ['Celtic', 3.5]]);
   saveTeam(db, { id, name: 'Arsenal FC', country: 'England', league: 'PL', ovr: 80 });
-  assert.deepEqual(getTeam(db, id), { id, name: 'Arsenal FC', country: 'England', league: 'PL', ovr: 80, starsOverride: null, badgeUrl: '', leagueBadgeUrl: '', countryFlagUrl: '', stars: 4.5 });
+  assert.deepEqual(getTeam(db, id), { id, name: 'Arsenal FC', edition: 'FC 27', country: 'England', league: 'PL', ovr: 80, starsOverride: null, badgeUrl: '', leagueBadgeUrl: '', countryFlagUrl: '', stars: 4.5 });
 });
 
 test('manual star override wins over OVR tiers', () => {
@@ -66,4 +66,32 @@ test('cannot delete a team used in a championship', () => {
   const other = saveTeam(db, { name: 'Other', ovr: 60 });
   deleteTeam(db, other);
   assert.equal(getTeam(db, other), null);
+});
+
+test('teams carry an edition; the same name can exist in more than one, and listEditions lists them', () => {
+  const db = openDb();
+  saveTeam(db, { name: 'Real Madrid', edition: 'FC 27', ovr: 89 });
+  saveTeam(db, { name: 'Real Madrid', edition: 'FC 26', ovr: 87 });
+  assert.deepEqual(listEditions(db), ['FC 27', 'FC 26']);
+  assert.deepEqual(listTeams(db).map(t => t.edition).sort(), ['FC 26', 'FC 27']);
+  assert.deepEqual(listTeams(db, { edition: 'FC 26' }).map(t => t.name), ['Real Madrid']);
+});
+
+test('saveTeam without an edition defaults to the current one', () => {
+  const db = openDb();
+  const id = saveTeam(db, { name: 'Porto', ovr: 78 });
+  assert.equal(getTeam(db, id).edition, 'FC 27');
+});
+
+test('importTeams assigns every row to the given edition; the same name can be re-imported into a different one', () => {
+  const db = openDb();
+  importTeams(db, [{ name: 'Porto', ovr: 78 }], 'FC 26');
+  importTeams(db, [{ name: 'Porto', ovr: 80 }], 'FC 27');
+  const portos = listTeams(db).filter(t => t.name === 'Porto');
+  assert.equal(portos.length, 2);
+  assert.deepEqual(portos.map(t => t.edition).sort(), ['FC 26', 'FC 27']);
+
+  importTeams(db, [{ name: 'Porto', ovr: 81 }], 'FC 27'); // re-import into the same edition updates, not duplicates
+  assert.equal(listTeams(db).filter(t => t.name === 'Porto').length, 2);
+  assert.equal(listTeams(db).find(t => t.name === 'Porto' && t.edition === 'FC 27').ovr, 81);
 });
