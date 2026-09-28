@@ -16,13 +16,13 @@ function setupTeamFilter() {
   const count = bar.querySelector('[data-filter-count]');
   const value = name => bar.querySelector(`[name="${name}"]`).value;
   const apply = () => {
-    const stars = value('stars'), league = value('league'), country = value('country');
+    const stars = value('stars'), league = value('league'), country = value('country'), edition = value('edition');
     const q = value('name').trim().toLowerCase();
     let shown = 0;
     for (const row of rows) {
       const d = row.dataset;
       const match = (!stars || d.stars === stars) && (!league || d.league === league)
-        && (!country || d.country === country) && (!q || d.name.includes(q));
+        && (!country || d.country === country) && (!edition || d.edition === edition) && (!q || d.name.includes(q));
       row.hidden = !match;
       if (match) shown++;
     }

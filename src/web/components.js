@@ -20,10 +20,10 @@ export const flag = t => icon(t.countryFlagUrl);
 export const groupUrl = (championshipId, letter) => `/championships/${championshipId}/groups?open=${letter}#group-${letter}`;
 
 /** data-* attributes read by public/filter.js on each filterable row. */
-export const filterAttrs = t => html`data-filter-row data-stars="${t.stars}" data-league="${t.league}" data-country="${t.country}" data-name="${t.name.toLowerCase()}"`;
+export const filterAttrs = t => html`data-filter-row data-stars="${t.stars}" data-league="${t.league}" data-country="${t.country}" data-edition="${t.edition ?? ''}" data-name="${t.name.toLowerCase()}"`;
 
 /**
- * Client-side filter bar (stars, league, country, name) for any element marked with filterAttrs.
+ * Client-side filter bar (stars, league, country, edition, name) for any element marked with filterAttrs.
  * Works together with public/filter.js; hides non-matching rows without reloading.
  */
 export function teamFilterBar(teams) {
@@ -32,6 +32,7 @@ export function teamFilterBar(teams) {
     ${select({ name: 'stars', items: [...new Set(teams.map(t => t.stars))].sort((a, b) => b - a).map(s => ({ value: s, label: stars(s) })), blank: 'All stars' })}
     ${select({ name: 'league', items: distinct('league'), blank: 'All leagues' })}
     ${select({ name: 'country', items: distinct('country'), blank: 'All countries' })}
+    ${select({ name: 'edition', items: distinct('edition'), blank: 'All editions' })}
     <input name="name" type="search" placeholder="Search name">
     <span class="muted" data-filter-count></span>
   </div>`;
@@ -39,7 +40,7 @@ export function teamFilterBar(teams) {
 
 export function champNav(c, active) {
   const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results'], ['recap', 'Recap']];
-  return html`<p class="muted">${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
+  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
     ${finishBanner(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;
 }
