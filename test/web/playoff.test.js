@@ -41,3 +41,34 @@ test('add, edit and list playoff matches; CPU controller drawn automatically', a
     await app.close();
   }
 });
+
+test('playoff page renders a bracket tree; a two-legged tie shows its aggregate winner', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const rng = createRng(1);
+    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
+    fillFieldRandom(app.db, id, rng);
+    const [teamA, teamB] = getChampionship(app.db, id).teams;
+
+    await app.post(`/championships/${id}/playoff`, { stage: 'qf', leg: '1', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
+    const [leg1] = listMatches(app.db, id);
+    await app.post(`/championships/${id}/playoff`, { stage: 'qf', leg: '2', homeTeamId: teamB.teamId, awayTeamId: teamA.teamId });
+    const leg2 = listMatches(app.db, id).find(m => m.id !== leg1.id);
+
+    let text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(text, /class="bracket scroll-x"/);
+    assert.equal((text.match(/class="bracket-tie"/g) ?? []).length, 1); // one tie box for both legs
+
+    const r = await app.post(`/championships/${id}/playoff/qf/matches`, {
+      [`homeScore_${leg1.id}`]: '3', [`awayScore_${leg1.id}`]: '1',
+      [`homeScore_${leg2.id}`]: '0', [`awayScore_${leg2.id}`]: '1', // teamA wins 4-1 on aggregate
+    });
+    assert.equal(r.location, `/championships/${id}/playoff`);
+
+    text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(text, new RegExp(`Agg 4-1 · <strong>${teamA.name}</strong> through`));
+  } finally {
+    await app.close();
+  }
+});
