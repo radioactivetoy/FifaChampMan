@@ -56,8 +56,9 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   loaded with `defer`, so its top-level `function` declarations are globally callable/inspectable — handy
   when debugging in a browser console, but note a hash-only navigation (`a#x` → `a#y`) does **not** reload the
   script, so re-testing a fix needs a full navigation in between.
-  `public/style.css` — tokens on `:root`, phone layout under `@media (max-width: 760px)` (match rows become
-  stacked grids there).
+  `public/style.css` — tokens on `:root`, `html { scroll-behavior: smooth }` (guarded by
+  `prefers-reduced-motion`) so anchor jumps and the group-opening `scrollIntoView` above animate instead of
+  snapping, phone layout under `@media (max-width: 760px)` (match rows become stacked grids there).
 
 Schema lives in `src/db/schema.sql` (all `CREATE … IF NOT EXISTS`). When adding a column to an existing
 table, also add it to `MIGRATIONS` in `db/connection.js` — `openDb` ALTERs older databases on start.

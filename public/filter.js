@@ -98,8 +98,10 @@ function openTargetGroup() {
   if (!location.hash) return;
   const target = document.getElementById(location.hash.slice(1));
   if (target?.tagName === 'DETAILS' && !target.open) {
+    // Opening it grows the page, which would otherwise yank the scroll position right after the
+    // browser's own (already smooth, see style.css) jump to the anchor — animate this one too.
     target.open = true;
-    target.scrollIntoView();
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 
