@@ -284,3 +284,39 @@ test('updateChampionship can change a championship\'s edition', () => {
   C.updateChampionship(db, id, { edition: 'FC 26' });
   assert.equal(C.getChampionship(db, id).edition, 'FC 26');
 });
+
+test('closedGroupSummary lists the 16 qualifiers and flags any missing a group result', () => {
+  const { db, players, rng } = setup();
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players, rng });
+  C.fillFieldRandom(db, id, rng);
+  C.runDraw(db, id, rng);
+  C.generateGroupFixtures(db, id, rng);
+
+  const groupATeams = C.getChampionship(db, id).teams.filter(t => t.groupLetter === 'A');
+  const [teamX, teamY] = groupATeams;
+  C.setReached(db, id, teamX.teamId, 'r16');
+  C.setReached(db, id, teamY.teamId, 'r16');
+
+  const groupMatches = listMatches(db, id).filter(m => m.stage === 'group');
+  // Pick a match that involves teamX but not teamY: teamX and teamY are group A's pot-1 and
+  // pot-2 teams (getChampionship sorts by OVR desc, which matches pot order), so they always play
+  // each other in the schedule's very first fixture — using that one as "unplayed" would also
+  // flag teamY, defeating the point of this test (teamX missing, teamY not).
+  const unplayed = groupMatches.find(m =>
+    (m.homeTeamId === teamX.teamId || m.awayTeamId === teamX.teamId) &&
+    m.homeTeamId !== teamY.teamId && m.awayTeamId !== teamY.teamId);
+  for (const m of groupMatches) {
+    if (m.id === unplayed.id) continue;
+    updateMatch(db, m.id, { homeScore: 1, awayScore: 0 });
+  }
+  C.closeGroupStage(db, id);
+
+  const summary = C.closedGroupSummary(db, id);
+  assert.equal(summary.length, 8);
+  assert.equal(summary.reduce((n, g) => n + g.rows.length, 0), 16);
+
+  const groupA = summary.find(g => g.letter === 'A');
+  assert.equal(groupA.rows.find(r => r.teamId === teamX.teamId).missingResults, true);
+  assert.equal(groupA.rows.find(r => r.teamId === teamY.teamId).missingResults, false);
+  for (const g of summary.filter(g => g.letter !== 'A')) assert.ok(g.rows.every(r => !r.missingResults));
+});

@@ -3,7 +3,7 @@ import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
 import { listMatches, insertMatch, drawControllers } from './matches.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
-import { teamRecord, computeStandings } from '../domain/standings.js';
+import { teamRecord, computeStandings, hasResult } from '../domain/standings.js';
 import { playerStats } from '../domain/stats.js';
 import { fillField, FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
 import { makePots, drawGroups, GROUP_LETTERS } from '../domain/draw.js';
@@ -288,6 +288,26 @@ export function closeGroupStage(db, championshipId) {
 
 export function reopenGroupStage(db, championshipId) {
   run(db, 'UPDATE championships SET group_stage_closed = 0 WHERE id = ?', championshipId);
+}
+
+/**
+ * The 16 qualified teams, grouped by letter, right after closing the group stage: each row flags
+ * whether every one of that team's own group matches has a score entered, so a premature close
+ * (e.g. a CPU-vs-CPU result nobody typed in, and nobody overrode the points either) can be spotted
+ * and fixed before trusting the playoff seeding.
+ */
+export function closedGroupSummary(db, championshipId) {
+  const c = getChampionship(db, championshipId);
+  const matches = listMatches(db, championshipId).filter(m => m.stage === 'group');
+  return groupStandings(db, championshipId, c, matches).map(g => ({
+    letter: g.letter,
+    rows: g.rows
+      .filter(r => r.team.reached !== 'group')
+      .map(r => ({
+        ...r,
+        missingResults: matches.some(m => (m.homeTeamId === r.teamId || m.awayTeamId === r.teamId) && !hasResult(m)),
+      })),
+  }));
 }
 
 // ---------- results ----------
