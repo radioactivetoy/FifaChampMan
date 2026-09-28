@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb, run } from '../../src/db/connection.js';
-import { listMatches, getMatch, insertMatch, updateMatch, deleteMatch, createPlayoffMatch, rerollControllers, ownerMap, fillMissingControllers, countMissingControllers } from '../../src/repo/matches.js';
+import { listMatches, getMatch, insertMatch, updateMatch, updateMatches, deleteMatch, createPlayoffMatch, rerollControllers, ownerMap, fillMissingControllers, countMissingControllers } from '../../src/repo/matches.js';
 import { createRng } from '../../src/domain/rng.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import { UserError } from '../../src/errors.js';
@@ -74,6 +74,15 @@ test('fillMissingControllers draws only empty controllers of matches involving a
   assert.deepEqual([getMatch(db, alreadySet).homeControllerId, getMatch(db, alreadySet).awayControllerId], [ana, ben]);
   assert.deepEqual([getMatch(db, cpuOnly).homeControllerId, getMatch(db, cpuOnly).awayControllerId], [null, null]);
   assert.equal(countMissingControllers(db, 1), 0);
+});
+
+test('updateMatches applies every match update atomically', () => {
+  const { db, teams } = setup();
+  const id1 = insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 1, homeTeamId: teams[0], awayTeamId: teams[1] });
+  const id2 = insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 2, homeTeamId: teams[2], awayTeamId: teams[3] });
+  updateMatches(db, [{ id: id1, fields: { homeScore: 2, awayScore: 0 } }, { id: id2, fields: { homeScore: 1, awayScore: 1 } }]);
+  assert.deepEqual([getMatch(db, id1).homeScore, getMatch(db, id1).awayScore], [2, 0]);
+  assert.deepEqual([getMatch(db, id2).homeScore, getMatch(db, id2).awayScore], [1, 1]);
 });
 
 test('rerollControllers keeps the owner and re-draws the CPU side', () => {

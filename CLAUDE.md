@@ -45,9 +45,19 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   `groupLetter`, `reached`, `pointsOverride`, `owner`); most pages start from it.
 - `src/web/` — `html.js` has the `html` tagged template (auto-escapes; nest `html`/`raw()` for markup),
   `page()` layout and `select()`. `components.js` holds shared UI (`champNav` tabs + finish banner,
-  `matchRow`, `teamName` with badge/owner pill). One `register*Routes(app, { db, rng })` per file in
-  `routes/`, all wired in `src/app.js`. Throw `UserError(message, status)` for user-facing errors; the error
-  handler renders it (400/404), anything else is a 500.
+  `matchRow`, `teamName` with badge/owner pill, `saveResultsButton`). One `register*Routes(app, { db, rng })`
+  per file in `routes/`, all wired in `src/app.js`. Throw `UserError(message, status)` for user-facing errors;
+  the error handler renders it (400/404), anything else is a 500.
+  **Match rows share one bulk-save form**, not one form each: `matchRow(c, m, { formId, playoff })` renders
+  every field named `<field>_<matchId>` (e.g. `homeScore_123`) pointing at one `<form id="formId">` rendered
+  once around the whole table (per group, per playoff stage), with one "Save results" button below — so
+  filling in several matches and saving once doesn't lose whatever was typed into the others (a real bug:
+  each row used to be its own form/Save, so saving one silently discarded any others still unsaved). The
+  per-row 🎲/⇄/✕ actions stay individual forms, since they act on the match's current DB state, not on
+  typed-but-unsaved values. Web-layer parsing (`parseMatchFields`, `bulkFieldsFor`) and the reusable
+  `saveMatchesFromBody(db, matchIds, body)` live in `web/routes/matches.js`; `repo/matches.js`'s
+  `updateMatches(db, updates)` applies them all in one transaction. The group-stage save route
+  (`POST /championships/:id/groups/:letter/save`) also folds in the CPU teams' points in the same submit.
 - `public/filter.js` — the only client JS: team list filtering, CPU-match toggle (localStorage), sortable
   tables (`table[data-sortable]`, cells may carry `data-sort`), head-to-head view switch, group-stage
   collapse/expand persistence (`setupGroupsPersistence`, localStorage — see below), nav highlight. It's a

@@ -1,4 +1,4 @@
-import { all, get, run } from '../db/connection.js';
+import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { assignControllers } from '../domain/controllers.js';
 import { scopeOf, PLAYOFF_STAGES } from '../domain/stages.js';
@@ -50,6 +50,11 @@ export function updateMatch(db, id, fields) {
   if (entries.length === 0) return;
   run(db, `UPDATE matches SET ${entries.map(([k]) => `${EDITABLE[k]} = ?`).join(', ')} WHERE id = ?`,
     ...entries.map(([, v]) => v ?? null), id);
+}
+
+/** Applies field updates to several matches in one transaction. updates: [{ id, fields }]. */
+export function updateMatches(db, updates) {
+  transaction(db, () => { for (const { id, fields } of updates) updateMatch(db, id, fields); });
 }
 
 /** Swaps home and away: teams, scores, penalties and controllers all move with their team. */

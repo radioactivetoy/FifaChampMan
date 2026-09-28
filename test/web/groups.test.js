@@ -71,7 +71,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     });
     assert.equal(getMatch(app.db, m.id).matchday, 3);
     assert.equal((await app.post(`/championships/${id}/matches/${m.id}`, { matchday: '0' })).status, 400);
-    assert.match((await app.get(`/championships/${id}/groups`)).text, new RegExp(`name="matchday" form="m${m.id}"`));
+    assert.match((await app.get(`/championships/${id}/groups`)).text, new RegExp(`name="matchday_${m.id}" form="grp-${m.groupLetter}"`));
 
     // Home and away can be swapped; scores and controllers follow their teams
     const before = getMatch(app.db, m.id);
@@ -135,6 +135,34 @@ test('?open=X pre-renders a group as expanded, so following a redirect there nee
   }
 });
 
+test('every match result in a group is saved together in one Save, not lost when saving another', async () => {
+  const app = await startTestApp();
+  try {
+    const id = await drawnChampionship(app);
+    await app.post(`/championships/${id}/groups/fixtures`);
+    const groupA = listMatches(app.db, id).filter(m => m.groupLetter === 'A');
+    assert.ok(groupA.length >= 3, 'group A needs several matches for this test');
+
+    const text = (await app.get(`/championships/${id}/groups`)).text;
+    const formId = `grp-A`;
+    assert.match(text, new RegExp(`<form id="${formId}" method="post" action="/championships/${id}/groups/A/save"`));
+    assert.doesNotMatch(text, /class="actions"><button[^>]*>Save<\/button>/); // no more per-row Save button
+
+    // Fill in every match's score in the group and press "Save results" once, as a user would.
+    const form = {};
+    groupA.forEach((m, i) => { form[`homeScore_${m.id}`] = String(i + 1); form[`awayScore_${m.id}`] = '0'; });
+    const r = await app.post(`/championships/${id}/groups/A/save`, form);
+    assert.equal(r.location, `/championships/${id}/groups?open=A#group-A`);
+
+    groupA.forEach((m, i) => {
+      const saved = getMatch(app.db, m.id);
+      assert.deepEqual([saved.homeScore, saved.awayScore], [i + 1, 0], `match ${m.id} (row ${i})`);
+    });
+  } finally {
+    await app.close();
+  }
+});
+
 test('enter CPU team points per group, close the group stage, playoff offers only qualified teams', async () => {
   const app = await startTestApp();
   try {
@@ -149,7 +177,7 @@ test('enter CPU team points per group, close the group stage, playoff offers onl
     if (humanB) assert.doesNotMatch(text, new RegExp(`name="points_${humanB.teamId}"`));
 
     const form = Object.fromEntries(cpuB.map((t, i) => [`points_${t.teamId}`, String(7 - i)]));
-    const r = await app.post(`/championships/${id}/groups/B/points`, form);
+    const r = await app.post(`/championships/${id}/groups/B/save`, form);
     assert.equal(r.location, `/championships/${id}/groups?open=B#group-B`);
     assert.deepEqual(getChampionship(app.db, id).teams.filter(t => cpuB.some(x => x.teamId === t.teamId)).map(t => t.pointsOverride).sort(),
       cpuB.map((_, i) => 7 - i).sort());

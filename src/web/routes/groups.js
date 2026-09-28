@@ -1,7 +1,8 @@
 import { html, page } from '../html.js';
-import { champNav, matchRow, teamName, badge, cpuToggle, isCpuOnly, fillControllersButton, groupUrl } from '../components.js';
+import { champNav, matchRow, teamName, badge, cpuToggle, isCpuOnly, fillControllersButton, saveResultsButton, groupUrl } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, countMissingControllers } from '../../repo/matches.js';
+import { saveMatchesFromBody } from './matches.js';
 import { GROUP_LETTERS } from '../../domain/draw.js';
 import { intOrNull } from '../form.js';
 import { UserError } from '../../errors.js';
@@ -19,11 +20,12 @@ export function registerGroupRoutes(app, { db, rng }) {
       const rows = standings.get(letter);
       if (!rows) return '';
       const groupMatches = matches.filter(m => m.groupLetter === letter);
-      const pointsForm = `pts-${letter}`;
+      const formId = `grp-${letter}`;
       // Player teams: points calculated from their results. CPU teams: points can be typed in from the FIFA table.
+      // Shares formId with the match rows below, so one "Save" commits points and results together.
       const pointsCell = r => (r.team.owner
         ? html`<td><strong>${r.points}</strong></td>`
-        : html`<td><input form="${pointsForm}" name="points_${r.teamId}" type="number" min="0" class="num"
+        : html`<td><input form="${formId}" name="points_${r.teamId}" type="number" min="0" class="num"
             value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="Points from the FIFA table (empty = calculated)"></td>`);
       // Human groups start open so results are one click away; ?open=X (a redirect back to that
       // group) opens it too; the rest stay collapsed to cut down scrolling.
@@ -33,7 +35,7 @@ export function registerGroupRoutes(app, { db, rng }) {
           <span class="group-letter">Group ${letter}</span>
           <span class="group-teams">${rows.map(r => html`<span class="group-team-chip${r.team.reached !== 'group' ? ' qualified' : ''}">${badge(r.team)}${r.team.name}${r.team.owner ? html` <span class="owner">${r.team.owner.playerName}</span>` : ''}</span>`)}</span>
         </summary>
-        <form id="${pointsForm}" method="post" action="${base}/groups/${letter}/points"></form>
+        <form id="${formId}" method="post" action="${base}/groups/${letter}/save"></form>
         <table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Qualified</th></tr></thead><tbody>
         ${rows.map(r => { const t = r.team; const qualified = t.reached !== 'group'; return html`<tr>
           <td class="muted">${r.position}</td>
@@ -44,9 +46,9 @@ export function registerGroupRoutes(app, { db, rng }) {
             <button class="${qualified ? 'primary' : ''}">${qualified ? `✓ ${REACHED_LABELS[t.reached]}` : 'No'}</button></form></td>
         </tr>`; })}
         </tbody></table>
-        ${rows.some(r => !r.team.owner) ? html`<p class="row"><button form="${pointsForm}">Save points</button>
-          <span class="muted">Type the CPU teams' points from the FIFA group table; player teams are calculated from their results.</span></p>` : ''}
-        <table class="matches"><tbody>${groupMatches.map(m => matchRow(c, m))}</tbody></table></details>`;
+        <table class="matches"><tbody>${groupMatches.map(m => matchRow(c, m, { formId }))}</tbody></table>
+        ${saveResultsButton(formId, rows.some(r => !r.team.owner) || groupMatches.length > 0, { withPoints: rows.some(r => !r.team.owner) })}
+      </details>`;
     };
     const closeControls = c.groupStageClosed
       ? html`<form method="post" action="${base}/groups/reopen" class="banner">
@@ -68,7 +70,8 @@ export function registerGroupRoutes(app, { db, rng }) {
         <p class="muted">Single round: each team plays the other three once. When fixtures are generated, the player controlling
           each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn);
           press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering
-          their result is optional. Mark who qualified with the "Qualified" buttons.</p>
+          their result is optional. Fill in as many scores and CPU points as you like within a group, then press
+          <strong>Save results</strong> once for that whole group. Mark who qualified with the "Qualified" buttons.</p>
         ${closeControls}
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
@@ -90,7 +93,9 @@ export function registerGroupRoutes(app, { db, rng }) {
     res.redirect(`/championships/${req.params.id}/groups`);
   });
 
-  app.post('/championships/:id/groups/:letter/points', (req, res) => {
+  // Everything editable in one group, saved together: CPU teams' points and every match's score,
+  // controllers and matchday (so filling in several rows and saving once doesn't lose any of them).
+  app.post('/championships/:id/groups/:letter/save', (req, res) => {
     const id = Number(req.params.id);
     const letter = req.params.letter;
     if (!GROUP_LETTERS.includes(letter)) throw new UserError(`Unknown group "${letter}"`);
@@ -98,6 +103,8 @@ export function registerGroupRoutes(app, { db, rng }) {
       const key = `points_${t.teamId}`;
       if (key in req.body) C.setGroupPoints(db, id, t.teamId, intOrNull(req.body[key]));
     }
+    const matchIds = listMatches(db, id).filter(m => m.stage === 'group' && m.groupLetter === letter).map(m => m.id);
+    saveMatchesFromBody(db, matchIds, req.body);
     res.redirect(groupUrl(id, letter));
   });
 

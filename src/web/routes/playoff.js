@@ -1,6 +1,6 @@
 import { html, page, select } from '../html.js';
 import { intOrNull } from '../form.js';
-import { champNav, matchRow, cpuToggle, isCpuOnly, fillControllersButton } from '../components.js';
+import { champNav, matchRow, cpuToggle, isCpuOnly, fillControllersButton, saveResultsButton } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, createPlayoffMatch, countMissingControllers } from '../../repo/matches.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED } from '../../domain/stages.js';
@@ -28,12 +28,18 @@ export function registerPlayoffRoutes(app, { db, rng }) {
         </form>
         <p class="muted">When you add a match, the player controlling a CPU team that faces a human is drawn automatically
           (rotating across the whole playoff); press <strong>🎲 Draw</strong> to re-draw. CPU-vs-CPU matches are simulated by the console.
+          Fill in as many results as you like, then press <strong>Save results</strong> once for that whole round.
           When a round is done, set how far each team got on the <a href="/championships/${c.id}/results">Results</a> tab.</p>
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'playoff')}
         ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
         ${PLAYOFF_STAGES.map(stage => {
           const stageMatches = matches.filter(m => m.stage === stage);
-          return stageMatches.length ? html`<h2>${STAGE_LABELS[stage]}</h2><table class="matches"><tbody>${stageMatches.map(m => matchRow(c, m, { playoff: true }))}</tbody></table>` : '';
+          if (stageMatches.length === 0) return '';
+          const formId = `playoff-${stage}`;
+          return html`<h2>${STAGE_LABELS[stage]}</h2>
+            <form id="${formId}" method="post" action="/championships/${c.id}/playoff/${stage}/matches"></form>
+            <table class="matches"><tbody>${stageMatches.map(m => matchRow(c, m, { playoff: true, formId }))}</tbody></table>
+            ${saveResultsButton(formId, stageMatches.length)}`;
         })}`,
     }));
   });
