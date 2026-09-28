@@ -281,10 +281,14 @@ tbody tr:last-child > :last-child { border-bottom-right-radius: var(--radius); }
 .bracket-tie { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; position: relative; }
 .bracket-tie table.matches { margin: 0; box-shadow: none; border: 0; }
 .bracket-agg { text-align: center; margin: 6px 4px 2px; }
-/* A short line toward the next round, hinting at the bracket shape without wiring specific ties together. */
-.bracket-round:not(:last-child) .bracket-tie::after {
-  content: ""; position: absolute; top: 50%; right: -24px; width: 24px; height: 1px; background: var(--line);
+/* A short line toward the next round on that side, hinting at the bracket shape without wiring specific ties together. */
+.bracket-tie.connect-right::after, .bracket-tie.connect-left::after {
+  content: ""; position: absolute; top: 50%; width: 24px; height: 1px; background: var(--line);
 }
+.bracket-tie.connect-right::after { right: -24px; }
+.bracket-tie.connect-left::after { left: -24px; }
+.bracket-final { justify-content: center; }
+.bracket-final h3 { color: var(--gold); }
 
 @media (max-width: 760px) {
   .bracket-round { min-width: 220px; }
