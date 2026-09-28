@@ -13,6 +13,8 @@ export function updateTier(db, stars, minOvr) {
 
 const withStars = (t, tiers) => ({ ...t, stars: t.starsOverride ?? starsForOvr(t.ovr, tiers) });
 
+// `SELECT DISTINCT edition ... ORDER BY rowid` doesn't reliably track which row's rowid survives the
+// dedup, so this groups and takes MIN(rowid) instead — the edition's first-ever row.
 /** Editions currently in use, in the order they first appeared — for the datalist on edition inputs. */
 export const listEditions = db => all(db, 'SELECT edition, MIN(rowid) AS firstRow FROM teams GROUP BY edition ORDER BY firstRow ASC').map(r => r.edition);
 
