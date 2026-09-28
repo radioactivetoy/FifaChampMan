@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll("table[data-sortable]").forEach(setupSortableTable);
   setupViewSwitch();
   setupGroupsToggle();
-  openTargetGroup();
   markCurrentNav();
 });
 
@@ -89,19 +88,6 @@ function setupGroupsToggle() {
       const open = button.dataset.groupsToggle === 'expand';
       groups.forEach(d => { d.open = open; });
     });
-  }
-}
-
-// If the URL points at a #group-X, open it even if it was collapsed (the id sits on the
-// <details> itself, so the browser's own fragment-opens-ancestor-details behavior doesn't apply).
-function openTargetGroup() {
-  if (!location.hash) return;
-  const target = document.getElementById(location.hash.slice(1));
-  if (target?.tagName === 'DETAILS' && !target.open) {
-    // Opening it grows the page, which would otherwise yank the scroll position right after the
-    // browser's own (already smooth, see style.css) jump to the anchor — animate this one too.
-    target.open = true;
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 

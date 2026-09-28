@@ -26,7 +26,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     const m = matches[0];
     const [p] = getChampionship(app.db, id).players;
     const r = await app.post(`/championships/${id}/matches/${m.id}`, { homeScore: '2', awayScore: '0', homeControllerId: String(p.playerId), awayControllerId: '' });
-    assert.equal(r.location, `/championships/${id}/groups#group-${m.groupLetter}`);
+    assert.equal(r.location, `/championships/${id}/groups?open=${m.groupLetter}#group-${m.groupLetter}`);
     const saved = getMatch(app.db, m.id);
     assert.deepEqual([saved.homeScore, saved.awayScore, saved.homeControllerId, saved.awayControllerId], [2, 0, p.playerId, null]);
 
@@ -43,7 +43,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     assert.match(text, new RegExp(`Show CPU vs CPU matches \\(${cpuOnly}\\)`));
 
     const q = await app.post(`/championships/${id}/teams/${m.homeTeamId}/reached`, { reached: 'r16', back: 'groups' });
-    assert.equal(q.location, `/championships/${id}/groups#group-${m.groupLetter}`); // stays at that group
+    assert.equal(q.location, `/championships/${id}/groups?open=${m.groupLetter}#group-${m.groupLetter}`); // stays at, and reopens, that group
     assert.equal(getChampionship(app.db, id).teams.find(t => t.teamId === m.homeTeamId).reached, 'r16');
 
     // The human's CPU opponent is drawn when fixtures are generated; 🎲 Draw re-draws it
@@ -76,7 +76,7 @@ test('generate fixtures, enter results and controllers, qualify teams', async ()
     // Home and away can be swapped; scores and controllers follow their teams
     const before = getMatch(app.db, m.id);
     const s = await app.post(`/championships/${id}/matches/${m.id}/swap`);
-    assert.equal(s.location, `/championships/${id}/groups#group-${m.groupLetter}`);
+    assert.equal(s.location, `/championships/${id}/groups?open=${m.groupLetter}#group-${m.groupLetter}`);
     const after = getMatch(app.db, m.id);
     assert.deepEqual(
       [after.homeTeamId, after.awayTeamId, after.homeScore, after.awayScore, after.homeControllerId, after.awayControllerId],
@@ -113,6 +113,28 @@ test('groups are collapsible: human groups open by default, others closed, with 
   }
 });
 
+test('?open=X pre-renders a group as expanded, so following a redirect there needs no client-side reopening', async () => {
+  const app = await startTestApp();
+  try {
+    const id = await drawnChampionship(app);
+    await app.post(`/championships/${id}/groups/fixtures`);
+    const c = getChampionship(app.db, id);
+    const cpuOnlyLetter = 'ABCDEFGH'.split('').find(l => !c.teams.some(t => t.groupLetter === l && t.owner));
+    assert.ok(cpuOnlyLetter, 'fixture needs at least one group without a human team');
+
+    const collapsed = (await app.get(`/championships/${id}/groups`)).text;
+    assert.doesNotMatch(collapsed, new RegExp(`<details id="group-${cpuOnlyLetter}" class="group-details" open>`));
+
+    const opened = (await app.get(`/championships/${id}/groups?open=${cpuOnlyLetter}`)).text;
+    assert.match(opened, new RegExp(`<details id="group-${cpuOnlyLetter}" class="group-details" open>`));
+    // Other, unrelated groups are unaffected.
+    const stillCollapsedLetter = 'ABCDEFGH'.split('').find(l => l !== cpuOnlyLetter && !c.teams.some(t => t.groupLetter === l && t.owner));
+    if (stillCollapsedLetter) assert.doesNotMatch(opened, new RegExp(`<details id="group-${stillCollapsedLetter}" class="group-details" open>`));
+  } finally {
+    await app.close();
+  }
+});
+
 test('enter CPU team points per group, close the group stage, playoff offers only qualified teams', async () => {
   const app = await startTestApp();
   try {
@@ -128,7 +150,7 @@ test('enter CPU team points per group, close the group stage, playoff offers onl
 
     const form = Object.fromEntries(cpuB.map((t, i) => [`points_${t.teamId}`, String(7 - i)]));
     const r = await app.post(`/championships/${id}/groups/B/points`, form);
-    assert.equal(r.location, `/championships/${id}/groups#group-B`);
+    assert.equal(r.location, `/championships/${id}/groups?open=B#group-B`);
     assert.deepEqual(getChampionship(app.db, id).teams.filter(t => cpuB.some(x => x.teamId === t.teamId)).map(t => t.pointsOverride).sort(),
       cpuB.map((_, i) => 7 - i).sort());
 

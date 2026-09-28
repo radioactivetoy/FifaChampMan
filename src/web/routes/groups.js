@@ -1,5 +1,5 @@
 import { html, page } from '../html.js';
-import { champNav, matchRow, teamName, badge, cpuToggle, isCpuOnly, fillControllersButton } from '../components.js';
+import { champNav, matchRow, teamName, badge, cpuToggle, isCpuOnly, fillControllersButton, groupUrl } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, countMissingControllers } from '../../repo/matches.js';
 import { GROUP_LETTERS } from '../../domain/draw.js';
@@ -14,6 +14,7 @@ export function registerGroupRoutes(app, { db, rng }) {
     const matches = allMatches.filter(m => m.stage === 'group');
     const standings = new Map(C.groupStandings(db, c.id, c, allMatches).map(g => [g.letter, g.rows]));
     const base = `/championships/${c.id}`;
+    const openLetter = typeof req.query.open === 'string' ? req.query.open : null;
     const groupSection = letter => {
       const rows = standings.get(letter);
       if (!rows) return '';
@@ -24,9 +25,10 @@ export function registerGroupRoutes(app, { db, rng }) {
         ? html`<td><strong>${r.points}</strong></td>`
         : html`<td><input form="${pointsForm}" name="points_${r.teamId}" type="number" min="0" class="num"
             value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="Points from the FIFA table (empty = calculated)"></td>`);
-      const hasHuman = rows.some(r => r.team.owner);
-      // Human groups start open so results are one click away; the rest stay collapsed to cut down scrolling.
-      return html`<details id="group-${letter}" class="group-details"${hasHuman ? ' open' : ''}>
+      // Human groups start open so results are one click away; ?open=X (a redirect back to that
+      // group) opens it too; the rest stay collapsed to cut down scrolling.
+      const open = rows.some(r => r.team.owner) || letter === openLetter;
+      return html`<details id="group-${letter}" class="group-details"${open ? ' open' : ''}>
         <summary>
           <span class="group-letter">Group ${letter}</span>
           <span class="group-teams">${rows.map(r => html`<span class="group-team-chip${r.team.reached !== 'group' ? ' qualified' : ''}">${badge(r.team)}${r.team.name}${r.team.owner ? html` <span class="owner">${r.team.owner.playerName}</span>` : ''}</span>`)}</span>
@@ -96,7 +98,7 @@ export function registerGroupRoutes(app, { db, rng }) {
       const key = `points_${t.teamId}`;
       if (key in req.body) C.setGroupPoints(db, id, t.teamId, intOrNull(req.body[key]));
     }
-    res.redirect(`/championships/${id}/groups#group-${letter}`);
+    res.redirect(groupUrl(id, letter));
   });
 
   app.post('/championships/:id/groups/close', (req, res) => {
@@ -115,7 +117,7 @@ export function registerGroupRoutes(app, { db, rng }) {
     if (req.body.back === 'groups') {
       // Return to the same group instead of the top of the page.
       const letter = C.getChampionship(db, championshipId).teams.find(t => t.teamId === teamId)?.groupLetter;
-      return res.redirect(`/championships/${championshipId}/groups${letter ? `#group-${letter}` : ''}`);
+      return res.redirect(letter ? groupUrl(championshipId, letter) : `/championships/${championshipId}/groups`);
     }
     res.redirect(`/championships/${championshipId}/results#team-${teamId}`);
   });

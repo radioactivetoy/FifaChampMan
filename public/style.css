@@ -23,8 +23,6 @@
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-/* Anchor jumps (e.g. after "Qualified" reopens a collapsed group) animate instead of snapping. */
-@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 body {
   margin: 0;
   font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;

@@ -50,15 +50,14 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   handler renders it (400/404), anything else is a 500.
 - `public/filter.js` — the only client JS: team list filtering, CPU-match toggle (localStorage), sortable
   tables (`table[data-sortable]`, cells may carry `data-sort`), head-to-head view switch, group-stage
-  expand/collapse-all (`details.group-details`) plus opening the group named in the URL hash on load (needed
-  because the id sits on the `<details>` itself, so the browser's native "opening a closed details that
-  contains the fragment target" behavior doesn't fire), nav highlight. It's a classic (non-module) script
-  loaded with `defer`, so its top-level `function` declarations are globally callable/inspectable — handy
-  when debugging in a browser console, but note a hash-only navigation (`a#x` → `a#y`) does **not** reload the
-  script, so re-testing a fix needs a full navigation in between.
-  `public/style.css` — tokens on `:root`, `html { scroll-behavior: smooth }` (guarded by
-  `prefers-reduced-motion`) so anchor jumps and the group-opening `scrollIntoView` above animate instead of
-  snapping, phone layout under `@media (max-width: 760px)` (match rows become stacked grids there).
+  expand/collapse-all (`details.group-details`), nav highlight. It's a classic (non-module) script loaded with
+  `defer`, so its top-level `function` declarations are globally callable/inspectable — handy when debugging
+  in a browser console, but note a hash-only navigation (`a#x` → `a#y`) does **not** reload the script, so
+  re-testing a fix needs a full navigation in between.
+  `public/style.css` — tokens on `:root`, phone layout under `@media (max-width: 760px)` (match rows become
+  stacked grids there). No `scroll-behavior: smooth` / JS `scrollIntoView` — tried once for the group-stage
+  anchors, but an animated scroll across a long page reads as more distracting than a plain instant jump, not
+  less; see `groupUrl()` below for how the anchor lands cleanly without either.
 
 Schema lives in `src/db/schema.sql` (all `CREATE … IF NOT EXISTS`). When adding a column to an existing
 table, also add it to `MIGRATIONS` in `db/connection.js` — `openDb` ALTERs older databases on start.
@@ -77,7 +76,11 @@ table, also add it to `MIGRATIONS` in `db/connection.js` — `openDb` ALTERs old
   differs, so matchday and home/away (⇄ swap) are editable. Each group is a collapsible `<details
   id="group-X" class="group-details">` (open by default only for groups with a player's team) with a summary
   chip row (`.group-team-chip`, green when qualified) so the page fits on screen without opening every group;
-  "Expand/collapse all groups" buttons and hash-navigation both drive it (see `public/filter.js` above).
+  "Expand/collapse all groups" buttons drive it client-side. Any action that returns you to one group
+  (marking Qualified/Reached, saving points, editing a group match) redirects through `groupUrl(champId,
+  letter)` (`components.js`) — `?open=X#group-X` — so the server renders that group already expanded: the
+  browser's one native anchor jump lands on the final, already-settled layout, with no JS reopening a
+  collapsed `<details>` after load (that used to yank the scroll a second time, right after the first jump).
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no

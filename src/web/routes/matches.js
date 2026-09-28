@@ -2,9 +2,10 @@ import { intOrNull } from '../form.js';
 import { getMatch, updateMatch, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
 import { PLAYOFF_STAGES } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
+import { groupUrl } from '../components.js';
 
 const backTo = m => (m.stage === 'group'
-  ? `/championships/${m.championshipId}/groups#group-${m.groupLetter}`
+  ? groupUrl(m.championshipId, m.groupLetter)
   : `/championships/${m.championshipId}/playoff`);
 
 function matchInChampionship(db, req) {

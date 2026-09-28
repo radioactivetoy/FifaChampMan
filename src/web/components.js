@@ -14,6 +14,11 @@ export const badge = t => icon(t.badgeUrl);
 export const leagueBadge = t => icon(t.leagueBadgeUrl);
 export const flag = t => icon(t.countryFlagUrl);
 
+// A link/redirect back to one specific group: ?open makes the server render it already expanded,
+// so the browser's one native jump to #group-X lands on the final, settled layout — no JS reopening
+// a collapsed group after load, which used to yank the scroll a second time.
+export const groupUrl = (championshipId, letter) => `/championships/${championshipId}/groups?open=${letter}#group-${letter}`;
+
 /** data-* attributes read by public/filter.js on each filterable row. */
 export const filterAttrs = t => html`data-filter-row data-stars="${t.stars}" data-league="${t.league}" data-country="${t.country}" data-name="${t.name.toLowerCase()}"`;
 
