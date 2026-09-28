@@ -10,17 +10,18 @@ import { makePots, drawGroups, GROUP_LETTERS } from '../domain/draw.js';
 import { groupFixtures } from '../domain/fixtures.js';
 import { REACHED } from '../domain/stages.js';
 import { STAR_LEVELS } from '../domain/tiers.js';
+import { DEFAULT_EDITION } from '../domain/editions.js';
 
 // ---------- championships ----------
 
 export function listChampionships(db) {
-  return all(db, `SELECT c.id, c.name, c.status, c.created_at AS createdAt,
+  return all(db, `SELECT c.id, c.name, c.status, c.edition, c.created_at AS createdAt,
       (SELECT COUNT(*) FROM championship_players cp WHERE cp.championship_id = c.id) AS playerCount
     FROM championships c ORDER BY c.id DESC`);
 }
 
 export function getChampionship(db, id) {
-  const row = get(db, `SELECT id, name, status, template_id AS templateId, group_stage_closed AS groupStageClosed, created_at AS createdAt
+  const row = get(db, `SELECT id, name, status, edition, template_id AS templateId, group_stage_closed AS groupStageClosed, created_at AS createdAt
     FROM championships WHERE id = ?`, id);
   if (!row) throw new UserError('Championship not found', 404);
   const c = { ...row, groupStageClosed: row.groupStageClosed === 1 };
@@ -41,10 +42,10 @@ export function getChampionship(db, id) {
   return { ...c, players, teams };
 }
 
-export function createChampionship(db, { name, playerIds, templateId = null, rng }) {
+export function createChampionship(db, { name, playerIds, templateId = null, edition = DEFAULT_EDITION, rng }) {
   if (playerIds.length === 0) throw new UserError('Pick at least one player');
   return transaction(db, () => {
-    const id = Number(run(db, 'INSERT INTO championships (name, template_id) VALUES (?, ?)', name, templateId).lastInsertRowid);
+    const id = Number(run(db, 'INSERT INTO championships (name, edition, template_id) VALUES (?, ?, ?)', name, edition, templateId).lastInsertRowid);
     for (const playerId of playerIds) addChampionshipPlayer(db, id, playerId, rng);
     return id;
   });
@@ -65,10 +66,10 @@ export function deleteChampionship(db, id) {
 
 // ---------- participants & team assignment ----------
 
-/** Teams this championship draws from: its template, or every team. */
+/** Teams this championship draws from: its own edition, restricted to its template if it has one. */
 function teamPool(db, championshipId) {
-  const templateId = get(db, 'SELECT template_id AS templateId FROM championships WHERE id = ?', championshipId)?.templateId ?? null;
-  return listTeams(db, { templateId });
+  const row = get(db, 'SELECT template_id AS templateId, edition FROM championships WHERE id = ?', championshipId);
+  return listTeams(db, { templateId: row?.templateId ?? null, edition: row?.edition ?? null });
 }
 
 function previousChampionshipId(db, playerId, championshipId) {
@@ -360,7 +361,7 @@ export function championshipRecap(db, championshipId) {
 /** Every championship (oldest first) with its winning team and the player who owned it, if any. */
 export function listChampions(db) {
   const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
-  return all(db, `SELECT c.id AS championshipId, c.name AS championshipName, c.status, ct.team_id AS teamId, p.name AS playerName
+  return all(db, `SELECT c.id AS championshipId, c.name AS championshipName, c.edition AS edition, c.status, ct.team_id AS teamId, p.name AS playerName
       FROM championships c
       LEFT JOIN championship_teams ct ON ct.championship_id = c.id AND ct.reached = 'champion'
       LEFT JOIN championship_players cp ON cp.championship_id = c.id AND cp.team_id = ct.team_id
@@ -370,7 +371,7 @@ export function listChampions(db) {
 }
 
 export function allEntries(db) {
-  return all(db, `SELECT cp.championship_id AS championshipId, c.name AS championshipName, cp.player_id AS playerId
+  return all(db, `SELECT cp.championship_id AS championshipId, c.name AS championshipName, c.edition AS edition, cp.player_id AS playerId
       FROM championship_players cp JOIN championships c ON c.id = cp.championship_id ORDER BY cp.championship_id`)
     .map(e => ({ ...e, ...playerOutcome(db, e.championshipId, e.playerId) }));
 }

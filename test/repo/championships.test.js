@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { openDb } from '../../src/db/connection.js';
 import * as C from '../../src/repo/championships.js';
 import { listMatches, updateMatch } from '../../src/repo/matches.js';
-import { listTeams } from '../../src/repo/teams.js';
+import { listTeams, saveTeam } from '../../src/repo/teams.js';
 import { saveTemplate, setTemplateTeams } from '../../src/repo/templates.js';
 import { createRng } from '../../src/domain/rng.js';
 import { seedTeams, seedPlayers } from '../seed.js';
@@ -258,4 +258,26 @@ test('closing needs the draw done', () => {
   const { db, players, rng } = setup();
   const id = C.createChampionship(db, { name: 'Cup', playerIds: players, rng });
   assert.throws(() => C.closeGroupStage(db, id), UserError);
+});
+
+test('a championship draws its team pool from its own edition only', () => {
+  const db = openDb();
+  // All three OVRs stay under the 1★ tier's minOvr (61, per DEFAULT_TIERS) so they're all candidates
+  // for a first-time player's 0.5★ offer by star level alone — the edition filter is what must exclude FC26 A.
+  saveTeam(db, { name: 'FC27 A', edition: 'FC 27', ovr: 55 });
+  saveTeam(db, { name: 'FC27 B', edition: 'FC 27', ovr: 50 });
+  saveTeam(db, { name: 'FC26 A', edition: 'FC 26', ovr: 60 });
+  const [ana] = seedPlayers(db, ['Ana']);
+  const rng = createRng(1);
+
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: [ana], edition: 'FC 27', rng });
+  const c = C.getChampionship(db, id);
+  assert.equal(c.edition, 'FC 27');
+  assert.ok(['FC27 A', 'FC27 B'].includes(c.players[0].team.name)); // never the FC 26 team, even though it's a better OVR
+});
+
+test('createChampionship without an edition defaults to the current one', () => {
+  const { db, players, rng } = setup();
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players, rng });
+  assert.equal(C.getChampionship(db, id).edition, 'FC 27');
 });
