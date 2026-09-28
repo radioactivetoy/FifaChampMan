@@ -16,7 +16,7 @@ export function registerDrawRoutes(app, { db, rng }) {
   app.get('/championships/:id/draw', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
     const inField = new Set(c.teams.map(t => t.teamId));
-    const available = listTeams(db).filter(t => !inField.has(t.id));
+    const available = listTeams(db, { edition: c.edition }).filter(t => !inField.has(t.id));
     const defaultQuotas = fieldQuotasMap(db);
     const base = `/championships/${c.id}`;
     res.send(page({
