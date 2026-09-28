@@ -50,6 +50,44 @@ test('upgrades an older database with the new columns', async () => {
   assert.ok(cols('championships').includes('group_stage_closed'));
   assert.ok(cols('championship_teams').includes('points_override'));
   assert.equal(get(db, 'SELECT group_stage_closed AS c FROM championships').c, 0);
+  assert.ok(cols('championships').includes('edition'));
+  assert.equal(get(db, "SELECT edition FROM championships WHERE name = 'Old cup'").edition, 'FC 27');
+  db.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('an old single-edition teams table (unique on name alone) is rebuilt so the same name can exist in multiple editions', async () => {
+  const { DatabaseSync } = await import('node:sqlite');
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = mkdtempSync(join(tmpdir(), 'champman-'));
+  const file = join(dir, 'old.db');
+  const old = new DatabaseSync(file);
+  old.exec(`CREATE TABLE teams (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, country TEXT NOT NULL DEFAULT '',
+      league TEXT NOT NULL DEFAULT '', ovr INTEGER NOT NULL, stars_override REAL, badge_url TEXT NOT NULL DEFAULT '',
+      league_badge_url TEXT NOT NULL DEFAULT '', country_flag_url TEXT NOT NULL DEFAULT '');
+    CREATE TABLE championships (id INTEGER PRIMARY KEY, name TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active',
+      template_id INTEGER, group_stage_closed INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    CREATE TABLE championship_teams (championship_id INTEGER NOT NULL, team_id INTEGER NOT NULL, pot INTEGER,
+      group_letter TEXT, reached TEXT NOT NULL DEFAULT 'group', points_override INTEGER, PRIMARY KEY (championship_id, team_id));
+    INSERT INTO teams (id, name, ovr) VALUES (1, 'Real Madrid', 90);
+    INSERT INTO championships (id, name) VALUES (1, 'Old cup');
+    INSERT INTO championship_teams (championship_id, team_id) VALUES (1, 1);`);
+  old.close();
+
+  const db = openDb(file);
+  const cols = table => all(db, `PRAGMA table_info(${table})`).map(c => c.name);
+  assert.ok(cols('teams').includes('edition'));
+  assert.deepEqual(get(db, 'SELECT id, name, edition FROM teams WHERE id = 1'), { id: 1, name: 'Real Madrid', edition: 'FC 27' });
+
+  // The old id is preserved, so the pre-existing reference into championship_teams still resolves.
+  assert.equal(get(db, 'SELECT team_id AS teamId FROM championship_teams WHERE championship_id = 1').teamId, 1);
+
+  // Same name, a different edition — would have violated the old UNIQUE(name) constraint.
+  run(db, "INSERT INTO teams (name, edition, ovr) VALUES ('Real Madrid', 'FC 26', 88)");
+  assert.equal(all(db, "SELECT edition FROM teams WHERE name = 'Real Madrid'").length, 2);
+
   db.close();
   rmSync(dir, { recursive: true, force: true });
 });

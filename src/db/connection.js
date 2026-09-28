@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { DEFAULT_TIERS } from '../domain/tiers.js';
 import { DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
+import { DEFAULT_EDITION } from '../domain/editions.js';
 
 const schema = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8');
 
@@ -9,9 +10,35 @@ const schema = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8');
 const MIGRATIONS = [
   ['championships', 'group_stage_closed', 'INTEGER NOT NULL DEFAULT 0'],
   ['championship_teams', 'points_override', 'INTEGER'],
+  ['championships', 'edition', "TEXT NOT NULL DEFAULT 'FC 27'"], // keep in sync with domain/editions.js
 ];
 
+/**
+ * teams.name used to be globally UNIQUE; multi-edition support needs UNIQUE(name, edition) instead,
+ * which SQLite can't express via ALTER TABLE — the whole table is rebuilt once, preserving every row's
+ * id (every foreign key into teams is by id) so existing championships, matches and templates still
+ * resolve correctly. A no-op once teams already has an edition column (fresh DB, or already migrated).
+ */
+function migrateTeamsEdition(db) {
+  const cols = db.prepare('PRAGMA table_info(teams)').all().map(c => c.name);
+  if (cols.includes('edition')) return;
+  db.exec('PRAGMA foreign_keys = OFF'); // must be outside any transaction: SQLite ignores it inside one
+  transaction(db, () => {
+    db.exec(`CREATE TABLE teams_new (
+      id INTEGER PRIMARY KEY, name TEXT NOT NULL, edition TEXT NOT NULL DEFAULT '${DEFAULT_EDITION}',
+      country TEXT NOT NULL DEFAULT '', league TEXT NOT NULL DEFAULT '', ovr INTEGER NOT NULL,
+      stars_override REAL, badge_url TEXT NOT NULL DEFAULT '', league_badge_url TEXT NOT NULL DEFAULT '',
+      country_flag_url TEXT NOT NULL DEFAULT '', UNIQUE (name, edition))`);
+    run(db, `INSERT INTO teams_new (id, name, edition, country, league, ovr, stars_override, badge_url, league_badge_url, country_flag_url)
+      SELECT id, name, ?, country, league, ovr, stars_override, badge_url, league_badge_url, country_flag_url FROM teams`, DEFAULT_EDITION);
+    db.exec('DROP TABLE teams');
+    db.exec('ALTER TABLE teams_new RENAME TO teams');
+  });
+  db.exec('PRAGMA foreign_keys = ON');
+}
+
 function migrate(db) {
+  migrateTeamsEdition(db);
   for (const [table, column, definition] of MIGRATIONS) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
     if (!columns.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
