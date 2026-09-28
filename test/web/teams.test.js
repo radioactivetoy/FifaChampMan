@@ -66,3 +66,48 @@ test('teams page links to Config instead of the old standalone tiers/templates p
     await app.close();
   }
 });
+
+test('the team filter bar offers an edition filter and marks each row with its edition', async () => {
+  const app = await startTestApp();
+  try {
+    await app.post('/teams', { name: 'Real Madrid', edition: 'FC 27', ovr: '89' });
+    await app.post('/teams', { name: 'Real Madrid', edition: 'FC 26', ovr: '87' });
+    const text = (await app.get('/teams')).text;
+    assert.match(text, /<select name="edition"/);
+    assert.match(text, /data-edition="FC 27"/);
+    assert.match(text, /data-edition="FC 26"/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('editing a team can change its edition; the create form defaults to the current one', async () => {
+  const app = await startTestApp();
+  try {
+    const text = (await app.get('/teams')).text;
+    assert.match(text, /name="edition"[^>]*value="FC 27"/);
+
+    await app.post('/teams', { name: 'Real Madrid', edition: 'FC 27', country: 'Spain', league: 'LaLiga', ovr: '89' });
+    const [madrid] = listTeams(app.db);
+    await app.post(`/teams/${madrid.id}`, { name: 'Real Madrid', edition: 'FC 27 (patched)', country: 'Spain', league: 'LaLiga', ovr: '89' });
+    assert.equal(listTeams(app.db)[0].edition, 'FC 27 (patched)');
+  } finally {
+    await app.close();
+  }
+});
+
+test('csv import assigns every row to the given edition; a blank edition falls back to the current one', async () => {
+  const app = await startTestApp();
+  try {
+    const r = await app.post('/teams/import', { csv: 'name,ovr\nPorto,78', edition: 'FC 26' });
+    assert.match(r.text, /Imported 1 team.*into "FC 26"/s);
+    assert.equal(listTeams(app.db)[0].edition, 'FC 26');
+
+    await app.post('/teams/import', { csv: 'name,ovr\nPorto,80', edition: '' });
+    const portos = listTeams(app.db).filter(t => t.name === 'Porto');
+    assert.equal(portos.length, 2);
+    assert.ok(portos.some(t => t.edition === 'FC 27'));
+  } finally {
+    await app.close();
+  }
+});
