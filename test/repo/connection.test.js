@@ -71,7 +71,8 @@ test('an old single-edition teams table (unique on name alone) is rebuilt so the
       template_id INTEGER, group_stage_closed INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
     CREATE TABLE championship_teams (championship_id INTEGER NOT NULL, team_id INTEGER NOT NULL, pot INTEGER,
       group_letter TEXT, reached TEXT NOT NULL DEFAULT 'group', points_override INTEGER, PRIMARY KEY (championship_id, team_id));
-    INSERT INTO teams (id, name, ovr) VALUES (1, 'Real Madrid', 90);
+    INSERT INTO teams (id, name, country, league, ovr, stars_override, badge_url, league_badge_url, country_flag_url)
+      VALUES (1, 'Real Madrid', 'Spain', 'LaLiga', 90, 5, 'https://x/badge.png', 'https://x/league.png', 'https://x/flag.png');
     INSERT INTO championships (id, name) VALUES (1, 'Old cup');
     INSERT INTO championship_teams (championship_id, team_id) VALUES (1, 1);`);
   old.close();
@@ -79,7 +80,11 @@ test('an old single-edition teams table (unique on name alone) is rebuilt so the
   const db = openDb(file);
   const cols = table => all(db, `PRAGMA table_info(${table})`).map(c => c.name);
   assert.ok(cols('teams').includes('edition'));
-  assert.deepEqual(get(db, 'SELECT id, name, edition FROM teams WHERE id = 1'), { id: 1, name: 'Real Madrid', edition: 'FC 27' });
+  assert.deepEqual(get(db, `SELECT id, name, edition, country, league, ovr, stars_override AS starsOverride,
+      badge_url AS badgeUrl, league_badge_url AS leagueBadgeUrl, country_flag_url AS countryFlagUrl FROM teams WHERE id = 1`), {
+    id: 1, name: 'Real Madrid', edition: 'FC 27', country: 'Spain', league: 'LaLiga', ovr: 90, starsOverride: 5,
+    badgeUrl: 'https://x/badge.png', leagueBadgeUrl: 'https://x/league.png', countryFlagUrl: 'https://x/flag.png',
+  });
 
   // The old id is preserved, so the pre-existing reference into championship_teams still resolves.
   assert.equal(get(db, 'SELECT team_id AS teamId FROM championship_teams WHERE championship_id = 1').teamId, 1);
@@ -87,7 +92,12 @@ test('an old single-edition teams table (unique on name alone) is rebuilt so the
   // Same name, a different edition — would have violated the old UNIQUE(name) constraint.
   run(db, "INSERT INTO teams (name, edition, ovr) VALUES ('Real Madrid', 'FC 26', 88)");
   assert.equal(all(db, "SELECT edition FROM teams WHERE name = 'Real Madrid'").length, 2);
-
   db.close();
+
+  // Re-opening an already-migrated database is a no-op: nothing is rebuilt or lost a second time.
+  const reopened = openDb(file);
+  assert.equal(all(reopened, "SELECT * FROM teams WHERE name = 'Real Madrid'").length, 2);
+  reopened.close();
+
   rmSync(dir, { recursive: true, force: true });
 });
