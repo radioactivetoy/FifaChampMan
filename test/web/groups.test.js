@@ -193,8 +193,8 @@ test('enter CPU team points per group, close the group stage, playoff offers onl
     assert.match(text, /Reopen group stage/);
 
     const playoff = (await app.get(`/championships/${id}/playoff`)).text;
-    const homeSelect = playoff.match(/<select name="homeTeamId">([\s\S]*?)<\/select>/)[1];
-    assert.equal((homeSelect.match(/<option /g) ?? []).length, 16);
+    const homeSelect = playoff.match(/<select name="new_r16_0_homeTeamId"[^>]*>([\s\S]*?)<\/select>/)[1];
+    assert.equal((homeSelect.match(/<option value="\d/g) ?? []).length, 16); // the 16 qualifiers (plus a blank "—")
 
     await app.post(`/championships/${id}/groups/reopen`);
     assert.equal(getChampionship(app.db, id).groupStageClosed, false);

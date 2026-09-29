@@ -38,8 +38,8 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   alphabetical group that keeps the rest solvable, no same-country, drops that rule if impossible),
   `controllers.js` (CPU-controller rotation), `rating.js` (result stars ladder + team offers),
   `progress.js` (who is out / championship over), `standings.js`, `stats.js`, `field.js`, `csv.js`,
-  `stages.js` (stage/reached constants, controller-rotation scope, and `groupTies`/`tieAggregate` for the
-  playoff bracket).
+  `stages.js` (stage/reached constants, controller-rotation scope, and `STAGE_SLOTS`/`groupTies`/`assignSlots`/`tieAggregate` for
+  the playoff bracket).
 - `src/repo/` — SQL. Use the `all/get/run` helpers from `db/connection.js` (they copy node:sqlite's
   null-prototype rows into plain objects — `deepEqual` fails otherwise). `transaction()` nests by joining the
   outer one. `championships.js` is the aggregate: `getChampionship(db, id)` returns `{…, players, teams}`
@@ -132,35 +132,38 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   at least one group match still missing a score (unless its points were entered by hand via
   `points_override`, which the standings already trust) (`closedGroupSummary` in `repo/championships.js`) —
   catches a premature close before the playoff seeding is trusted. Reopening goes back to `/groups`.
-- **Playoff**: matches are still added and edited exactly as before (pick stage, optional leg, two teams
-  from a dropdown, restricted to qualified teams once the group stage is closed) — nothing about creation
-  is automatic. The Playoff tab renders them as a two-sided bracket tree, converging from both edges
-  toward one Final column in the middle, like a real knockout draw: `domain/stages.js`'s `groupTies` groups
-  a stage's matches into ties (up to two legs between the same two teams, derived at render time — no
-  "bracket slot" is stored), `tieAggregate` sums goals per team across legs for the aggregate/winner line,
-  and `splitTies` divides each round's ties into a left half and a right half — purely by the order they
-  were added, since nothing here assigns a tie to a "side" of the draw (no seeding); ties alternate
-  left/right *individually* (0 left, 1 right, 2 left, ...) rather than as pairs, because a round with
-  exactly two ties (e.g. the two semi-finals feeding one final) must always land one per side — pairing
-  them instead was tried and reverted for dumping both onto one side in exactly that case. There's no
-  seeding, so a round's local pairing (which two ties visually merge into the next one) is also just a
-  positional guess, not a claim about which matches actually feed which. `components.js`'s `playoffBracket`
-  lays out R16→QF→SF on the left, the mirror image on the right, and Final centred between them.
+- **Playoff**: the Playoff tab always draws the *whole* two-sided bracket tree — 8 Round-of-16 ties, 4
+  quarter-finals, 2 semi-finals, the Final (`STAGE_SLOTS` in `domain/stages.js`) — R16→QF→SF on the left, the
+  mirror image on the right, Final centred. There is no "add match" form: every slot has home/away team
+  dropdowns (restricted to qualified teams once the group stage is closed) and score inputs, and **one**
+  sticky "Save playoff" button saves the whole tree (`POST /championships/:id/playoff/save`, all inputs
+  point at one empty `<form id="playoff-form">` via the `form` attribute, `web/routes/playoff.js`). Existing
+  matches post `<field>_<matchId>` (parsed by `saveMatchesFromBody`; clearing both team dropdowns deletes the
+  match), filled-in empty slots post `new_<stage>_<slot>_<field>` and become matches (controllers drawn as
+  usual via `createPlayoffMatch`), all in one transaction. A tie's position is the stored `matches.slot`
+  (column added by migration): first half of a round's slots = left side, second half = right, slots 2j and
+  2j+1 feed slot j of the next round — a real tree, but still nothing is seeded or auto-advanced.
+  `assignSlots` places ties (from `groupTies`: up to two legs between the same two teams) into slots, giving
+  older slot-less matches the lowest free one in first-seen order; `backfillSlots` persists that on the next
+  save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff
+  matches"). `tieAggregate` sums goals per team across legs for the aggregate/winner line. Two-legged ties
+  can no longer be created from the UI (the old add form did it) but existing ones still render and save.
+  CPU-vs-CPU ties are always shown here (no hiding toggle), so the tree stays complete.
+  `components.js`'s `playoffBracket` renders it.
   Each match (`bracketMatch`) is a compact scoreboard row — badge, team dropdown, score — always plain,
-  visible markup; the controller/leg/penalties/swap/redraw/delete controls that used to always show live
+  visible markup (the stage is a hidden field); the controller/leg/penalties/swap/redraw/delete controls live
   inside their own small "⋯ more" `<details>` below it, collapsed until clicked, so the box stays clean but
   nothing is actually lost. Deliberately NOT inside a `<summary>` together with the scoreboard: a
   `<select>`/`<input>` nested in a `<summary>` is a known accessibility footgun, so the only `<summary>`
-  anywhere here is that plain "⋯ more" text. Where a round's tie count is exactly double the next round's
-  (the normal, fully-populated case), adjacent ties get a real elbow connector (`pairConnector`) — a
-  vertical bar joining their two centres plus a stub into the merged tie. Its server-rendered `top`/`height`
-  are only a rough starting guess (assuming every tie in the round is the same height, evenly spaced with
-  no gap — neither holds once a CPU-only tie collapses when hidden, ties have a different number of legs,
-  or a "⋯ more" is expanded); `public/filter.js`'s `setupBracketConnectors` measures the real rendered tie
-  positions after load — and again on resize, on any "⋯ more" toggle, and on the CPU-matches checkbox — and
-  overwrites the guess with the true pixel values, so the line always actually touches both ties regardless
-  of their real heights. There is no seeding algorithm and no auto-advancing a winner into the next round —
-  that stays entirely manual.
+  anywhere here is that plain "⋯ more" text. Adjacent ties of R16 and QF (slots 2j, 2j+1) get a real elbow
+  connector (`pairConnector`) — a vertical bar joining their two centres plus a stub into the next round's
+  tie (SF→Final is 1-to-1 per side, just a stub). Its server-rendered `top`/`height` are only a rough
+  starting guess (assuming every tie in the round is the same height, evenly spaced with no gap — neither
+  holds once ties have a different number of legs or a "⋯ more" is expanded); `public/filter.js`'s
+  `setupBracketConnectors` measures the real rendered tie positions after load — and again on resize and on
+  any "⋯ more" toggle — and overwrites the guess with the true pixel values, so the line always actually
+  touches both ties regardless of their real heights. There is no seeding algorithm and no auto-advancing a
+  winner into the next round — that stays entirely manual.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no
