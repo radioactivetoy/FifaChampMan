@@ -26,8 +26,8 @@ if (teams.length === 0) {
 const id = listTemplates(db).find(t => t.name === NAME)?.id ?? saveTemplate(db, { name: NAME });
 setTemplateTeams(db, id, teams.map(t => t.id));
 
-const byLeague = {}, byStars = {};
-for (const t of teams) { byLeague[t.league] = (byLeague[t.league] ?? 0) + 1; byStars[t.stars] = (byStars[t.stars] ?? 0) + 1; }
+const byLeague = {};
+for (const t of teams) byLeague[t.league] = (byLeague[t.league] ?? 0) + 1;
 console.log(`Template "${NAME}" (id ${id}): ${teams.length} clubs`);
 console.log('Per league:', Object.entries(byLeague).map(([l, n]) => `${l} ${n}`).join(', '));
-console.log('Per star level:', Object.entries(byStars).sort((a, b) => b[0] - a[0]).map(([s, n]) => `${s}★ ${n}`).join(', '));
+console.log('Use it on a cup and press "Use all teams of the pool" on Field & draw: every club goes in, no star quotas.');
