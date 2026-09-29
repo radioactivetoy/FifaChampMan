@@ -24,13 +24,13 @@ export function registerPlayoffRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'playoff')}
-        <p class="muted">The whole playoff tree: pick the two teams of each tie from the dropdowns and type the scores.
+        <details class="help"><summary>How the playoff works</summary><p class="muted">The whole playoff tree: pick the two teams of each tie from the dropdowns and type the scores.
           Once a tie has a result its winner moves into the next round by itself (the next match appears when both of its
           ties are decided; a match already there is never changed, so fix it by hand if you correct an earlier result). When you add a match, the player
           controlling a CPU team that faces a human is drawn automatically (rotating across the whole playoff); open
           <strong>⋯ more</strong> on a match for controllers, penalties, 🎲 Draw, ⇄ swap or ✕ delete.
           To remove a match, set both of its teams to “—”. Press <strong>Save playoff</strong> once to save everything.
-          When a round is done, set how far each team got on the <a href="/championships/${c.id}/results">Results</a> tab.</p>
+          When a round is done, set how far each team got on the <a href="/championships/${c.id}/results">Results</a> tab.</p></details>
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'playoff')}
         <form id="${FORM_ID}" method="post" action="/championships/${c.id}/playoff/save"></form>
         ${playoffBracket(c, matches, { formId: FORM_ID, teamItems })}

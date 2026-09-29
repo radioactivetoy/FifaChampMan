@@ -337,6 +337,34 @@ details.bracket-match-more > summary::-webkit-details-marker { display: none; }
   .bracket-round { min-width: 220px; }
 }
 
-.champion-line { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 8px 14px; background: #fff7dc; border: 1px solid #f0d27a; border-radius: var(--radius); font-weight: 600; }
-.cuchara-line { background: #f3ece2; border-color: #d3bb98; margin-left: 8px; }
 table[data-sortable] td { white-space: nowrap; }
+
+/* ---------- match rows: played vs still to play ---------- */
+tr.match-row.played td { background: #f1f8f3; }
+tr.match-row:not(.played):not([data-cpu-only]) td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.bracket-match.played { background: #f1f8f3; }
+
+/* ---------- leaderboard: frozen player column, extra columns behind a checkbox ---------- */
+table.leaderboard td:first-child, table.leaderboard th:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
+.lb-more { display: inline-block; margin: 0 0 8px; font-size: 13px; }
+.lb-more:has(#lb-more:not(:checked)) ~ .scroll-x .col-extra { display: none; }
+
+/* ---------- group stage toolbar and collapsible help ---------- */
+.toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px 20px; margin: 10px 0; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.toolbar p, .toolbar form { margin: 0; }
+details.help { margin: 8px 0 12px; }
+details.help > summary { cursor: pointer; color: var(--muted); font-size: 13px; font-weight: 600; }
+details.help > p { margin: 8px 0 0; }
+
+/* ---------- award cards (champion, Cuchara de Madera) ---------- */
+.awards { display: flex; flex-wrap: wrap; gap: 12px; margin: 0 0 14px; }
+.award { display: flex; align-items: center; gap: 12px; padding: 10px 16px 10px 12px; border-radius: var(--radius); border: 1px solid #f0d27a; background: linear-gradient(160deg, #fff9e0, #fff2bf); box-shadow: var(--shadow); }
+.award > div { display: flex; flex-direction: column; line-height: 1.25; }
+.award small { color: #7a6420; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.award small:last-child:not(:first-child) { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 500; }
+.award strong { font-size: 16px; }
+.award-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-size: 22px; background: radial-gradient(circle at 35% 30%, #ffe27a, var(--gold) 70%); box-shadow: 0 0 0 3px rgba(242, 183, 5, .28); }
+.award-spoon { border-color: #d3bb98; background: linear-gradient(160deg, #f8f1e6, #eadcc6); }
+.award-spoon small { color: #7a5f3a; }
+.award-spoon .award-icon { background: radial-gradient(circle at 35% 30%, #efd9b4, #c79a5b 70%); box-shadow: 0 0 0 3px rgba(160, 120, 60, .25); }

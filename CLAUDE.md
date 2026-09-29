@@ -183,8 +183,13 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   0 points and 0 goals scored, having played all 3 group games (`isCucharaDeMadera` in `domain/standings.js`,
   group matches only). Flagged as `cuchara` on `getChampionship` players and `playerOutcome`/`allEntries`;
   shown with a 🥄 on the Results and Recap player tables, a "Cuchara de Madera" line under the champion line
-  once a championship is finished (`champNav`), and on Stats (leaderboard 🥄 column, highlight card, history cells). The Stats highlight cards (`highlight()`) put the qualifier text in the detail line and a
+  once a championship is finished (award cards under the header, `awards()` in `components.js`), and on Stats (leaderboard 🥄 column, highlight card, history cells). The Stats highlight cards (`highlight()`) put the qualifier text in the detail line and a
   gold disc icon (`.stat-icon`, `★` or the card's own emoji) in the corner.
+- **Look & feel details**: matches with a result get a `played` class (`.match-row.played` rows, `.bracket-match.played`)
+  tinted green, and unplayed non-CPU rows a gold left bar; the Stats leaderboard freezes the Player column and
+  hides the `col-extra` columns behind a checkbox (pure CSS `:has`); the group-stage page has one `.toolbar`
+  (expand/collapse, CPU toggle | generate/clear fixtures) and its long help text lives in a closed
+  `<details class="help">`, as does the playoff's.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no
@@ -196,8 +201,8 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
 - **Out / over**: a team is out once the next stage is full without it (16 at r16, 8 at qf, …). When all
   players are out, a banner asks for the console-simulated winner and closes the championship. If a winner
   is already set (e.g. after reopening) the banner shows it with a dropdown to change it before closing
-  (`setChampion` demotes the old one to the final). Once finished, `champNav` shows a "🏆 Champion" line on every
-  championship tab, with a shout-out when the champion is a player's own team.
+  (`setChampion` demotes the old one to the final). Once finished, `champNav` shows a "🏆 Champion" award card on every
+  championship tab (`awards()`, next to the Cuchara de Madera card), with a shout-out when the champion is a player's own team.
 - Deleting a championship requires typing its exact name (checked server-side); FKs cascade.
 
 ## Team data

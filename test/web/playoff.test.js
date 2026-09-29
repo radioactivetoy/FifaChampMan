@@ -261,7 +261,7 @@ test('a finished championship shows its champion, and says so when a player won 
     const human = teams.find(t => t.owner), cpu = teams.find(t => !t.owner);
     await app.post(`/championships/${id}/finish`, { winnerTeamId: String(cpu.teamId) });
     let text = (await app.get(`/championships/${id}/results`)).text;
-    assert.match(text, /Champion: [\s\S]*?class="champion-line"|class="champion-line">🏆 Champion:/);
+    assert.match(text, /class="award award-champion"/);
     assert.doesNotMatch(text, /won it!/);
 
     await app.post(`/championships/${id}/status`, { status: 'active' });
@@ -342,7 +342,7 @@ test('Cuchara de Madera: 0 points and 0 goals in the group stage shows on result
     assert.doesNotMatch((await app.get(`/championships/${id}/results`)).text, /Cuchara de Madera: <strong>/); // not finished yet
 
     await app.post(`/championships/${id}/status`, { status: 'finished' });
-    assert.match((await app.get(`/championships/${id}/results`)).text, new RegExp(`Cuchara de Madera: <strong>${spoon.playerName}</strong>`));
+    assert.match((await app.get(`/championships/${id}/results`)).text, new RegExp(`award-spoon[\\s\\S]*?<strong>${spoon.playerName}</strong>`));
   } finally {
     await app.close();
   }

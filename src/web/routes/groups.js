@@ -63,22 +63,25 @@ export function registerGroupRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'groups')}
-        <div class="row">
-          <form method="post" action="${base}/groups/fixtures"><button class="primary">Generate fixtures</button></form>
-          <form method="post" action="${base}/groups/fixtures/clear" onsubmit="return confirm('Delete ALL group matches and their results?')"><button class="danger">Clear fixtures</button></form>
+        <div class="toolbar">
+          <div class="toolbar-group">
+            ${standings.size ? html`<button type="button" data-groups-toggle="expand">Expand all</button>
+              <button type="button" data-groups-toggle="collapse">Collapse all</button>` : ''}
+            ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
+          </div>
+          <div class="toolbar-group">
+            <form method="post" action="${base}/groups/fixtures"><button class="primary">Generate fixtures</button></form>
+            <form method="post" action="${base}/groups/fixtures/clear" onsubmit="return confirm('Delete ALL group matches and their results?')"><button class="danger">Clear fixtures</button></form>
+          </div>
         </div>
-        <p class="muted">Single round: each team plays the other three once. When fixtures are generated, the player controlling
+        ${closeControls}
+        ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
+        <details class="help"><summary>How the group stage works</summary>
+          <p class="muted">Single round: each team plays the other three once. When fixtures are generated, the player controlling
           each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn);
           press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering
           their result is optional. Fill in as many scores and CPU points as you like within a group, then press
-          <strong>Save results</strong> once for that whole group. Mark who qualified with the "Qualified" buttons.</p>
-        ${closeControls}
-        ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
-        ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
-        ${standings.size ? html`<p class="row">
-          <button type="button" data-groups-toggle="expand">Expand all groups</button>
-          <button type="button" data-groups-toggle="collapse">Collapse all groups</button>
-        </p>` : ''}
+          <strong>Save results</strong> once for that whole group. Mark who qualified with the "Qualified" buttons.</p></details>
         ${GROUP_LETTERS.map(groupSection)}`,
     }));
   });

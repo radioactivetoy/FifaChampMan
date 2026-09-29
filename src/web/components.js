@@ -41,24 +41,26 @@ export function teamFilterBar(teams) {
 export function champNav(c, active) {
   const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results'], ['recap', 'Recap']];
   return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
-    ${finishBanner(c)}${championLine(c)}${cucharaLine(c)}
+    ${finishBanner(c)}${awards(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;
 }
 
-/** On a finished championship: who won, and a shout-out when it was a player's own team. */
-function championLine(c) {
+/**
+ * On a finished championship: award cards under the header — the champion (with a shout-out when it was a
+ * player's own team) and the Cuchara de Madera holder(s), if any (0 points and 0 goals in the groups).
+ */
+function awards(c) {
   if (c.status !== 'finished') return '';
   const champion = c.teams.find(t => t.reached === 'champion');
-  if (!champion) return '';
-  return html`<p class="champion-line">🏆 Champion: ${teamName(champion)}${champion.owner ? html` — <strong>${champion.owner.playerName}</strong> won it! 🎉` : ''}</p>`;
-}
-
-/** On a finished championship: the wooden spoon, if a player earned it (0 points and 0 goals in the groups). */
-function cucharaLine(c) {
-  if (c.status !== 'finished') return '';
   const holders = c.players.filter(p => p.cuchara);
-  if (holders.length === 0) return '';
-  return html`<p class="champion-line cuchara-line">🥄 Cuchara de Madera: ${holders.map((p, i) => html`${i ? ', ' : ''}<strong>${p.playerName}</strong>${p.team ? html` (${p.team.name})` : ''}`)}</p>`;
+  if (!champion && holders.length === 0) return '';
+  return html`<div class="awards">
+    ${champion ? html`<div class="award award-champion"><span class="award-icon" aria-hidden="true">🏆</span>
+      <div><small>Champion</small><strong>${badge(champion)}${champion.name}</strong>
+        ${champion.owner ? html`<small><strong>${champion.owner.playerName}</strong> won it! 🎉</small>` : ''}</div></div>` : ''}
+    ${holders.length ? html`<div class="award award-spoon"><span class="award-icon" aria-hidden="true">🥄</span>
+      <div><small>Cuchara de Madera</small>${holders.map(p => html`<strong>${p.playerName}</strong>${p.team ? html`<small>${p.team.name}</small>` : ''}`)}</div></div>` : ''}
+  </div>`;
 }
 
 /**
@@ -144,7 +146,8 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
     ? html`${select({ name: `stage_${m.id}`, form: formId, items: PLAYOFF_STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] })), selected: m.stage })}
         leg ${num('leg', m.leg)}`
     : html`MD ${select({ name: `matchday_${m.id}`, form: formId, items: [1, 2, 3].map(n => ({ value: n, label: n })), selected: m.matchday })}`;
-  return html`<tr${cpuOnly ? raw(' data-cpu-only') : ''}>
+  const played = m.homeScore != null && m.awayScore != null;
+  return html`<tr class="match-row${played ? ' played' : ''}"${cpuOnly ? raw(' data-cpu-only') : ''}>
     <td>${first}</td>
     <td class="right">${team('home')}<br>${controller('home')}</td>
     <td class="score">${num('homeScore', m.homeScore)} – ${num('awayScore', m.awayScore)}
@@ -181,7 +184,8 @@ function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
     ${num(`${side}Score`, m[`${side}Score`])}
   </div>`;
   const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: '— CPU —' });
-  return html`<div class="bracket-match">
+  const played = m.homeScore != null && m.awayScore != null;
+  return html`<div class="bracket-match${played ? ' played' : ''}">
     <input type="hidden" form="${formId}" name="stage_${m.id}" value="${m.stage}">
     ${scoreRow('home')}${scoreRow('away')}
     <details class="bracket-match-more">

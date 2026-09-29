@@ -24,7 +24,7 @@ function h2hCell(r, total = false) {
 }
 
 /** <td> with a sortable value (public/filter.js sorts tables marked data-sortable). */
-const num = (value, shown = value) => html`<td data-sort="${value ?? -1}">${orDash(shown)}</td>`;
+const num = (value, shown = value, cls = '') => html`<td${cls ? raw(` class="${cls}"`) : ''} data-sort="${value ?? -1}">${orDash(shown)}</td>`;
 
 /** One highlight card: the best player by `score`, among those passing `eligible`. */
 function highlight(stats, label, score, show, eligible = () => true, icon = '★') {
@@ -75,21 +75,22 @@ export function registerStatsRoutes(app, { db }) {
         <h2>Leaderboard</h2>
         <p class="muted">Click a column header to sort. "Own team" is the team each player was assigned;
           "As CPU" is how they did when controlling CPU teams against other players.</p>
-        <div class="scroll-x"><table data-sortable><thead><tr>
+        <label class="lb-more"><input type="checkbox" id="lb-more"> Show all columns (goals, points per game, as CPU)</label>
+        <div class="scroll-x"><table data-sortable class="leaderboard"><thead><tr>
           <th>Player</th><th>Champ.</th><th>Titles</th><th title="Cuchara de Madera">🥄</th><th>Finals</th><th>Qualified</th><th>Best</th><th>Avg ★</th><th>Now ★</th>
-          <th>P</th><th>W-D-L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts/game</th><th>Win %</th>
-          <th>As CPU W-D-L</th><th>As CPU win %</th></tr></thead><tbody>
+          <th>P</th><th>W-D-L</th><th class="col-extra">GF</th><th class="col-extra">GA</th><th class="col-extra">GD</th><th class="col-extra">Pts/game</th><th>Win %</th>
+          <th class="col-extra">As CPU W-D-L</th><th class="col-extra">As CPU win %</th></tr></thead><tbody>
         ${stats.map(s => html`<tr>
           <td data-sort="${s.name.toLowerCase()}"><a href="#player-${s.playerId}"><strong>${s.name}</strong></a></td>
           ${num(s.championships)}${num(s.titles)}${num(s.cucharas)}${num(s.finals)}${num(s.qualified)}
           <td data-sort="${REACHED.indexOf(s.bestReached)}">${s.bestReached ? REACHED_LABELS[s.bestReached] : '—'}</td>
           ${num(s.avgStars, s.avgStars == null ? null : `${s.avgStars}★`)}${num(s.lastStars, s.lastStars == null ? null : `${s.lastStars}★`)}
-          ${num(s.own.played)}<td data-sort="${points(s.own)}">${wdl(s.own)}</td>${num(s.own.goalsFor)}${num(s.own.goalsAgainst)}
-          ${num(s.own.goalsFor - s.own.goalsAgainst, signed(s.own.goalsFor - s.own.goalsAgainst))}
-          ${num(s.own.played ? points(s.own) / s.own.played : null, ppg(s.own))}
+          ${num(s.own.played)}<td data-sort="${points(s.own)}">${wdl(s.own)}</td>${num(s.own.goalsFor, undefined, 'col-extra')}${num(s.own.goalsAgainst, undefined, 'col-extra')}
+          ${num(s.own.goalsFor - s.own.goalsAgainst, signed(s.own.goalsFor - s.own.goalsAgainst), 'col-extra')}
+          ${num(s.own.played ? points(s.own) / s.own.played : null, ppg(s.own), 'col-extra')}
           ${num(pct(s.own.won, s.own.played), pct(s.own.won, s.own.played) == null ? null : `${pct(s.own.won, s.own.played)}%`)}
-          <td data-sort="${points(s.cpu)}">${s.cpu.played ? wdl(s.cpu) : '—'}</td>
-          ${num(pct(s.cpu.won, s.cpu.played), pct(s.cpu.won, s.cpu.played) == null ? null : `${pct(s.cpu.won, s.cpu.played)}%`)}
+          <td class="col-extra" data-sort="${points(s.cpu)}">${s.cpu.played ? wdl(s.cpu) : '—'}</td>
+          ${num(pct(s.cpu.won, s.cpu.played), pct(s.cpu.won, s.cpu.played) == null ? null : `${pct(s.cpu.won, s.cpu.played)}%`, 'col-extra')}
         </tr>`)}
         </tbody></table></div>
 
