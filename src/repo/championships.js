@@ -8,7 +8,7 @@ import { playerStats } from '../domain/stats.js';
 import { fillField, FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
 import { makePots, drawGroups, GROUP_LETTERS } from '../domain/draw.js';
 import { groupFixtures } from '../domain/fixtures.js';
-import { REACHED } from '../domain/stages.js';
+import { REACHED, playoffOutcomes } from '../domain/stages.js';
 import { STAR_LEVELS } from '../domain/tiers.js';
 import { DEFAULT_EDITION } from '../domain/editions.js';
 
@@ -36,8 +36,13 @@ export function getChampionship(db, id) {
       offered: JSON.parse(offeredJson).map(tid => teamsById.get(tid)).filter(Boolean),
     }));
   const ownerByTeam = new Map(players.filter(p => p.teamId).map(p => [p.teamId, p]));
+  const lostAt = new Map(playoffOutcomes(listMatches(db, id)).map(o => [o.loserId, o.stage]));
   const teams = all(db, 'SELECT team_id AS teamId, pot, group_letter AS groupLetter, reached, points_override AS pointsOverride FROM championship_teams WHERE championship_id = ?', id)
-    .map(ct => ({ ...teamsById.get(ct.teamId), ...ct, owner: ownerByTeam.get(ct.teamId) ?? null }))
+    .map(ct => ({
+      ...teamsById.get(ct.teamId), ...ct, owner: ownerByTeam.get(ct.teamId) ?? null,
+      // Lost a decided playoff tie and was not marked as having gone further than that round.
+      eliminated: lostAt.has(ct.teamId) && REACHED.indexOf(ct.reached) <= REACHED.indexOf(lostAt.get(ct.teamId)),
+    }))
     .sort((a, b) => b.ovr - a.ovr || a.name.localeCompare(b.name));
   return { ...c, players, teams };
 }
@@ -311,6 +316,21 @@ export function closedGroupSummary(db, championshipId) {
 }
 
 // ---------- results ----------
+
+/**
+ * Raises "reached" from the playoff results: a tie's winner has reached the next round (the winner of
+ * the final is champion), its loser at least the round it lost in. Never lowers a stage, so manual
+ * marks on the Results tab stay as they are unless a result says the team went further.
+ */
+export function syncReachedFromPlayoff(db, championshipId) {
+  const rank = r => REACHED.indexOf(r);
+  const current = new Map(all(db, 'SELECT team_id AS teamId, reached FROM championship_teams WHERE championship_id = ?', championshipId).map(r => [r.teamId, r.reached]));
+  for (const { stage, winnerId, loserId } of playoffOutcomes(listMatches(db, championshipId))) {
+    for (const [teamId, reached] of [[winnerId, REACHED[rank(stage) + 1]], [loserId, stage]]) {
+      if (current.has(teamId) && rank(reached) > rank(current.get(teamId))) { setReached(db, championshipId, teamId, reached); current.set(teamId, reached); }
+    }
+  }
+}
 
 export function setReached(db, championshipId, teamId, reached) {
   if (!REACHED.includes(reached)) throw new UserError(`Unknown stage "${reached}"`);

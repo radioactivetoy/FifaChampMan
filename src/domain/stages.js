@@ -64,3 +64,28 @@ export function assignSlots(ties, capacity) {
   }
   return { slots, extra };
 }
+
+/**
+ * Who won a tie and who lost it: the aggregate winner or, level on aggregate, the side that won the
+ * penalty shoot-out (taken from the last leg that has one). null while undecided.
+ */
+export function tieOutcome(tie) {
+  const agg = tieAggregate(tie);
+  if (!agg) return null;
+  let winnerId = agg.winnerId;
+  if (winnerId == null) {
+    const m = [...tie.matches].reverse().find(x => x.homePens != null && x.awayPens != null && x.homePens !== x.awayPens);
+    if (!m) return null;
+    winnerId = m.homePens > m.awayPens ? m.homeTeamId : m.awayTeamId;
+  }
+  const loserId = Object.keys(agg.goals).map(Number).find(id => id !== winnerId);
+  return { winnerId, loserId };
+}
+
+/** Every decided playoff tie: [{ stage, winnerId, loserId }]. matches: any matches (group ones are ignored). */
+export function playoffOutcomes(matches) {
+  return PLAYOFF_STAGES.flatMap(stage => groupTies(matches.filter(m => m.stage === stage))
+    .map(tie => ({ stage, outcome: tieOutcome(tie) }))
+    .filter(x => x.outcome)
+    .map(({ stage: st, outcome }) => ({ stage: st, ...outcome })));
+}

@@ -65,6 +65,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
           taken.add(`${stage}-${slot}`);
         }
       }
+      C.syncReachedFromPlayoff(db, id);
     });
     res.redirect(`/championships/${id}/playoff`);
   });

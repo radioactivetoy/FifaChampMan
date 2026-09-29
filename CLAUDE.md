@@ -147,6 +147,13 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff
   matches"). `tieAggregate` sums goals per team across legs for the aggregate/winner line. Two-legged ties
   can no longer be created from the UI (the old add form did it) but existing ones still render and save.
+  **Results feed "reached"**: on every Save playoff, `syncReachedFromPlayoff` (`repo/championships.js`) raises
+  `reached` from decided ties (`tieOutcome`/`playoffOutcomes` in `domain/stages.js`: aggregate winner, or level →
+  the penalties winner): the winner reaches the next round (final winner = champion), the loser at least the
+  round he lost in. It only ever raises, so manual marks on Results stand unless a result says the team went
+  further. `getChampionship` also flags a team `eliminated` once it lost a decided tie (and isn't marked
+  further), which `championshipProgress` counts as out — so "all players out" fires without waiting for the
+  next round to fill up.
   CPU-vs-CPU ties are always shown here (no hiding toggle), so the tree stays complete.
   `components.js`'s `playoffBracket` renders it.
   Each match (`bracketMatch`) is a compact scoreboard row — badge, team dropdown, score — always plain,

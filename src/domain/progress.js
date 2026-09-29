@@ -7,11 +7,13 @@ const rank = reached => REACHED.indexOf(reached);
 /**
  * Works out, from the manually marked "reached" stages, who is still in the championship.
  * A team is out once the next stage is full without it (e.g. 16 teams marked for the round of 16
- * and it is still at "group"). teams: [{ teamId, reached, owner }] — owner set for human teams.
+ * and it is still at "group"), or once it has lost a decided playoff tie (`eliminated`, set by
+ * getChampionship). teams: [{ teamId, reached, owner }] — owner set for human teams.
  */
 export function championshipProgress(teams) {
   const isOut = t => {
     if (t.reached === 'champion') return false;
+    if (t.eliminated) return true;
     const next = REACHED[rank(t.reached) + 1];
     return teams.filter(o => rank(o.reached) > rank(t.reached)).length >= SLOTS[next];
   };

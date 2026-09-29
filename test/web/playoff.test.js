@@ -158,3 +158,48 @@ test('each bracket match keeps controllers, pens, swap, draw and delete behind "
     await app.close();
   }
 });
+
+test('saving the playoff promotes winners and marks losers; when every player has lost a tie the championship is over', async () => {
+  const { app, id, rng, teams } = await setup();
+  try {
+    const humans = teams.filter(t => t.owner);
+    const cpus = teams.filter(t => !t.owner);
+    const [h1, h2, ...others] = humans;
+    const res = await app.post(`/championships/${id}/playoff/save`, {
+      new_r16_0_homeTeamId: h1.teamId, new_r16_0_awayTeamId: cpus[0].teamId, new_r16_0_homeScore: '2', new_r16_0_awayScore: '0', // h1 through
+      new_r16_1_homeTeamId: h2.teamId, new_r16_1_awayTeamId: cpus[1].teamId, new_r16_1_homeScore: '0', new_r16_1_awayScore: '1', // h2 out
+      new_qf_0_homeTeamId: h1.teamId, new_qf_0_awayTeamId: cpus[1].teamId, new_qf_0_homeScore: '1', new_qf_0_awayScore: '1', // level, no pens: undecided
+    });
+    assert.equal(res.status, 302);
+    let c = getChampionship(app.db, id);
+    const reached = tid => c.teams.find(t => t.teamId === tid).reached;
+    assert.equal(reached(h1.teamId), 'qf');
+    assert.equal(reached(h2.teamId), 'r16');
+    assert.equal(reached(cpus[0].teamId), 'r16');
+    assert.equal(c.teams.find(t => t.teamId === h2.teamId).eliminated, true);
+    assert.doesNotMatch((await app.get(`/championships/${id}/playoff`)).text, /All players are out/);
+
+    // Penalties settle the quarter-final against h1 and the remaining players lose too: everyone is out.
+    const qf = listMatches(app.db, id).find(m => m.stage === 'qf');
+    const lose = {};
+    others.forEach((h, i) => Object.assign(lose, {
+      [`new_r16_${2 + i}_homeTeamId`]: h.teamId, [`new_r16_${2 + i}_awayTeamId`]: cpus[2 + i].teamId,
+      [`new_r16_${2 + i}_homeScore`]: '0', [`new_r16_${2 + i}_awayScore`]: '3',
+    }));
+    const same = {}; // what the page would post for the matches already saved
+    for (const m of listMatches(app.db, id)) {
+      Object.assign(same, { [`stage_${m.id}`]: m.stage, [`homeTeamId_${m.id}`]: m.homeTeamId, [`awayTeamId_${m.id}`]: m.awayTeamId, [`homeScore_${m.id}`]: m.homeScore, [`awayScore_${m.id}`]: m.awayScore });
+    }
+    await app.post(`/championships/${id}/playoff/save`, {
+      ...same, ...lose,
+      [`stage_${qf.id}`]: 'qf', [`homeTeamId_${qf.id}`]: h1.teamId, [`awayTeamId_${qf.id}`]: cpus[1].teamId,
+      [`homeScore_${qf.id}`]: '1', [`awayScore_${qf.id}`]: '1', [`homePens_${qf.id}`]: '3', [`awayPens_${qf.id}`]: '4',
+    });
+    c = getChampionship(app.db, id);
+    assert.equal(reached(h1.teamId), 'qf');
+    assert.equal(reached(cpus[1].teamId), 'sf');
+    assert.match((await app.get(`/championships/${id}/playoff`)).text, /All players are out/);
+  } finally {
+    await app.close();
+  }
+});
