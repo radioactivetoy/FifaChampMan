@@ -332,7 +332,8 @@ function playoffReached(matches) {
 
 /**
  * Raises "reached" from the playoff results (see playoffReached). Never lowers a stage, so manual marks
- * on the Results tab stand unless a result says the team went further. Safe to call any time.
+ * on the Results tab stand unless a result says the team went further; a decided Final always makes its
+ * winner the champion. Safe to call any time.
  */
 export function syncReachedFromPlayoff(db, championshipId) {
   const rank = r => REACHED.indexOf(r);
@@ -340,6 +341,9 @@ export function syncReachedFromPlayoff(db, championshipId) {
   for (const [teamId, reached] of playoffReached(listMatches(db, championshipId))) {
     if (current.has(teamId) && rank(reached) > rank(current.get(teamId))) setReached(db, championshipId, teamId, reached);
   }
+  // A decided Final settles the champion by itself, whatever was picked by hand before.
+  const finalWinner = playoffOutcomes(listMatches(db, championshipId)).find(o => o.stage === 'final')?.winnerId;
+  if (finalWinner != null && current.has(finalWinner)) setChampion(db, championshipId, finalWinner);
 }
 
 /**

@@ -272,3 +272,21 @@ test('a finished championship shows its champion, and says so when a player won 
     await app.close();
   }
 });
+
+test('a decided Final makes its winner the champion, replacing a winner picked by hand', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const [a, b, c] = teams;
+    await app.post(`/championships/${id}/finish`, { winnerTeamId: String(c.teamId) }); // manual winner
+    await app.post(`/championships/${id}/playoff/save`, { new_final_0_homeTeamId: a.teamId, new_final_0_awayTeamId: b.teamId, new_final_0_homeScore: '2', new_final_0_awayScore: '0' });
+    const ch = getChampionship(app.db, id);
+    assert.deepEqual(ch.teams.filter(t => t.reached === 'champion').map(t => t.teamId), [a.teamId]);
+    assert.equal(ch.teams.find(t => t.teamId === c.teamId).reached, 'r16');
+    // Even if a stale manual pick is made afterwards, opening the page settles it on the Final's winner.
+    await app.post(`/championships/${id}/finish`, { winnerTeamId: String(c.teamId) });
+    await app.get(`/championships/${id}/playoff`);
+    assert.deepEqual(getChampionship(app.db, id).teams.filter(t => t.reached === 'champion').map(t => t.teamId), [a.teamId]);
+  } finally {
+    await app.close();
+  }
+});

@@ -154,7 +154,9 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   further; it runs on Save playoff and (idempotent) when the Playoff/Results/Recap pages open. `getChampionship`
   also flags a team `eliminated` once it lost a decided tie (and isn't marked further), which
   `championshipProgress` counts as out — so "all players out" fires without waiting for the next round to
-  fill. **Editing the playoff invalidates a picked winner**: if Save playoff changes any match,
+  fill. **A decided Final sets the champion automatically** (`syncReachedFromPlayoff` makes its winner the only
+  champion, replacing any hand-picked one; the winner dropdown only matters while the Final is undecided).
+  **Editing the playoff invalidates a picked winner**: if Save playoff changes any match,
   `clearStaleChampion` takes a `champion` that the Final doesn't back up (e.g. the console-simulated winner
   chosen when all players were out) back to what the playoff says it reached and reopens a finished
   championship, so the winner is asked for again when it closes. Merely viewing never clears it.
