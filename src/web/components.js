@@ -213,10 +213,9 @@ function pairConnector(pairIndex, count, side) {
 }
 
 /**
- * The whole playoff as a two-sided bracket tree, like a real knockout draw, always fully drawn:
+ * The whole playoff as a one-sided bracket tree read left to right, always fully drawn:
  * 8 Round-of-16 ties, 4 quarter-finals, 2 semi-finals and the Final (`STAGE_SLOTS`), whether or not
- * anyone has been put in them yet. The first half of a round's slots is the left side, the second
- * half the right; slots 2j and 2j+1 feed slot j of the next round, joined by a real elbow connector
+ * anyone has been put in them yet. Slots 2j and 2j+1 feed slot j of the next round, joined by a real elbow connector
  * (`pairConnector` — see its own doc comment on why the browser has the final say on exactly where).
  * Every slot has team dropdowns and score inputs bound (via their `form` attribute) to the one form
  * `formId` rendered by the caller, so a single Save button saves the entire tree. `teamItems` are the
@@ -244,7 +243,7 @@ export function playoffBracket(c, matches, { formId, teamItems }) {
   // paired: this round halves into the next one on this side, so consecutive slots (2j, 2j+1) get an elbow.
   const column = (stage, first, count, connect, extraClass = '') => {
     const { slots } = placed.get(stage);
-    const paired = connect && stage !== 'sf'; // semi-final -> final is 1-to-1 per side, just a stub
+    const paired = connect && stage !== 'final';
     const pairs = paired ? Array.from({ length: count / 2 }, (_, j) => pairConnector(j, count, connect)) : '';
     const ties = Array.from({ length: count }, (_, i) => (slots[first + i]
       ? bracketTie(c, slots[first + i], formId, byId, teamItems, playerItems, connect, paired)
@@ -255,13 +254,11 @@ export function playoffBracket(c, matches, { formId, teamItems }) {
     </div>`;
   };
 
-  const half = stage => STAGE_SLOTS[stage] / 2;
-  const leftColumns = ROUND_STAGES.map(stage => column(stage, 0, half(stage), 'right'));
-  const rightColumns = [...ROUND_STAGES].reverse().map(stage => column(stage, half(stage), half(stage), 'left'));
+  const columns = ROUND_STAGES.map(stage => column(stage, 0, STAGE_SLOTS[stage], 'right'));
   const finalColumn = column('final', 0, 1, null, ' bracket-final');
   // Ties that no longer fit their round (older data with more than 8/4/2/1) stay editable below the tree.
   const extras = PLAYOFF_STAGES.flatMap(stage => placed.get(stage).extra.map(tie => [stage, tie]));
-  return html`<div class="bracket scroll-x">${leftColumns}${finalColumn}${rightColumns}</div>
+  return html`<div class="bracket scroll-x">${columns}${finalColumn}</div>
     ${extras.length ? html`<h3>Other playoff matches</h3><div class="bracket-extra">${extras.map(([stage, tie]) =>
       html`<div><small class="muted">${STAGE_LABELS[stage]}</small>${bracketTie(c, tie, formId, byId, teamItems, playerItems, null, false)}</div>`)}</div>` : ''}`;
 }

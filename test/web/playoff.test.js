@@ -26,16 +26,16 @@ test('the playoff page always draws the whole tree with dropdowns and exactly on
     assert.equal(count(text, /class="bracket-tie/g), 15);
     assert.equal(count(text, /name="new_[a-z0-9]+_\d+_homeTeamId"/g), 15);
     assert.equal(count(text, /name="new_[a-z0-9]+_\d+_awayTeamId"/g), 15);
-    assert.equal(count(text, /<h3>Round of 16<\/h3>/g), 2); // one column per side
-    assert.equal(count(text, /<h3>Semi-final<\/h3>/g), 2);
+    assert.equal(count(text, /<h3>Round of 16<\/h3>/g), 1); // one-sided: 8 - 4 - 2 - final, left to right
+    assert.equal(count(text, /<h3>Semi-final<\/h3>/g), 1);
     assert.equal(count(text, /<h3>Final<\/h3>/g), 1);
     // No "add match" form any more, and one save button.
     assert.doesNotMatch(text, /Add a playoff match|Add match/);
     assert.equal(count(text, /<button form="playoff-form"/g), 1);
     assert.equal(count(text, /<form id="playoff-form" method="post" action="\/championships\/\d+\/playoff\/save">/g), 1);
-    // Elbows per side: 2 for the Round of 16 (4 ties -> 2) + 1 for the quarter-finals (2 ties -> 1).
-    assert.equal(count(text, /class="bracket-pair-connector side-right"/g), 3);
-    assert.equal(count(text, /class="bracket-pair-connector side-left"/g), 3);
+    // Elbows: 4 for the Round of 16 (8 ties -> 4), 2 for the quarter-finals, 1 for the semi-finals.
+    assert.equal(count(text, /class="bracket-pair-connector side-right"/g), 7);
+    assert.equal(count(text, /side-left/g), 0);
   } finally {
     await app.close();
   }
