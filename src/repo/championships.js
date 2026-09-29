@@ -2,7 +2,7 @@ import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
 import { listMatches, insertMatch, drawControllers, bracketSizeOf, listByes } from './matches.js';
-import { planTeamOffer, resultStars } from '../domain/rating.js';
+import { planTeamOffer, resultStars, nearestTier } from '../domain/rating.js';
 import { teamRecord, computeStandings, hasResult, isCucharaDeMadera } from '../domain/standings.js';
 import { playerStats } from '../domain/stats.js';
 import { fillField, scaleQuotas, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
@@ -107,7 +107,7 @@ export function deleteChampionship(db, id) {
 // ---------- participants & team assignment ----------
 
 /** Teams this championship draws from: its own edition, restricted to its template if it has one. */
-function teamPool(db, championshipId) {
+export function teamPool(db, championshipId) {
   const row = get(db, 'SELECT template_id AS templateId, edition FROM championships WHERE id = ?', championshipId);
   return listTeams(db, { templateId: row?.templateId ?? null, edition: row?.edition ?? null });
 }
@@ -124,12 +124,13 @@ function offerFor(db, championshipId, playerId, rng, { targetStars: level } = {}
   const prevId = previousChampionshipId(db, playerId, championshipId);
   const prev = prevId ? playerOutcome(db, prevId, playerId) : null;
   const targetStars = level ?? prev?.resultStars ?? 0.5;
-  const taken = new Set([
-    ...all(db, 'SELECT team_id AS teamId, offered_team_ids AS offered FROM championship_players WHERE championship_id = ? AND player_id != ?', championshipId, playerId)
+  // Not available: teams held or offered to another player. A CPU team already in the field is fair game
+  // (setPlayerTeam swaps it with the player's old team), so a pool that fills the whole field still yields teams.
+  const taken = new Set(
+    all(db, 'SELECT team_id AS teamId, offered_team_ids AS offered FROM championship_players WHERE championship_id = ? AND player_id != ?', championshipId, playerId)
       .flatMap(r => [r.teamId, ...JSON.parse(r.offered)]),
-    ...all(db, 'SELECT team_id AS teamId FROM championship_teams WHERE championship_id = ?', championshipId).map(r => r.teamId),
-  ]);
-  const candidates = teamPool(db, championshipId).filter(t => t.stars === targetStars && !taken.has(t.id));
+  );
+  const candidates = nearestTier(teamPool(db, championshipId).filter(t => !taken.has(t.id)), targetStars);
   return planTeamOffer({ previousStars: prev?.stars ?? null, targetStars, candidates, rng });
 }
 
@@ -183,11 +184,19 @@ export function setPlayerTeam(db, championshipId, playerId, teamId) {
     if (get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND team_id = ?', championshipId, teamId)) {
       throw new UserError(_('That team already belongs to another player'));
     }
-    if (inField(db, championshipId, teamId)) {
-      throw new UserError(_('That team is already in the field as a CPU team; remove it from the field first'));
-    }
     run(db, 'UPDATE championship_players SET team_id = ? WHERE championship_id = ? AND player_id = ?', teamId, championshipId, playerId);
-    if (current.teamId != null) {
+    if (current.teamId != null && inField(db, championshipId, teamId)) {
+      // The new team is a CPU team already in the field: the two teams trade places (pot, group, progress, points, matches).
+      const cols = 'pot, group_letter, reached, points_override';
+      const [a, b] = [current.teamId, teamId].map(id => get(db, `SELECT ${cols} FROM championship_teams WHERE championship_id = ? AND team_id = ?`, championshipId, id));
+      const put = (id, r) => run(db, 'UPDATE championship_teams SET pot = ?, group_letter = ?, reached = ?, points_override = ? WHERE championship_id = ? AND team_id = ?',
+        r?.pot ?? null, r?.group_letter ?? null, r?.reached ?? 'group', r?.points_override ?? null, championshipId, id);
+      put(teamId, a); put(current.teamId, b);
+      for (const col of ['home_team_id', 'away_team_id']) {
+        run(db, `UPDATE matches SET ${col} = CASE ${col} WHEN ? THEN ? ELSE ? END WHERE championship_id = ? AND ${col} IN (?, ?)`,
+          current.teamId, teamId, current.teamId, championshipId, current.teamId, teamId);
+      }
+    } else if (current.teamId != null) {
       run(db, 'UPDATE championship_teams SET team_id = ? WHERE championship_id = ? AND team_id = ?', teamId, championshipId, current.teamId);
       run(db, 'UPDATE matches SET home_team_id = ? WHERE championship_id = ? AND home_team_id = ?', teamId, championshipId, current.teamId);
       run(db, 'UPDATE matches SET away_team_id = ? WHERE championship_id = ? AND away_team_id = ?', teamId, championshipId, current.teamId);

@@ -145,3 +145,21 @@ test('"Use all teams of the pool" puts every template team in the field, no quot
     assert.deepEqual(new Set(c.teams.map(t => t.teamId)), new Set(pool.map(t => t.id)));
   } finally { await app.close(); }
 });
+
+test('the team picker on the overview lists only the pool (plus the current team) when the championship has a template', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const { saveTemplate, setTemplateTeams } = await import('../../src/repo/templates.js');
+    const { listTeams } = await import('../../src/repo/teams.js');
+    const all = listTeams(app.db);
+    const pool = all.filter(t => t.stars >= 3).slice(0, 10);
+    const tid = saveTemplate(app.db, { name: 'High' });
+    setTemplateTeams(app.db, tid, pool.map(t => t.id));
+    const id = createChampionship(app.db, { name: 'Copa', playerIds: seedPlayers(app.db).slice(0, 2), templateId: tid, format: 'cup', teamCount: 10, rng: createRng(3) });
+    const page = (await app.get(`/championships/${id}`)).text;
+    const outsider = all.find(t => !pool.some(p => p.id === t.id));
+    assert.ok(!page.includes(`value="${outsider.id}"`));
+    assert.ok(page.includes(`value="${pool[0].id}"`));
+  } finally { await app.close(); }
+});
