@@ -60,3 +60,12 @@ export function pickByeTeams(groupRows, n) {
     .slice(0, n)
     .map(r => r.teamId);
 }
+
+export const FORMATS = ['groups', 'cup'];
+export const CUP_MIN_TEAMS = 4;
+export const CUP_MAX_TEAMS = MAX_BRACKET;
+
+/** Size of the knockout bracket of a championship: groups → the top two of each group; cup → every team. */
+export function knockoutSize({ format, teamCount }) {
+  return bracketSize(format === 'cup' ? teamCount : qualifiersFor(teamCount / 4));
+}

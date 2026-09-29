@@ -5,8 +5,9 @@ import { listMatches, insertMatch, drawControllers } from './matches.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
 import { teamRecord, computeStandings, hasResult, isCucharaDeMadera } from '../domain/standings.js';
 import { playerStats } from '../domain/stats.js';
-import { fillField, FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
-import { makePots, drawGroups, GROUP_LETTERS } from '../domain/draw.js';
+import { fillField, scaleQuotas, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
+import { makePots, drawGroups, groupLettersFor, isValidGroupTeamCount } from '../domain/draw.js';
+import { FORMATS, CUP_MIN_TEAMS, CUP_MAX_TEAMS, knockoutSize, firstRound } from '../domain/bracket.js';
 import { groupFixtures } from '../domain/fixtures.js';
 import { REACHED, playoffOutcomes } from '../domain/stages.js';
 import { STAR_LEVELS } from '../domain/tiers.js';
@@ -22,10 +23,12 @@ export function listChampionships(db) {
 }
 
 export function getChampionship(db, id) {
-  const row = get(db, `SELECT id, name, status, edition, template_id AS templateId, group_stage_closed AS groupStageClosed, created_at AS createdAt
+  const row = get(db, `SELECT id, name, status, edition, template_id AS templateId, group_stage_closed AS groupStageClosed,
+      format, team_count AS teamCount, created_at AS createdAt
     FROM championships WHERE id = ?`, id);
   if (!row) throw new UserError(_('Championship not found'), 404);
-  const c = { ...row, groupStageClosed: row.groupStageClosed === 1 };
+  // groupCount: groups in the field (0 for a cup); bracketSize: places in the knockout (see domain/bracket.js).
+  const c = { ...row, groupStageClosed: row.groupStageClosed === 1, groupCount: row.format === 'cup' ? 0 : row.teamCount / 4, bracketSize: knockoutSize(row) };
   const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
   const matches = listMatches(db, id);
   const players = all(db, `SELECT cp.player_id AS playerId, p.name AS playerName, p.photo IS NOT NULL AS hasPhoto, cp.stars, cp.team_id AS teamId,
@@ -50,10 +53,21 @@ export function getChampionship(db, id) {
   return { ...c, players, teams };
 }
 
-export function createChampionship(db, { name, playerIds, templateId = null, edition = DEFAULT_EDITION, rng }) {
+/** Throws a UserError unless `format`/`teamCount` describe a possible championship. */
+export function checkSize(format, teamCount) {
+  if (!FORMATS.includes(format)) throw new UserError(_('Unknown format "{format}"', { format }));
+  if (format === 'groups' && !isValidGroupTeamCount(teamCount)) throw new UserError(_('Groups need 8 to 32 teams in a multiple of 4'));
+  if (format === 'cup' && !(Number.isInteger(teamCount) && teamCount >= CUP_MIN_TEAMS && teamCount <= CUP_MAX_TEAMS)) {
+    throw new UserError(_('A cup needs {min} to {max} teams', { min: CUP_MIN_TEAMS, max: CUP_MAX_TEAMS }));
+  }
+}
+
+export function createChampionship(db, { name, playerIds, templateId = null, edition = DEFAULT_EDITION, format = 'groups', teamCount = 32, rng }) {
   if (playerIds.length === 0) throw new UserError(_('Pick at least one player'));
+  checkSize(format, teamCount);
+  if (playerIds.length > teamCount) throw new UserError(_('There are more players than teams in the field'));
   return transaction(db, () => {
-    const id = Number(run(db, 'INSERT INTO championships (name, edition, template_id) VALUES (?, ?, ?)', name, edition, templateId).lastInsertRowid);
+    const id = Number(run(db, 'INSERT INTO championships (name, edition, template_id, format, team_count) VALUES (?, ?, ?, ?, ?)', name, edition, templateId, format, teamCount).lastInsertRowid);
     for (const playerId of playerIds) addChampionshipPlayer(db, id, playerId, rng);
     return id;
   });
@@ -67,6 +81,23 @@ export function updateChampionship(db, id, { name, status, templateId, edition }
     if (!['active', 'finished'].includes(status)) throw new UserError(_('Unknown status "{status}"', { status }));
     run(db, 'UPDATE championships SET status = ? WHERE id = ?', status, id);
   }
+}
+
+/**
+ * Changes the format and/or number of teams. Only while nothing depends on it: no matches, no draw (pots/groups) and no bracket byes.
+ * The field must still be able to hold every player.
+ */
+export function setChampionshipSize(db, id, { format, teamCount }) {
+  const c = getChampionship(db, id);
+  const [newFormat, newCount] = [format ?? c.format, teamCount ?? c.teamCount];
+  checkSize(newFormat, newCount);
+  if (newFormat === c.format && newCount === c.teamCount) return;
+  const started = get(db, 'SELECT 1 AS x FROM matches WHERE championship_id = ?', id)
+    || get(db, 'SELECT 1 AS x FROM championship_teams WHERE championship_id = ? AND (group_letter IS NOT NULL OR pot IS NOT NULL)', id)
+    || get(db, 'SELECT 1 AS x FROM bracket_byes WHERE championship_id = ?', id);
+  if (started) throw new UserError(_('The format and number of teams cannot change once the draw or any match exists'));
+  if (c.players.length > newCount) throw new UserError(_('There are more players than teams in the field'));
+  run(db, 'UPDATE championships SET format = ?, team_count = ?, group_stage_closed = 0 WHERE id = ?', newFormat, newCount, id);
 }
 
 export function deleteChampionship(db, id) {
@@ -196,7 +227,8 @@ export function fillFieldRandom(db, championshipId, rng, quotas = DEFAULT_FIELD_
     // Pool plus human teams (a player's team may come from outside the template).
     const poolIds = new Set(teamPool(db, championshipId).map(t => t.id));
     const teams = listTeams(db).filter(t => poolIds.has(t.id) || humanTeamIds.includes(t.id));
-    for (const teamId of fillField({ teams, humanTeamIds, quotas, rng })) {
+    const { teamCount } = getChampionship(db, championshipId);
+    for (const teamId of fillField({ teams, humanTeamIds, quotas: scaleQuotas(quotas, teamCount), rng, size: teamCount })) {
       run(db, 'INSERT INTO championship_teams (championship_id, team_id) VALUES (?, ?)', championshipId, teamId);
     }
   });
@@ -210,8 +242,9 @@ const hasGroupMatches = (db, championshipId) =>
 export function runDraw(db, championshipId, rng) {
   transaction(db, () => {
     if (hasGroupMatches(db, championshipId)) throw new UserError(_('Group fixtures exist; clear them before redoing the draw'));
-    const { teams } = getChampionship(db, championshipId);
-    if (teams.length !== FIELD_SIZE) throw new UserError(_('The draw needs exactly {size} teams (the field has {count})', { size: FIELD_SIZE, count: teams.length }));
+    const { teams, format, teamCount } = getChampionship(db, championshipId);
+    if (format === 'cup') throw new UserError(_('A cup has no group draw'));
+    if (teams.length !== teamCount) throw new UserError(_('The draw needs exactly {size} teams (the field has {count})', { size: teamCount, count: teams.length }));
     const pots = makePots(teams.map(t => ({ id: t.teamId, name: t.name, country: t.country, ovr: t.ovr })));
     const groups = drawGroups(pots, rng);
     pots.forEach((pot, i) => pot.forEach(t =>
@@ -233,8 +266,9 @@ export function setPlacement(db, championshipId, teamId, { pot, groupLetter }) {
 export function generateGroupFixtures(db, championshipId, rng) {
   transaction(db, () => {
     if (hasGroupMatches(db, championshipId)) throw new UserError(_('Group fixtures already exist; clear them first'));
-    const { teams } = getChampionship(db, championshipId);
-    const fixtures = GROUP_LETTERS.flatMap(letter => {
+    const { teams, format, teamCount } = getChampionship(db, championshipId);
+    if (format === 'cup') throw new UserError(_('A cup has no group stage'));
+    const fixtures = groupLettersFor(teamCount).flatMap(letter => {
       const groupTeams = teams.filter(t => t.groupLetter === letter).sort((a, b) => (a.pot ?? 9) - (b.pot ?? 9));
       if (groupTeams.length !== 4) throw new UserError(_('Group {letter} has {count} teams; it needs 4', { letter, count: groupTeams.length }));
       return groupFixtures(groupTeams.map(t => t.teamId)).map(f => ({ ...f, stage: 'group', groupLetter: letter }));
@@ -252,7 +286,7 @@ export function clearGroupFixtures(db, championshipId) {
 /** Standings of every drawn group, with entered points applied. Returns [{ letter, rows: [{ ...row, position, team }] }]. */
 export function groupStandings(db, championshipId, c = getChampionship(db, championshipId), matches = listMatches(db, championshipId)) {
   const entered = new Map(c.teams.filter(t => t.pointsOverride != null && !t.owner).map(t => [t.teamId, t.pointsOverride]));
-  return GROUP_LETTERS.map(letter => {
+  return groupLettersFor(c.teamCount).map(letter => {
     const teams = c.teams.filter(t => t.groupLetter === letter);
     const inGroup = matches.filter(m => m.stage === 'group' && m.groupLetter === letter);
     const rows = computeStandings(teams.map(t => t.teamId), inGroup, entered)
@@ -279,14 +313,15 @@ export function closeGroupStage(db, championshipId) {
   transaction(db, () => {
     const c = getChampionship(db, championshipId);
     const groups = groupStandings(db, championshipId, c);
-    if (groups.length !== GROUP_LETTERS.length || groups.some(g => g.rows.length !== 4)) {
+    if (c.format === 'cup') throw new UserError(_('A cup has no group stage'));
+    if (groups.length !== c.groupCount || groups.some(g => g.rows.length !== 4)) {
       throw new UserError(_('Run the group draw first: every group needs 4 teams'));
     }
     for (const g of groups) {
       const marked = g.rows.filter(r => r.team.reached !== 'group');
       const qualified = new Set((marked.length === 2 ? marked : g.rows.slice(0, 2)).map(r => r.teamId));
       for (const r of g.rows) {
-        if (qualified.has(r.teamId) && r.team.reached === 'group') setReached(db, championshipId, r.teamId, 'r16');
+        if (qualified.has(r.teamId) && r.team.reached === 'group') setReached(db, championshipId, r.teamId, firstRound(c.bracketSize));
         if (!qualified.has(r.teamId) && r.team.reached !== 'group') setReached(db, championshipId, r.teamId, 'group');
       }
     }
@@ -412,7 +447,7 @@ export function championshipRecap(db, championshipId) {
   const groupMatches = matches.filter(m => m.stage === 'group');
 
   const rowsByLetter = new Map(groupStandings(db, championshipId, c, matches).map(g => [g.letter, g.rows]));
-  const groups = GROUP_LETTERS
+  const groups = groupLettersFor(c.teamCount)
     .filter(letter => c.teams.some(t => t.groupLetter === letter && humanTeamIds.has(t.teamId)))
     .map(letter => {
       const inGroup = groupMatches.filter(m => m.groupLetter === letter);

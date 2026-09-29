@@ -8,6 +8,24 @@ export const FIELD_SIZE = 32;
 export const DEFAULT_FIELD_QUOTAS = { 5: 4, 4.5: 6, 4: 6, 3.5: 6, 3: 5, 2.5: 3, 2: 2, 1.5: 0, 1: 0, 0.5: 0 };
 
 /**
+ * The "teams per star level" quotas scaled to a field of `size` teams (the defaults add up to 32): each level keeps its share,
+ * rounded with the largest-remainder method so the total is exactly `size`. Levels with quota 0 stay 0.
+ */
+export function scaleQuotas(quotas, size) {
+  const entries = Object.entries(quotas).map(([stars, quota]) => [stars, Number(quota)]);
+  const total = entries.reduce((sum, [, q]) => sum + q, 0);
+  if (total === 0 || total === size) return { ...quotas };
+  const raw = entries.map(([stars, q]) => ({ stars, exact: (q * size) / total }));
+  const scaled = raw.map(r => ({ ...r, n: Math.floor(r.exact) }));
+  let left = size - scaled.reduce((sum, r) => sum + r.n, 0);
+  for (const r of [...scaled].sort((a, b) => (b.exact - b.n) - (a.exact - a.n) || Number(b.stars) - Number(a.stars))) {
+    if (left-- <= 0) break;
+    r.n++;
+  }
+  return Object.fromEntries(scaled.map(r => [r.stars, r.n]));
+}
+
+/**
  * teams: [{ id, stars }] — every team available.
  * humanTeamIds: ids that must be in the field.
  * Returns team ids: humans first, then CPU teams; length `size` when enough teams exist.

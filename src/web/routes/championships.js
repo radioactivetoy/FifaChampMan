@@ -1,4 +1,4 @@
-import { html, page, select, th, _, confirmSubmit } from '../html.js';
+import { html, page, select, th, _, confirmSubmit, raw } from '../html.js';
 import { intOrNull, numOrNull, requiredText, toArray, textOrDefault } from '../form.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
@@ -7,8 +7,21 @@ import { listPlayers } from '../../repo/players.js';
 import { listTeams, listEditions } from '../../repo/teams.js';
 import { listTemplates } from '../../repo/templates.js';
 import { DEFAULT_EDITION } from '../../domain/editions.js';
+import { GROUP_SIZE, MIN_GROUP_TEAMS, MAX_GROUP_TEAMS } from '../../domain/draw.js';
+import { CUP_MIN_TEAMS, CUP_MAX_TEAMS } from '../../domain/bracket.js';
 import * as C from '../../repo/championships.js';
 import { UserError } from '../../errors.js';
+
+/** Format + number of teams controls (create form and the overview's edit form share them). */
+const groupCounts = Array.from({ length: (MAX_GROUP_TEAMS - MIN_GROUP_TEAMS) / GROUP_SIZE + 1 }, (_, i) => MIN_GROUP_TEAMS + i * GROUP_SIZE);
+const sizeControls = (format, teamCount) => html`
+  <label>${_('Format')} <select name="format" data-format-select>
+    <option value="groups"${format === 'groups' ? raw(' selected') : ''}>${_('Groups + knockout')}</option>
+    <option value="cup"${format === 'cup' ? raw(' selected') : ''}>${_('Cup (knockout only)')}</option></select></label>
+  <label>${_('Teams')} <input name="teamCount" type="number" min="${CUP_MIN_TEAMS}" max="${CUP_MAX_TEAMS}" value="${teamCount}" class="num" required
+    list="group-sizes" data-team-count></label>
+  <datalist id="group-sizes">${groupCounts.map(n => html`<option value="${n}">`)}</datalist>
+  <span class="muted">${_('Groups: 8 to 32 teams in multiples of 4 (a group is 4 teams). Cup: 4 to 64 teams.')}</span>`;
 
 const templateSelect = (db, selected) => select({
   name: 'templateId',
@@ -40,6 +53,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         <p><label>${_('Edition')} <input name="edition" list="editions" value="${DEFAULT_EDITION}"></label>
           <span class="muted">${_("Which FC game's teams this championship draws from.")}</span></p>
         <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
+        <p class="row">${sizeControls('groups', 32)}</p>
         <p><label>${_('Team pool')} ${templateSelect(db, null)}</label> <a href="/config" class="muted">${_('manage templates')}</a></p>
         <p>${_('Who plays this time?')}</p>
         ${players.map(p => html`<p><label><input type="checkbox" name="playerIds" value="${p.id}"> ${p.name}</label></p>`)}
@@ -54,6 +68,8 @@ export function registerChampionshipRoutes(app, { db, rng }) {
       playerIds: toArray(req.body.playerIds).map(Number),
       templateId: intOrNull(req.body.templateId),
       edition: textOrDefault(req.body.edition, DEFAULT_EDITION),
+      format: req.body.format === 'cup' ? 'cup' : 'groups',
+      teamCount: intOrNull(req.body.teamCount) ?? 32,
       rng,
     });
     res.redirect(`/championships/${id}`);
@@ -74,6 +90,8 @@ export function registerChampionshipRoutes(app, { db, rng }) {
           <label>${_('Edition')} <input name="edition" list="editions" value="${c.edition}"></label><button>${_('Save')}</button>
           <span class="muted">${_('Changing this does not update the field or existing matches; check them after a change.')}</span></form>
         <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
+        <form method="post" action="/championships/${c.id}/size" class="row">${sizeControls(c.format, c.teamCount)}<button>${_('Save')}</button>
+          <span class="muted">${_('Can only be changed before the draw or any match exists.')}</span></form>
         <table><thead><tr><th>${_('Player')}</th><th>${_('Level')}</th><th>${_('Team')}</th><th>${_('Choose between')}</th><th></th></tr></thead><tbody>
         ${c.players.map(p => { const base = `/championships/${c.id}/players/${p.playerId}`; return html`<tr>
           <td>${p.playerName}</td>
@@ -114,6 +132,11 @@ export function registerChampionshipRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/template', (req, res) => {
     C.updateChampionship(db, Number(req.params.id), { templateId: intOrNull(req.body.templateId) });
+    res.redirect(`/championships/${req.params.id}`);
+  });
+
+  app.post('/championships/:id/size', (req, res) => {
+    C.setChampionshipSize(db, Number(req.params.id), { format: req.body.format === 'cup' ? 'cup' : 'groups', teamCount: intOrNull(req.body.teamCount) ?? undefined });
     res.redirect(`/championships/${req.params.id}`);
   });
 

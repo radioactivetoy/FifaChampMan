@@ -457,4 +457,17 @@ export const es = {
   // ---- Knockout stages ----
   'Round of 64': 'Ronda de 64',
   'Round of 32': 'Dieciseisavos de final',
+  // ---- Championship size and format ----
+  'Unknown format "{format}"': 'Formato desconocido «{format}»',
+  'Groups need 8 to 32 teams in a multiple of 4': 'Los grupos necesitan de 8 a 32 equipos, en múltiplos de 4',
+  'A cup needs {min} to {max} teams': 'Una copa necesita de {min} a {max} equipos',
+  'There are more players than teams in the field': 'Hay más jugadores que equipos en el campeonato',
+  'The format and number of teams cannot change once the draw or any match exists': 'El formato y el número de equipos no se pueden cambiar una vez hecho el sorteo o creado algún partido',
+  'A cup has no group draw': 'Una copa no tiene sorteo de grupos',
+  'A cup has no group stage': 'Una copa no tiene fase de grupos',
+  'Format': 'Formato',
+  'Groups + knockout': 'Grupos + eliminatorias',
+  'Cup (knockout only)': 'Copa (solo eliminatorias)',
+  'Groups: 8 to 32 teams in multiples of 4 (a group is 4 teams). Cup: 4 to 64 teams.': 'Grupos: de 8 a 32 equipos en múltiplos de 4 (un grupo son 4 equipos). Copa: de 4 a 64 equipos.',
+  'Can only be changed before the draw or any match exists.': 'Solo se puede cambiar antes de hacer el sorteo o crear algún partido.',
 };

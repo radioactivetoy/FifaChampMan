@@ -137,3 +137,30 @@ test('every championship tab has a rename control and renaming returns to the sa
     await app.close();
   }
 });
+
+test('the new-championship form has format and teams; the overview edits them; the field page adapts', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const players = seedPlayers(app.db);
+    let text = (await app.get('/championships/new')).text;
+    assert.match(text, /name="format"/);
+    assert.match(text, /name="teamCount"/);
+
+    const r = await app.post('/championships', { name: 'Twelve', playerIds: players.slice(0, 2), format: 'groups', teamCount: '12' });
+    const id = Number(r.location.split('/').pop());
+    assert.equal(getChampionship(app.db, id).teamCount, 12);
+    assert.match((await app.get(`/championships/${id}/draw`)).text, /Field \(2\/12\)/);
+
+    assert.equal((await app.post('/championships', { name: 'Bad', playerIds: players, format: 'groups', teamCount: '13' })).status, 400);
+
+    await app.post(`/championships/${id}/size`, { format: 'cup', teamCount: '11' });
+    assert.deepEqual([getChampionship(app.db, id).format, getChampionship(app.db, id).teamCount], ['cup', 11]);
+    text = (await app.get(`/championships/${id}/draw`)).text;
+    assert.match(text, /Field \(2\/11\)/);
+    assert.doesNotMatch(text, /Run group draw/); // a cup has no group draw
+    assert.match((await app.get(`/championships/${id}`)).text, /action="\/championships\/\d+\/size"/);
+  } finally {
+    await app.close();
+  }
+});
