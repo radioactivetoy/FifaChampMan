@@ -217,6 +217,20 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   `GET /players/:id/photo` serves it (`no-cache`, so a changed photo shows at once). `avatar(p, { size })` in
   `components.js` renders the round picture or a coloured initials circle (players carry `hasPhoto`), used on the
   Players list, profile, Stats leaderboard/Elo/head-to-head, Results and Recap. No multipart/upload dependency.
+- **Player status (active → inactive → delete)**: `players.active` (migration, default 1). *Deactivate* hides a player
+  from new championships and the add-player dropdown (`listPlayers(db, { activeOnly: true })` in the pickers;
+  stats, profile and history use all players) but keeps everything; *Reactivate* brings them back; *Delete data*
+  (`deletePlayer`, only for inactive players, else a UserError) removes them from every championship and
+  from match controller columns, and returns the undo steps.
+- **Undo** (`repo/undo.js`, `undo_log` table): a destructive route captures exactly the rows it is about to delete
+  (`rowsOf` + `insertSteps`) or change (`updateSteps`) and calls `recordUndo(db, label, steps)`; `applyUndo` replays
+  them (`INSERT OR IGNORE` / targeted `UPDATE`, in one transaction, and refuses cleanly if a foreign key no longer
+  holds). Only those rows are touched, so later work is never clobbered. Entries last 30 minutes, newest 10 kept.
+  `app.js` injects an "Undo" bar under the header of every HTML GET while one exists (`POST /undo/:id[/dismiss]`,
+  `back` must be a same-site path). Covered: delete match, playoff matches removed by clearing teams, clear group
+  fixtures, delete championship (with its players/teams/matches), remove a player from a championship, remove a
+  field team, delete template, delete team, delete player data. **New destructive routes must record an undo.**
+  Not covered (re-runnable, just random): re-draw offers/controllers, group draw, "Fill field randomly".
 - **Copy summary**: the Recap's "The story" has a `button[data-copy]` (`setupCopyButtons` in `filter.js`); it falls
   back to a hidden textarea + `execCommand('copy')` because `navigator.clipboard` needs https and friends use plain
   http over the LAN.

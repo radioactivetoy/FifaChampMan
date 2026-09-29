@@ -11,6 +11,7 @@ const MIGRATIONS = [
   ['championships', 'group_stage_closed', 'INTEGER NOT NULL DEFAULT 0'],
   ['championship_teams', 'points_override', 'INTEGER'],
   ['championships', 'edition', "TEXT NOT NULL DEFAULT 'FC 27'"], // keep in sync with domain/editions.js
+  ['players', 'active', 'INTEGER NOT NULL DEFAULT 1'], // 0 = hidden from new championships (history kept)
   ['players', 'photo', 'BLOB'], // the player's picture, already resized by the browser (see repo/players.js)
   ['players', 'photo_type', 'TEXT'],
   ['matches', 'slot', 'INTEGER'], // playoff bracket position within its stage (see domain/stages.js assignSlots)

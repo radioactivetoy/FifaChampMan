@@ -1,4 +1,5 @@
 import { html, page, raw } from '../html.js';
+import { recordUndo, rowsOf, insertSteps, updateSteps } from '../../repo/undo.js';
 import { requiredText, toArray } from '../form.js';
 import { stars, badge, leagueBadge, flag, teamFilterBar, filterAttrs } from '../components.js';
 import { listTeams } from '../../repo/teams.js';
@@ -46,7 +47,14 @@ export function registerTemplateRoutes(app, { db }) {
   });
 
   app.post('/templates/:id/delete', (req, res) => {
-    deleteTemplate(db, Number(req.params.id));
+    const id = Number(req.params.id);
+    const [template] = rowsOf(db, 'team_templates', 'id = ?', id);
+    recordUndo(db, `Deleted template "${template?.name ?? ''}"`, [
+      ...insertSteps('team_templates', template ? [template] : []),
+      ...insertSteps('team_template_teams', rowsOf(db, 'team_template_teams', 'template_id = ?', id)),
+      ...updateSteps('championships', ['id'], ['template_id'], rowsOf(db, 'championships', 'template_id = ?', id)),
+    ]);
+    deleteTemplate(db, id);
     res.redirect('/config');
   });
 }

@@ -15,6 +15,8 @@ import { registerPlayoffRoutes } from './web/routes/playoff.js';
 import { registerResultRoutes } from './web/routes/results.js';
 import { registerStatsRoutes } from './web/routes/stats.js';
 import { registerRecapRoutes } from './web/routes/recap.js';
+import { registerUndoRoutes } from './web/routes/undo.js';
+import { latestUndo } from './repo/undo.js';
 
 export function createApp({ db, rng }) {
   const app = express();
@@ -23,6 +25,21 @@ export function createApp({ db, rng }) {
   app.use((req, res, next) => { req.body ??= {}; next(); });
   // maxAge 0: browsers revalidate style.css / filter.js on each load, so updates show up immediately.
   app.use(express.static(fileURLToPath(new URL('../public', import.meta.url)), { maxAge: 0 }));
+
+  // Right after a destructive action (and for 30 minutes) every page carries an "Undo" bar under the header.
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    const send = res.send.bind(res);
+    res.send = body => {
+      const undo = typeof body === 'string' && body.startsWith('<!doctype html>') ? latestUndo(db) : null;
+      if (!undo) return send(body);
+      const back = html`<input type="hidden" name="back" value="${req.originalUrl}">`;
+      return send(body.replace('</header>', `</header>${html`<div class="undo-bar"><span>↩ ${undo.label}</span>
+        <form method="post" action="/undo/${undo.id}">${back}<button class="primary">Undo</button></form>
+        <form method="post" action="/undo/${undo.id}/dismiss">${back}<button title="Hide">✕</button></form></div>`}`));
+    };
+    next();
+  });
 
   const ctx = { db, rng };
   app.get('/', (req, res) => res.redirect('/championships'));
@@ -39,6 +56,7 @@ export function createApp({ db, rng }) {
   registerResultRoutes(app, ctx);
   registerStatsRoutes(app, ctx);
   registerRecapRoutes(app, ctx);
+  registerUndoRoutes(app, ctx);
 
   app.use((req, res) => {
     res.status(404).send(page({ title: 'Not found', body: html`<p>Nothing here. <a href="/">Home</a></p>` }));

@@ -1,4 +1,5 @@
 import { html, page, select } from '../html.js';
+import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { intOrNull, numOrNull, requiredText, textOrDefault } from '../form.js';
 import { stars, badge, leagueBadge, flag, teamFilterBar, filterAttrs } from '../components.js';
 import { listTeams, saveTeam, deleteTeam, importTeams, listEditions } from '../../repo/teams.js';
@@ -104,7 +105,11 @@ export function registerTeamRoutes(app, { db }) {
   });
 
   app.post('/teams/:id/delete', (req, res) => {
-    deleteTeam(db, Number(req.params.id));
+    const id = Number(req.params.id);
+    const [team] = rowsOf(db, 'teams', 'id = ?', id);
+    const steps = [...insertSteps('teams', team ? [team] : []), ...insertSteps('team_template_teams', rowsOf(db, 'team_template_teams', 'team_id = ?', id))];
+    deleteTeam(db, id); // refuses (and records nothing) when a championship uses the team
+    recordUndo(db, `Deleted team ${team?.name ?? ''}`, steps);
     res.redirect('/teams');
   });
 }

@@ -1,5 +1,6 @@
 import { html, page } from '../html.js';
 import { champNav, matchRow, teamName, badge, cpuToggle, isCpuOnly, fillControllersButton, saveResultsButton, groupUrl } from '../components.js';
+import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, countMissingControllers } from '../../repo/matches.js';
 import { saveMatchesFromBody } from './matches.js';
@@ -92,7 +93,10 @@ export function registerGroupRoutes(app, { db, rng }) {
   });
 
   app.post('/championships/:id/groups/fixtures/clear', (req, res) => {
-    C.clearGroupFixtures(db, Number(req.params.id));
+    const id = Number(req.params.id);
+    const rows = rowsOf(db, 'matches', "championship_id = ? AND stage = 'group'", id);
+    recordUndo(db, `Cleared ${rows.length} group fixtures`, insertSteps('matches', rows));
+    C.clearGroupFixtures(db, id);
     res.redirect(`/championships/${req.params.id}/groups`);
   });
 

@@ -400,3 +400,7 @@ td.player-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; 
 td.player-cell .avatar { margin-right: 0; }
 .photo-pick { cursor: pointer; padding: 5px 10px; font-size: 13px; }
 .profile-head .avatar { margin-right: 4px; }
+
+/* ---------- undo bar ---------- */
+.undo-bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 16px; background: #fff7dc; border-bottom: 1px solid #f0d27a; font-weight: 600; }
+.undo-bar form { margin: 0; }

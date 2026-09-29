@@ -1,4 +1,5 @@
 import { intOrNull } from '../form.js';
+import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { getMatch, updateMatch, updateMatches, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
 import { PLAYOFF_STAGES } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
@@ -76,6 +77,7 @@ export function registerMatchRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/matches/:matchId/delete', (req, res) => {
     const m = matchInChampionship(db, req);
+    recordUndo(db, `Deleted match ${m.homeTeamName} v ${m.awayTeamName}`, insertSteps('matches', rowsOf(db, 'matches', 'id = ?', m.id)));
     deleteMatch(db, m.id);
     res.redirect(backTo(m));
   });

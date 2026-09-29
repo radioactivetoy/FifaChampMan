@@ -439,3 +439,74 @@ test('player photos: upload as a data URL, serve it back, show avatars, reject b
     await app.close();
   }
 });
+
+test('undo: delete a match, clear fixtures, remove a field team, delete a championship and a template — each can be undone', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const { insertMatch, listMatches: list } = await import('../../src/repo/matches.js');
+    const { saveTemplate, setTemplateTeams } = await import('../../src/repo/templates.js');
+    const [a, b, c] = teams;
+    const m1 = insertMatch(app.db, id, { stage: 'group', groupLetter: 'A', matchday: 1, homeTeamId: a.teamId, awayTeamId: b.teamId, homeScore: 2, awayScore: 1 });
+    const back = `/championships/${id}/groups`;
+    const undoBar = async path => (await app.get(path)).text.match(/action="\/undo\/(\d+)"/)?.[1];
+
+    // 1. delete a match
+    assert.equal(await undoBar(back), undefined); // nothing to undo yet
+    await app.post(`/championships/${id}/matches/${m1}/delete`);
+    let undoId = await undoBar(back);
+    assert.match((await app.get(back)).text, /Deleted match/);
+    assert.equal(list(app.db, id).length, 0);
+    const r = await app.post(`/undo/${undoId}`, { back });
+    assert.equal(r.location, back);
+    assert.deepEqual(list(app.db, id).map(m => [m.id, m.homeScore]), [[m1, 2]]);
+    assert.equal(await undoBar(back), undefined);
+
+    // 2. clear fixtures
+    await app.post(`/championships/${id}/groups/fixtures/clear`);
+    assert.equal(list(app.db, id).length, 0);
+    await app.post(`/undo/${await undoBar(back)}`, { back });
+    assert.equal(list(app.db, id).length, 1);
+
+    // 3. dismissing hides the bar without undoing
+    await app.post(`/championships/${id}/matches/${m1}/delete`);
+    await app.post(`/undo/${await undoBar(back)}/dismiss`, { back });
+    assert.equal(await undoBar(back), undefined);
+    assert.equal(list(app.db, id).length, 0);
+
+    // 4. a field team that can be removed (no player, no matches)
+    const spare = getChampionship(app.db, id).teams.find(t => !t.owner && ![a, b].some(x => x.teamId === t.teamId));
+    await app.post(`/championships/${id}/field/${spare.teamId}/remove`);
+    assert.equal(getChampionship(app.db, id).teams.some(t => t.teamId === spare.teamId), false);
+    await app.post(`/undo/${await undoBar(back)}`, { back });
+    assert.equal(getChampionship(app.db, id).teams.some(t => t.teamId === spare.teamId), true);
+
+    // 5. delete the whole championship (typed name) and bring it all back
+    const before = getChampionship(app.db, id);
+    insertMatch(app.db, id, { stage: 'group', groupLetter: 'A', matchday: 1, homeTeamId: a.teamId, awayTeamId: b.teamId, homeScore: 3, awayScore: 3 });
+    await app.post(`/championships/${id}/delete`, { confirmName: 'Cup' });
+    assert.equal(app.db.prepare('SELECT COUNT(*) AS n FROM championships').get().n, 0);
+    await app.post(`/undo/${await undoBar('/championships')}`, { back: '/championships' });
+    const after = getChampionship(app.db, id);
+    assert.deepEqual([after.name, after.teams.length, after.players.length], [before.name, before.teams.length, before.players.length]);
+    assert.equal(list(app.db, id)[0].homeScore, 3);
+
+    // 6. a template
+    const tid = saveTemplate(app.db, { name: 'Big clubs' });
+    setTemplateTeams(app.db, tid, [a.teamId, b.teamId]);
+    app.db.prepare('UPDATE championships SET template_id = ? WHERE id = ?').run(tid, id);
+    await app.post(`/templates/${tid}/delete`);
+    assert.equal(app.db.prepare('SELECT COUNT(*) AS n FROM team_templates').get().n, 0);
+    await app.post(`/undo/${await undoBar('/config')}`, { back: '/config' });
+    assert.equal(app.db.prepare('SELECT name FROM team_templates').get().name, 'Big clubs');
+    assert.equal(app.db.prepare('SELECT COUNT(*) AS n FROM team_template_teams').get().n, 2);
+    assert.equal(app.db.prepare('SELECT template_id FROM championships WHERE id = ?').get(id).template_id, tid); // the championship's link is back too
+
+    // an undo id that is gone, and an outside redirect target, are handled
+    assert.equal((await app.post('/undo/999999')).status, 404);
+    await app.post(`/championships/${id}/matches/${list(app.db, id)[0].id}/delete`);
+    const evil = await app.post(`/undo/${await undoBar('/config')}/dismiss`, { back: 'https://evil.example' });
+    assert.equal(evil.location, '/');
+  } finally {
+    await app.close();
+  }
+});

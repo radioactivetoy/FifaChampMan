@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS team_template_teams (
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
+  active INTEGER NOT NULL DEFAULT 1,
   photo BLOB,
   photo_type TEXT
 );
@@ -93,4 +94,12 @@ CREATE TABLE IF NOT EXISTS matches (
   away_pens INTEGER,
   home_controller_id INTEGER REFERENCES players(id),
   away_controller_id INTEGER REFERENCES players(id)
+);
+
+-- Steps to reverse the last destructive actions (see repo/undo.js); short-lived.
+CREATE TABLE IF NOT EXISTS undo_log (
+  id INTEGER PRIMARY KEY,
+  label TEXT NOT NULL,
+  steps TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

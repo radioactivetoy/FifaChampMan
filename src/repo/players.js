@@ -1,8 +1,16 @@
-import { all, get, run } from '../db/connection.js';
+import { all, get, run, transaction } from '../db/connection.js';
+import { rowsOf, insertSteps, updateSteps } from './undo.js';
 import { UserError } from '../errors.js';
 
-export const listPlayers = db => all(db, 'SELECT id, name, photo IS NOT NULL AS hasPhoto FROM players ORDER BY name')
-  .map(p => ({ ...p, hasPhoto: p.hasPhoto === 1 }));
+/** All players by name (inactive ones too unless activeOnly): { id, name, active, hasPhoto }. */
+export const listPlayers = (db, { activeOnly = false } = {}) => all(db,
+  `SELECT id, name, active, photo IS NOT NULL AS hasPhoto FROM players ${activeOnly ? 'WHERE active = 1' : ''} ORDER BY name`)
+  .map(p => ({ ...p, active: p.active === 1, hasPhoto: p.hasPhoto === 1 }));
+
+/** Inactive players are hidden from new championships (pickers) but keep all their history and stats. */
+export function setPlayerActive(db, id, active) {
+  if (run(db, 'UPDATE players SET active = ? WHERE id = ?', active ? 1 : 0, id).changes === 0) throw new UserError('Player not found', 404);
+}
 
 const MAX_PHOTO_BYTES = 400 * 1024;
 const PHOTO_TYPES = [
@@ -47,11 +55,26 @@ export function savePlayer(db, { id, name }) {
   }
 }
 
+/**
+ * Deletes a player's data for good: they leave every championship they were in (their team stays in that field as a
+ * CPU team) and are removed as controller from matches. Only inactive players can be deleted — deactivate first.
+ * Returns the undo steps that put everything back (see repo/undo.js), taken before anything is removed.
+ */
 export function deletePlayer(db, id) {
-  try {
+  const player = get(db, 'SELECT active FROM players WHERE id = ?', id);
+  if (!player) throw new UserError('Player not found', 404);
+  if (player.active === 1) throw new UserError('Deactivate the player first; only inactive players can be deleted');
+  return transaction(db, () => {
+    const controlled = rowsOf(db, 'matches', 'home_controller_id = ? OR away_controller_id = ?', id, id);
+    const steps = [
+      ...insertSteps('players', rowsOf(db, 'players', 'id = ?', id)),
+      ...insertSteps('championship_players', rowsOf(db, 'championship_players', 'player_id = ?', id)),
+      ...updateSteps('matches', ['id'], ['home_controller_id', 'away_controller_id'], controlled),
+    ];
+    run(db, 'UPDATE matches SET home_controller_id = NULL WHERE home_controller_id = ?', id);
+    run(db, 'UPDATE matches SET away_controller_id = NULL WHERE away_controller_id = ?', id);
+    run(db, 'DELETE FROM championship_players WHERE player_id = ?', id);
     run(db, 'DELETE FROM players WHERE id = ?', id);
-  } catch (err) {
-    if (/FOREIGN KEY/.test(err.message)) throw new UserError('This player has championship history and cannot be deleted');
-    throw err;
-  }
+    return steps;
+  });
 }

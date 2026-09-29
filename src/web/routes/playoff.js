@@ -5,6 +5,7 @@ import { saveMatchesFromBody } from './matches.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, createPlayoffMatch, updateMatch, deleteMatch, backfillSlots, advanceWinners, countMissingControllers } from '../../repo/matches.js';
 import { transaction } from '../../db/connection.js';
+import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, STAGE_SLOTS, REACHED } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
 
@@ -50,7 +51,9 @@ export function registerPlayoffRoutes(app, { db, rng }) {
       const before = JSON.stringify(listMatches(db, id));
       const existing = listMatches(db, id).filter(m => PLAYOFF_STAGES.includes(m.stage));
       const cleared = m => body[`homeTeamId_${m.id}`] === '' && body[`awayTeamId_${m.id}`] === '';
-      for (const m of existing.filter(cleared)) deleteMatch(db, m.id);
+      const removed = existing.filter(cleared);
+      recordUndo(db, `Removed ${removed.length} playoff match${removed.length === 1 ? '' : 'es'}`, insertSteps('matches', rowsOf(db, 'matches', `id IN (${removed.map(() => '?').join(',') || 'NULL'})`, ...removed.map(m => m.id))));
+      for (const m of removed) deleteMatch(db, m.id);
       const kept = existing.filter(m => !cleared(m));
       saveMatchesFromBody(db, kept.map(m => m.id), body);
 

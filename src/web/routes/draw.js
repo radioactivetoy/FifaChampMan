@@ -1,4 +1,5 @@
 import { html, page, select } from '../html.js';
+import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { intOrNull } from '../form.js';
 import { champNav, stars, teamName } from '../components.js';
 import { listTeams } from '../../repo/teams.js';
@@ -77,7 +78,11 @@ export function registerDrawRoutes(app, { db, rng }) {
   });
 
   app.post('/championships/:id/field/:teamId/remove', (req, res) => {
-    C.removeFieldTeam(db, Number(req.params.id), Number(req.params.teamId));
+    const [id, teamId] = [Number(req.params.id), Number(req.params.teamId)];
+    const rows = rowsOf(db, 'championship_teams', 'championship_id = ? AND team_id = ?', id, teamId);
+    const name = C.getChampionship(db, id).teams.find(t => t.teamId === teamId)?.name ?? 'team';
+    C.removeFieldTeam(db, id, teamId); // refuses (and records nothing) for a player's team or one with matches
+    recordUndo(db, `Removed ${name} from the field`, insertSteps('championship_teams', rows));
     res.redirect(`/championships/${req.params.id}/draw`);
   });
 

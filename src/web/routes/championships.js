@@ -2,6 +2,7 @@ import { html, page, select } from '../html.js';
 import { intOrNull, numOrNull, requiredText, toArray, textOrDefault } from '../form.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
+import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams, listEditions } from '../../repo/teams.js';
 import { listTemplates } from '../../repo/templates.js';
@@ -30,7 +31,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   });
 
   app.get('/championships/new', (req, res) => {
-    const players = listPlayers(db);
+    const players = listPlayers(db, { activeOnly: true });
     const editions = listEditions(db);
     res.send(page({
       title: 'New championship',
@@ -61,7 +62,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   app.get('/championships/:id', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
     const teamItems = listTeams(db, { edition: c.edition }).map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` }));
-    const others = listPlayers(db).filter(p => !c.players.some(cp => cp.playerId === p.id));
+    const others = listPlayers(db, { activeOnly: true }).filter(p => !c.players.some(cp => cp.playerId === p.id));
     const editions = listEditions(db);
     res.send(page({
       title: c.name,
@@ -137,6 +138,12 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     if (String(req.body.confirmName ?? '').trim() !== c.name) {
       throw new UserError(`To delete, type the championship name exactly: "${c.name}"`);
     }
+    recordUndo(db, `Deleted championship "${c.name}"`, [
+      ...insertSteps('championships', rowsOf(db, 'championships', 'id = ?', c.id)),
+      ...insertSteps('championship_players', rowsOf(db, 'championship_players', 'championship_id = ?', c.id)),
+      ...insertSteps('championship_teams', rowsOf(db, 'championship_teams', 'championship_id = ?', c.id)),
+      ...insertSteps('matches', rowsOf(db, 'matches', 'championship_id = ?', c.id)),
+    ]);
     C.deleteChampionship(db, c.id);
     res.redirect('/championships');
   });
@@ -168,7 +175,10 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   });
 
   app.post('/championships/:id/players/:playerId/remove', (req, res) => {
-    C.removeChampionshipPlayer(db, Number(req.params.id), Number(req.params.playerId));
+    const [id, playerId] = [Number(req.params.id), Number(req.params.playerId)];
+    const who = C.getChampionship(db, id).players.find(p => p.playerId === playerId)?.playerName ?? 'player';
+    recordUndo(db, `Removed ${who} from the championship`, insertSteps('championship_players', rowsOf(db, 'championship_players', 'championship_id = ? AND player_id = ?', id, playerId)));
+    C.removeChampionshipPlayer(db, id, playerId);
     res.redirect(`/championships/${req.params.id}`);
   });
 }
