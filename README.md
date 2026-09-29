@@ -68,7 +68,7 @@ Everything (teams, controllers, scores, groups, stages, stars) can be edited at 
 node tools/create-ucl-template.mjs
 ```
 
-5. Check **Config → Star tiers**: the new game's OVR spread may need the tiers adjusted so every level has clubs.
+5. Check **Config → Star tiers**: if the new game's star bands moved, adjust them (or **Reset to EA table**).
 
 ## Star rules
 
@@ -84,8 +84,9 @@ node tools/create-ucl-template.mjs
 | Scored a goal | 1★ |
 | Nothing | 0.5★ |
 
-Default star tiers (FC 27 has no clubs under 54 OVR, so the bottom levels are shifted up):
-0.5★ ≤60, 1★ 61–62, 1.5★ 63, 2★ 64, 2.5★ 65–66, 3★ 67–69, 3.5★ 70–72, 4★ 73–76, 4.5★ 77–81, 5★ 82+.
+Default star tiers — EA's own team-overall → star table (EA doesn't publish it; this is what the community guides give for FC 25/26,
+and it matches real clubs): 0.5★ ≤59, 1★ 60–62, 1.5★ 63–64, 2★ 65–66, 2.5★ 67–68, 3★ 69–70, 3.5★ 71–74, 4★ 75–78, 4.5★ 79–82, 5★ 83+.
+They are stored per database and editable on **Config**, which also has **Reset to EA table**.
 
 Going up a level: choose between two random teams of the new level. Otherwise a team is assigned.
 
