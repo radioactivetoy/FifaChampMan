@@ -77,7 +77,8 @@ export function registerChampionshipRoutes(app, { db, rng }) {
 
   app.get('/championships/:id', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
-    const teamItems = listTeams(db, { edition: c.edition }).map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` }));
+    const poolIds = new Set(C.teamPool(db, c.id).map(t => t.id));
+    const teamItems = listTeams(db, { edition: c.edition }).filter(t => poolIds.has(t.id) || c.players.some(p => p.teamId === t.id)).map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` }));
     const others = listPlayers(db, { activeOnly: true }).filter(p => !c.players.some(cp => cp.playerId === p.id));
     const editions = listEditions(db);
     res.send(page({

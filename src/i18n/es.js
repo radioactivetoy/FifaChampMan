@@ -431,7 +431,6 @@ export const es = {
   'That player is already in this championship': 'Ese jugador ya está en este campeonato',
   'That player is not in this championship': 'Ese jugador no está en este campeonato',
   'That team already belongs to another player': 'Ese equipo ya pertenece a otro jugador',
-  'That team is already in the field as a CPU team; remove it from the field first': 'Ese equipo ya está entre los participantes como equipo de la CPU; quítalo primero de ahí',
   'That team is already in the field': 'Ese equipo ya está entre los participantes',
   'That team belongs to a player; change the player\'s team instead': 'Ese equipo pertenece a un jugador; cambia mejor el equipo del jugador',
   'That team has matches; delete them first': 'Ese equipo tiene partidos; bórralos primero',

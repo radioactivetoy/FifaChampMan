@@ -6,6 +6,7 @@ import { listMatches, updateMatch } from '../../src/repo/matches.js';
 import { listTeams, saveTeam } from '../../src/repo/teams.js';
 import { saveTemplate, setTemplateTeams } from '../../src/repo/templates.js';
 import { createRng } from '../../src/domain/rng.js';
+import { nearestTier } from '../../src/domain/rating.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import { UserError } from '../../src/errors.js';
 
@@ -142,8 +143,51 @@ test('changing a player team swaps it everywhere', () => {
   assert.equal(after.teams.find(t => t.teamId === replacement).groupLetter, oldGroup);
   assert.ok(!after.teams.some(t => t.teamId === old));
   assert.ok(listMatches(db, id).some(m => m.homeTeamId === replacement || m.awayTeamId === replacement));
-  const cpuInField = after.teams.find(t => !t.owner).teamId;
-  assert.throws(() => C.setPlayerTeam(db, id, players[0], cpuInField), UserError);
+});
+
+test('taking a CPU team that is already in the field swaps the two: slot, group and matches trade places', () => {
+  const { db, players, rng } = setup();
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: [players[0]], rng });
+  C.fillFieldRandom(db, id, rng);
+  C.runDraw(db, id, rng);
+  C.generateGroupFixtures(db, id, rng);
+  const before = C.getChampionship(db, id);
+  const old = before.players[0].teamId;
+  const cpu = before.teams.find(t => !t.owner && t.groupLetter !== before.teams.find(x => x.teamId === old).groupLetter);
+  const oldRow = before.teams.find(t => t.teamId === old);
+  C.setPlayerTeam(db, id, players[0], cpu.teamId);
+  const after = C.getChampionship(db, id);
+  assert.equal(after.teams.length, before.teams.length); // nobody left the field
+  assert.equal(after.players[0].teamId, cpu.teamId);
+  assert.equal(after.teams.find(t => t.teamId === cpu.teamId).groupLetter, oldRow.groupLetter);
+  assert.equal(after.teams.find(t => t.teamId === old).groupLetter, cpu.groupLetter);
+  assert.equal(listMatches(db, id).filter(m => m.homeTeamId === cpu.teamId || m.awayTeamId === cpu.teamId).length, 3);
+  assert.equal(listMatches(db, id).filter(m => m.homeTeamId === old || m.awayTeamId === old).length, 3);
+});
+
+test('a pool with no team at the player level still gives a team, from the nearest tier; re-draw works after filling the field from the pool', () => {
+  const { db, players, rng } = setup();
+  const pool = listTeams(db).filter(t => t.stars >= 3).slice(0, 12); // nothing at the 0.5★ everybody starts on
+  assert.ok(pool.length === 12);
+  const tid = saveTemplate(db, { name: 'High' });
+  setTemplateTeams(db, tid, pool.map(t => t.id));
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players.slice(0, 2), templateId: tid, format: 'cup', teamCount: 12, rng });
+  const c = C.getChampionship(db, id);
+  assert.ok(c.players.every(p => p.teamId != null && pool.some(t => t.id === p.teamId)));
+  C.fillFieldWholePool(db, id); // every pool team is now in the field
+  const [p] = C.getChampionship(db, id).players;
+  C.rerollOffer(db, id, p.playerId, rng);
+  const after = C.getChampionship(db, id);
+  assert.ok(after.players[0].teamId != null && pool.some(t => t.id === after.players[0].teamId));
+  assert.equal(after.teams.length, 12);
+});
+
+test('nearestTier: the exact tier when it has teams, else the closest (lower on a tie)', () => {
+  const teams = [{ id: 1, stars: 2 }, { id: 2, stars: 3 }, { id: 3, stars: 3 }];
+  assert.deepEqual(nearestTier(teams, 3).map(t => t.id), [2, 3]);
+  assert.deepEqual(nearestTier(teams, 0.5).map(t => t.id), [1]);
+  assert.deepEqual(nearestTier(teams, 2.5).map(t => t.id), [1]); // 2 and 3 are equally close: the lower
+  assert.deepEqual(nearestTier([], 3), []);
 });
 
 test('outcome uses team record and reached', () => {
