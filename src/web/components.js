@@ -1,5 +1,6 @@
 import { html, raw, select, escape, _, th, confirmSubmit } from './html.js';
-import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, tieOutcome, assignSlots, STAGE_SLOTS } from '../domain/stages.js';
+import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, tieOutcome, assignSlots } from '../domain/stages.js';
+import { bracketStages, slotsIn } from '../domain/bracket.js';
 import { championshipProgress } from '../domain/progress.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
@@ -71,7 +72,7 @@ function awards(c) {
  */
 function finishBanner(c) {
   if (c.status === 'finished') return '';
-  const progress = championshipProgress(c.teams);
+  const progress = championshipProgress(c.teams, c.bracketSize);
   if (!progress.over) return '';
   const action = `/championships/${c.id}/finish`;
   const items = progress.alive.map(t => ({ value: t.teamId, label: `${t.name} (${REACHED_LABELS[t.reached]})` }));
@@ -162,8 +163,6 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
   </tr>`;
 }
 
-const ROUND_STAGES = PLAYOFF_STAGES.filter(s => s !== 'final'); // ['r16', 'qf', 'sf'] — 'final' sits in the centre, unsplit
-
 /**
  * One playoff leg, as a compact scoreboard row (badge, team dropdown, score) per side — the classic
  * bracket look, instead of matchRow's information-dense table row. The score rows are plain markup,
@@ -238,55 +237,75 @@ function pairConnector(pairIndex, count, side) {
 }
 
 /**
- * The whole playoff as a one-sided bracket tree read left to right, always fully drawn:
- * 8 Round-of-16 ties, 4 quarter-finals, 2 semi-finals and the Final (`STAGE_SLOTS`), whether or not
+ * The whole knockout as a one-sided bracket tree read left to right, always fully drawn for the championship's size
+ * (`c.bracketSize`, see domain/bracket.js): 8 Round-of-16 ties … down to the Final, or fewer/more rounds for other sizes, whether or not
  * anyone has been put in them yet. Slots 2j and 2j+1 feed slot j of the next round, joined by a real elbow connector
  * (`pairConnector` — see its own doc comment on why the browser has the final say on exactly where).
  * Every slot has team dropdowns and score inputs bound (via their `form` attribute) to the one form
  * `formId` rendered by the caller, so a single Save button saves the entire tree. `teamItems` are the
- * dropdown options. Nothing here is automatic: winners are not advanced, teams are picked by hand.
+ * dropdown options; `byes` the first-round places held by a team that skips it. Empty first-round slots can be turned into a
+ * bye with a checkbox. Winners and byes are only *pre-selected* in the next round; nothing is drawn or seeded by the app.
  */
-export function playoffBracket(c, matches, { formId, teamItems }) {
+export function playoffBracket(c, matches, { formId, teamItems, byes = [] }) {
+  const size = c.bracketSize;
+  const stages = bracketStages(size);
+  const first = stages[0];
   const byId = new Map(c.teams.map(t => [t.teamId, t]));
   const playerItems = c.players.map(p => ({ value: p.playerId, label: p.playerName }));
-  const placed = new Map(PLAYOFF_STAGES.map(stage => [stage, assignSlots(groupTies(matches.filter(m => m.stage === stage)), STAGE_SLOTS[stage])]));
+  const placed = new Map(stages.map(stage => [stage, assignSlots(groupTies(matches.filter(m => m.stage === stage)), slotsIn(stage, size))]));
+  const byeAt = slot => byes.find(b => b.stage === first && b.slot === slot);
+
+  // Who goes through a place of a round: the winner of its tie, or the team holding the bye there.
+  const throughAt = (stage, slot) => {
+    const tie = placed.get(stage)?.slots[slot];
+    if (tie) return tieOutcome(tie)?.winnerId ?? null;
+    return stage === first ? byeAt(slot)?.teamId ?? null : null;
+  };
 
   // A slot nobody has filled yet: the same two-row scoreboard, with blank dropdowns/scores under
   // `new_<stage>_<slot>_<field>` names (the save route creates the match once both teams are picked).
   const emptyTie = (stage, slot, connect, paired) => {
     const field = f => `new_${stage}_${slot}_${f}`;
-    // The winners of the two ties feeding this slot (previous round, slots 2j and 2j+1) are preselected.
-    const prev = placed.get(PLAYOFF_STAGES[PLAYOFF_STAGES.indexOf(stage) - 1])?.slots ?? [];
-    const fed = { home: prev[2 * slot], away: prev[2 * slot + 1] };
+    // The teams coming through the two places feeding this slot (previous round, slots 2j and 2j+1) are preselected.
+    const prevStage = stages[stages.indexOf(stage) - 1];
+    const fed = prevStage ? { home: throughAt(prevStage, 2 * slot), away: throughAt(prevStage, 2 * slot + 1) } : {};
     const row = side => html`<div class="bracket-match-row">
-      ${select({ name: field(`${side}TeamId`), form: formId, items: teamItems, blank: '—', selected: fed[side] ? tieOutcome(fed[side])?.winnerId : null })}
+      ${select({ name: field(`${side}TeamId`), form: formId, items: teamItems, blank: '—', selected: fed[side] })}
       <input form="${formId}" name="${field(`${side}Score`)}" type="number" min="0" class="num">
     </div>`;
     return html`<div class="bracket-tie bracket-tie-empty${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}">
-      <div class="bracket-match">${row('home')}${row('away')}</div></div>`;
+      <div class="bracket-match">${row('home')}${row('away')}</div>
+      ${stage === first ? html`<label class="bracket-bye-toggle"><input type="checkbox" form="${formId}" name="${field('bye')}" value="1"> ${_('Bye: the first team goes straight through')}</label>` : ''}</div>`;
   };
+
+  // A first-round place held by a bye: one team, no match. Clearing the dropdown and saving frees the place.
+  const byeTie = (slot, connect, paired) => html`<div class="bracket-tie bracket-tie-bye${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}">
+    <div class="bracket-match"><div class="bracket-match-row">
+      ${byId.get(byeAt(slot).teamId) ? badge(byId.get(byeAt(slot).teamId)) : ''}
+      ${select({ name: `bye_${slot}`, form: formId, items: teamItems, selected: byeAt(slot).teamId, blank: '—' })}
+    </div><small class="muted bracket-bye-note">${_('Bye — goes straight to the next round')}</small></div></div>`;
 
   // The heading sits outside the ties' own flex box, so `space-around`/`center` below only ever
   // repositions the ties themselves — never drags the <h3> to a different height between columns.
-  // paired: this round halves into the next one on this side, so consecutive slots (2j, 2j+1) get an elbow.
-  const column = (stage, first, count, connect, extraClass = '') => {
+  // paired: consecutive slots (2j, 2j+1) get an elbow into the next round (everything but the Final).
+  const column = stage => {
     const { slots } = placed.get(stage);
-    const paired = connect && stage !== 'final';
+    const count = slotsIn(stage, size);
+    const isFinal = stage === 'final';
+    const [connect, paired] = [isFinal ? null : 'right', !isFinal];
+    const ties = Array.from({ length: count }, (_, i) => (slots[i]
+      ? bracketTie(c, slots[i], formId, byId, teamItems, playerItems, connect, paired)
+      : stage === first && byeAt(i) ? byeTie(i, connect, paired) : emptyTie(stage, i, connect, paired)));
     const pairs = paired ? Array.from({ length: count / 2 }, (_, j) => pairConnector(j, count, connect)) : '';
-    const ties = Array.from({ length: count }, (_, i) => (slots[first + i]
-      ? bracketTie(c, slots[first + i], formId, byId, teamItems, playerItems, connect, paired)
-      : emptyTie(stage, first + i, connect, paired)));
-    return html`<div class="bracket-round${extraClass}">
+    return html`<div class="bracket-round${isFinal ? ' bracket-final' : ''}">
       <h3>${STAGE_LABELS[stage]}</h3>
       <div class="bracket-round-ties">${ties}${pairs}</div>
     </div>`;
   };
 
-  const columns = ROUND_STAGES.map(stage => column(stage, 0, STAGE_SLOTS[stage], 'right'));
-  const finalColumn = column('final', 0, 1, null, ' bracket-final');
-  // Ties that no longer fit their round (older data with more than 8/4/2/1) stay editable below the tree.
-  const extras = PLAYOFF_STAGES.flatMap(stage => placed.get(stage).extra.map(tie => [stage, tie]));
-  return html`<div class="bracket scroll-x">${columns}${finalColumn}</div>
+  // Ties that no longer fit their round (older data with more than the bracket holds) stay editable below the tree.
+  const extras = stages.flatMap(stage => placed.get(stage).extra.map(tie => [stage, tie]));
+  return html`<div class="bracket scroll-x">${stages.map(column)}</div>
     ${extras.length ? html`<h3>${_('Other playoff matches')}</h3><div class="bracket-extra">${extras.map(([stage, tie]) =>
       html`<div><small class="muted">${STAGE_LABELS[stage]}</small>${bracketTie(c, tie, formId, byId, teamItems, playerItems, null, false)}</div>`)}</div>` : ''}`;
 }

@@ -45,9 +45,6 @@ export function tieAggregate(tie) {
   return { goals, winnerId };
 }
 
-/** How many ties each playoff round has in the (always fully drawn) bracket. */
-export const STAGE_SLOTS = { r16: 8, qf: 4, sf: 2, final: 1 };
-
 /**
  * Places a round's ties (from groupTies) into its fixed bracket slots. A tie keeps the slot stored on
  * its matches (`match.slot`); ties without one (older data) take the lowest free slot in first-seen

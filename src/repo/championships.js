@@ -1,13 +1,13 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
-import { listMatches, insertMatch, drawControllers } from './matches.js';
+import { listMatches, insertMatch, drawControllers, bracketSizeOf, listByes } from './matches.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
 import { teamRecord, computeStandings, hasResult, isCucharaDeMadera } from '../domain/standings.js';
 import { playerStats } from '../domain/stats.js';
 import { fillField, scaleQuotas, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
 import { makePots, drawGroups, groupLettersFor, isValidGroupTeamCount } from '../domain/draw.js';
-import { FORMATS, CUP_MIN_TEAMS, CUP_MAX_TEAMS, knockoutSize, firstRound } from '../domain/bracket.js';
+import { FORMATS, CUP_MIN_TEAMS, CUP_MAX_TEAMS, knockoutSize, firstRound, nextStage, byeCount, byeSlots, pickByeTeams } from '../domain/bracket.js';
 import { groupFixtures } from '../domain/fixtures.js';
 import { REACHED, playoffOutcomes } from '../domain/stages.js';
 import { STAR_LEVELS } from '../domain/tiers.js';
@@ -317,19 +317,29 @@ export function closeGroupStage(db, championshipId) {
     if (groups.length !== c.groupCount || groups.some(g => g.rows.length !== 4)) {
       throw new UserError(_('Run the group draw first: every group needs 4 teams'));
     }
+    const qualifiedIds = new Set();
     for (const g of groups) {
       const marked = g.rows.filter(r => r.team.reached !== 'group');
       const qualified = new Set((marked.length === 2 ? marked : g.rows.slice(0, 2)).map(r => r.teamId));
+      qualified.forEach(teamId => qualifiedIds.add(teamId));
       for (const r of g.rows) {
         if (qualified.has(r.teamId) && r.team.reached === 'group') setReached(db, championshipId, r.teamId, firstRound(c.bracketSize));
         if (!qualified.has(r.teamId) && r.team.reached !== 'group') setReached(db, championshipId, r.teamId, 'group');
       }
     }
+    // Fewer qualifiers than bracket places (e.g. 3 groups = 6 teams in an 8-place bracket): the best of them skip the first round.
+    run(db, 'DELETE FROM bracket_byes WHERE championship_id = ?', championshipId);
+    const qualifiedRows = groups.flatMap(g => g.rows.filter(r => qualifiedIds.has(r.teamId))).map(r => ({ ...r, ovr: r.team.ovr }));
+    const first = firstRound(c.bracketSize);
+    const byeTeams = pickByeTeams(qualifiedRows, byeCount(qualifiedRows.length));
+    byeSlots(c.bracketSize, byeTeams.length).forEach((slot, i) =>
+      run(db, 'INSERT INTO bracket_byes (championship_id, stage, slot, team_id) VALUES (?, ?, ?, ?)', championshipId, first, slot, byeTeams[i]));
     run(db, 'UPDATE championships SET group_stage_closed = 1 WHERE id = ?', championshipId);
   });
 }
 
 export function reopenGroupStage(db, championshipId) {
+  run(db, 'DELETE FROM bracket_byes WHERE championship_id = ?', championshipId); // recreated when the stage is closed again
   run(db, 'UPDATE championships SET group_stage_closed = 0 WHERE id = ?', championshipId);
 }
 
@@ -359,12 +369,14 @@ export function closedGroupSummary(db, championshipId) {
  * What the playoff matches say each team reached: appearing in a round means reaching it, winning a
  * decided tie means reaching the next one (the final's winner is champion). Map teamId -> stage.
  */
-function playoffReached(matches) {
+function playoffReached(matches, byes = [], size = 16) {
   const rank = r => REACHED.indexOf(r);
   const derived = new Map();
   const raise = (teamId, stage) => { if (rank(stage) > rank(derived.get(teamId) ?? 'group')) derived.set(teamId, stage); };
   for (const m of matches) if (rank(m.stage) > 0) { raise(m.homeTeamId, m.stage); raise(m.awayTeamId, m.stage); }
   for (const { stage, winnerId } of playoffOutcomes(matches)) raise(winnerId, REACHED[rank(stage) + 1]);
+  // A bye is a first-round place held by one team: it is in that round and goes straight through to the next.
+  for (const b of byes) { raise(b.teamId, b.stage); raise(b.teamId, nextStage(b.stage, size)); }
   return derived;
 }
 
@@ -376,7 +388,8 @@ function playoffReached(matches) {
 export function syncReachedFromPlayoff(db, championshipId) {
   const rank = r => REACHED.indexOf(r);
   const current = new Map(all(db, 'SELECT team_id AS teamId, reached FROM championship_teams WHERE championship_id = ?', championshipId).map(r => [r.teamId, r.reached]));
-  for (const [teamId, reached] of playoffReached(listMatches(db, championshipId))) {
+  const size = bracketSizeOf(db, championshipId);
+  for (const [teamId, reached] of playoffReached(listMatches(db, championshipId), listByes(db, championshipId), size)) {
     if (current.has(teamId) && rank(reached) > rank(current.get(teamId))) setReached(db, championshipId, teamId, reached);
   }
   // A decided Final settles the champion by itself, whatever was picked by hand before.
@@ -393,10 +406,11 @@ export function syncReachedFromPlayoff(db, championshipId) {
 export function clearStaleChampion(db, championshipId) {
   const matches = listMatches(db, championshipId);
   const finalWinner = playoffOutcomes(matches).find(o => o.stage === 'final')?.winnerId ?? null;
-  const derived = playoffReached(matches);
+  const size = bracketSizeOf(db, championshipId);
+  const derived = playoffReached(matches, listByes(db, championshipId), size);
   const stale = all(db, "SELECT team_id AS teamId FROM championship_teams WHERE championship_id = ? AND reached = 'champion'", championshipId)
     .filter(r => r.teamId !== finalWinner);
-  for (const { teamId } of stale) setReached(db, championshipId, teamId, derived.get(teamId) === 'champion' ? 'final' : derived.get(teamId) ?? 'r16');
+  for (const { teamId } of stale) setReached(db, championshipId, teamId, derived.get(teamId) === 'champion' ? 'final' : derived.get(teamId) ?? firstRound(size));
   if (stale.length) run(db, "UPDATE championships SET status = 'active' WHERE id = ?", championshipId);
   return stale.length > 0;
 }

@@ -49,16 +49,26 @@ export function nextStage(stage, size) {
 }
 
 /**
- * The teams that skip the first round after a group stage: the `n` best group winners.
- * groupRows: [{ teamId, position, points, goalDiff, goalsFor, ovr }] for all groups. Ties are broken by points, goal difference,
+ * The teams that skip the first round after a group stage: the `n` best of the qualified rows, group winners before runners-up.
+ * rows: [{ teamId, position, points, goalDiff, goalsFor, ovr }] (qualified teams only). Ties are broken by points, goal difference,
  * goals for, then OVR, then id (so the result is deterministic).
  */
-export function pickByeTeams(groupRows, n) {
-  return groupRows
-    .filter(r => r.position === 1)
-    .sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor || (b.ovr ?? 0) - (a.ovr ?? 0) || a.teamId - b.teamId)
+export function pickByeTeams(rows, n) {
+  return [...rows]
+    .sort((a, b) => a.position - b.position || b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor
+      || (b.ovr ?? 0) - (a.ovr ?? 0) || a.teamId - b.teamId)
     .slice(0, n)
     .map(r => r.teamId);
+}
+
+/**
+ * Which first-round places hold byes when there are `n` of them: 0, 2, 4 … first (each bye then meets the winner of the tie
+ * right next to it in round two), then 1, 3, 5 … if there are more byes than half the places.
+ */
+export function byeSlots(size, n) {
+  const places = size / 2;
+  const order = [...Array.from({ length: Math.ceil(places / 2) }, (_, i) => i * 2), ...Array.from({ length: Math.floor(places / 2) }, (_, i) => i * 2 + 1)];
+  return order.slice(0, n);
 }
 
 export const FORMATS = ['groups', 'cup'];

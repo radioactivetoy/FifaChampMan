@@ -470,4 +470,9 @@ export const es = {
   'Cup (knockout only)': 'Copa (solo eliminatorias)',
   'Groups: 8 to 32 teams in multiples of 4 (a group is 4 teams). Cup: 4 to 64 teams.': 'Grupos: de 8 a 32 equipos en múltiplos de 4 (un grupo son 4 equipos). Copa: de 4 a 64 equipos.',
   'Can only be changed before the draw or any match exists.': 'Solo se puede cambiar antes de hacer el sorteo o crear algún partido.',
+  // ---- Bracket byes ----
+  'Bye: the first team goes straight through': 'Pasa directo (bye): el primer equipo pasa sin jugar',
+  'Bye — goes straight to the next round': 'Pasa directo (bye) a la ronda siguiente',
+  'There is no such place in the bracket': 'Ese puesto no existe en el cuadro',
+  'That place already has a match; remove it first to make it a bye': 'Ese puesto ya tiene un partido; quítalo primero para convertirlo en un pase directo',
 };
