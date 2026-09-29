@@ -92,7 +92,7 @@ function finishBanner(c) {
 
 /** Badge + team name, with the owning player highlighted for human teams. t: championship team row. */
 export const teamName = t => (t.owner
-  ? html`${badge(t)}<strong>${t.name}</strong> <span class="owner">(${t.owner.playerName})</span>`
+  ? html`${badge(t)}<strong>${t.name}</strong> <span class="owner" style="--ph:${playerHue(t.owner.playerName)}">${t.owner.playerName}</span>`
   : html`${badge(t)}${t.name}`);
 
 const teamLabel = t => (t.owner ? `${t.name} (${t.owner.playerName})` : t.name);
@@ -151,12 +151,13 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
         ${_('leg')} ${num('leg', m.leg)}`
     : html`${_('MD')} ${select({ name: `matchday_${m.id}`, form: formId, items: [1, 2, 3].map(n => ({ value: n, label: n })), selected: m.matchday })}`;
   const played = m.homeScore != null && m.awayScore != null;
+  const ownHue = side => { const o = byId.get(m[`${side}TeamId`])?.owner; return o ? raw(` style="--ph:${playerHue(o.playerName)}"`) : ''; };
   return html`<tr class="match-row${played ? ' played' : ''}"${cpuOnly ? raw(' data-cpu-only') : ''}>
     <td>${first}</td>
-    <td class="right">${team('home')}<br>${controller('home')}</td>
+    <td class="right${byId.get(m.homeTeamId)?.owner ? ' own-cell' : ''}"${ownHue('home')}>${team('home')}<br>${controller('home')}</td>
     <td class="score">${num('homeScore', m.homeScore)} – ${num('awayScore', m.awayScore)}
       ${playoff ? html`<br><small class="muted">${_('pens')}</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}` : ''}</td>
-    <td>${team('away')}<br>${controller('away')}</td>
+    <td class="${byId.get(m.awayTeamId)?.owner ? 'own-cell' : ''}"${ownHue('away')}>${team('away')}<br>${controller('away')}</td>
     <td class="actions">
       <form method="post" action="${base}/swap" class="inline"><button title="${_('Swap home and away')}">⇄</button></form>
       <form method="post" action="${base}/reroll" class="inline"><button title="${_('Draw a random player to control the CPU team')}">${_('🎲 Draw')}</button></form>
@@ -180,11 +181,27 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
 function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
   const base = `/championships/${c.id}/matches/${m.id}`;
   const num = (name, value) => html`<input form="${formId}" name="${name}_${m.id}" type="number" min="0" class="num" value="${value ?? ''}">`;
-  const scoreRow = side => html`<div class="bracket-match-row" data-side="${side}">
-    ${byId.get(m[`${side}TeamId`]) ? badge(byId.get(m[`${side}TeamId`])) : ''}
-    ${select({ name: `${side}TeamId_${m.id}`, form: formId, items: teamItems, selected: m[`${side}TeamId`], blank: '—' })}
-    ${num(`${side}Score`, m[`${side}Score`])}
-  </div>`;
+  // Who controls each side: the owner of a player's team, or the player drawn for a CPU side when the match was created
+  // (the draw/edit controls are in "⋯ more"). A pill in that player's colour right under the side's row; a player's own
+  // team additionally gets a filled pill and a tinted, accented row (`.own-side`) so it stands out at a glance.
+  const playerName = id => c.players.find(p => p.playerId === id)?.playerName;
+  const controlOf = side => {
+    const team = byId.get(m[`${side}TeamId`]), who = playerName(m[`${side}ControllerId`]) ?? team?.owner?.playerName;
+    return team && who ? { team, who, own: team.owner?.playerName === who } : null;
+  };
+  const controlPill = ctl => {
+    if (!ctl) return '';
+    const title = ctl.own ? _('{player} controls {team} (own team)', { player: ctl.who, team: ctl.team.name }) : _('{player} controls {team}', { player: ctl.who, team: ctl.team.name });
+    return html`<span class="bracket-controller${ctl.own ? ' own' : ''}" style="--ph:${playerHue(ctl.who)}" title="${title}">🎮 ${ctl.who}${ctl.own ? html` · ${_('own team')}` : ''}</span>`;
+  };
+  const scoreRow = side => {
+    const ctl = controlOf(side);
+    return html`<div class="bracket-match-row${ctl?.own ? ' own-side' : ''}" data-side="${side}"${ctl?.own ? html` style="--ph:${playerHue(ctl.who)}"` : ''}>
+      ${byId.get(m[`${side}TeamId`]) ? badge(byId.get(m[`${side}TeamId`])) : ''}
+      ${select({ name: `${side}TeamId_${m.id}`, form: formId, items: teamItems, selected: m[`${side}TeamId`], blank: '—' })}
+      ${num(`${side}Score`, m[`${side}Score`])}
+    </div>${controlPill(ctl)}`;
+  };
   const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: _('— CPU —') });
   const played = m.homeScore != null && m.awayScore != null;
   return html`<div class="bracket-match${played ? ' played' : ''}">
@@ -275,7 +292,10 @@ export function playoffBracket(c, matches, { formId, teamItems, byes = [] }) {
       <input form="${formId}" name="${field(`${side}Score`)}" type="number" min="0" class="num">
     </div>`;
     return html`<div class="bracket-tie bracket-tie-empty${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}" data-stage="${stage}" data-slot="${slot}">
-      <div class="bracket-match">${row('home')}${row('away')}</div>
+      <div class="bracket-match">${row('home')}${row('away')}
+        <div class="row bracket-new-pens" hidden><small class="muted">${_('Pens')}</small>
+          <input form="${formId}" name="${field('homePens')}" type="number" min="0" class="num"> –
+          <input form="${formId}" name="${field('awayPens')}" type="number" min="0" class="num"></div></div>
       ${stage === first ? html`<label class="bracket-bye-toggle"><input type="checkbox" form="${formId}" name="${field('bye')}" value="1"> ${_('Bye: the first team goes straight through')}</label>` : ''}</div>`;
   };
 
@@ -350,6 +370,9 @@ export function eloChart(rows) {
     <p class="elo-legend">${rows.map((r, n) => html`<span><i style="background:${ELO_COLOURS[n % ELO_COLOURS.length]}"></i>${r.name}</span>`)}</p>`;
 }
 
+/** Stable colour (hue) per player name; the avatar and the bracket's controller pills share it. */
+const playerHue = name => [...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+
 /**
  * A player's round picture, or a coloured circle with their initials when they have none. p: a player row
  * ({ id|playerId, name|playerName, hasPhoto }); size in px.
@@ -358,7 +381,7 @@ export function avatar(p, { size = 28 } = {}) {
   const id = p.id ?? p.playerId, name = p.name ?? p.playerName ?? '?';
   const style = `width:${size}px;height:${size}px`;
   if (p.hasPhoto) return html`<img class="avatar" src="/players/${id}/photo" alt="" loading="lazy" style="${style}">`;
-  const hue = [...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+  const hue = playerHue(name);
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
   return html`<span class="avatar avatar-initials" style="${style};background:hsl(${hue},55%,42%);font-size:${Math.round(size * 0.42)}px" aria-hidden="true">${initials}</span>`;
 }

@@ -92,3 +92,35 @@ test('saving two decided first-round ties creates the tie they feed; every tie c
     assert.match(page, /class="bracket-tie bracket-tie-empty[^"]*" data-stage="r64" data-slot="2"/); // empty tie
   } finally { await app.close(); }
 });
+
+test('a new tie level on goals carries its shootout: the match is created with pens and the pens winner advances', async () => {
+  const { app, id } = await cup(8);
+  try {
+    const t = getChampionship(app.db, id).teams.map(x => x.teamId);
+    const body = {};
+    for (let i = 0; i < 2; i++) Object.assign(body, {
+      [`new_qf_${i}_homeTeamId`]: t[2 * i], [`new_qf_${i}_awayTeamId`]: t[2 * i + 1], [`new_qf_${i}_homeScore`]: '1', [`new_qf_${i}_awayScore`]: '1',
+      [`new_qf_${i}_homePens`]: i ? '5' : '3', [`new_qf_${i}_awayPens`]: i ? '4' : '4',
+    });
+    await app.post(`/championships/${id}/playoff/save`, body);
+    const ms = listMatches(app.db, id);
+    assert.deepEqual(ms.filter(m => m.stage === 'qf').map(m => [m.slot, m.homePens, m.awayPens]), [[0, 3, 4], [1, 5, 4]]);
+    const sf = ms.find(m => m.stage === 'sf');
+    assert.deepEqual([sf.homeTeamId, sf.awayTeamId], [t[1], t[2]]); // the shootout winners
+  } finally { await app.close(); }
+});
+
+test('a CPU side controlled by a player shows who controls it on the bracket match', async () => {
+  const { app, id } = await cup(8);
+  try {
+    const c = getChampionship(app.db, id);
+    const human = c.teams.find(x => x.owner), cpu = c.teams.find(x => !x.owner);
+    await app.post(`/championships/${id}/playoff/save`, { new_qf_0_homeTeamId: human.teamId, new_qf_0_awayTeamId: cpu.teamId });
+    const m = listMatches(app.db, id)[0];
+    assert.ok(m.awayControllerId != null);
+    const page = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(page, /class="bracket-controller" style="--ph:\d+" title="\w+ controls [^"]+">🎮 \w+<\/span>/);
+    assert.ok((page.match(/bracket-controller/g) ?? []).length >= 2); // the owner's own side is listed too
+    assert.match(page, /class="bracket-controller own" style="--ph:\d+" title="[^"]*\(own team\)">🎮 \w+ · own team<\/span>/);
+  } finally { await app.close(); }
+});

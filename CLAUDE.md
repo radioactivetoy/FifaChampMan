@@ -164,7 +164,10 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   hand-entered rounds are safe — correcting an earlier result means fixing the next round by hand. Before saving, `public/filter.js`'s
   `setupBracketAdvance` previews the same thing live: typing scores fills the next round's *empty* ties' dropdowns with the winners
   (ties carry `data-stage`/`data-slot`, rounds `data-stage`); it only writes into selects that are empty or still hold what it wrote
-  (`data-auto`), so a hand-picked team is never overwritten, and only Save persists.
+  (`data-auto`), so a hand-picked team is never overwritten, and only Save persists. A level tie is decided by its penalties in the
+  preview too: saved matches use the Pens inputs in "⋯ more", new (empty-slot) ties get their own `new_<stage>_<slot>_homePens/awayPens` row,
+  shown only while the two scores are level and saved with the match. Each bracket match also shows a coloured pill under each side (`controlPill`, hue from `playerHue`, shared with the avatar)
+  (the owner for a player's team, marked "(own team)" and bold, the drawn controller for a CPU side; drawn once when the match is created — a shootout is the same game, no second draw).
   `assignSlots` places ties (from `groupTies`: up to two legs between the same two teams) into slots, giving
   older slot-less matches the lowest free one in first-seen order; `backfillSlots` persists that on the next
   save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff
@@ -204,7 +207,7 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   shown with a 🥄 on the Results and Recap player tables, a "Cuchara de Madera" line under the champion line
   once a championship is finished (award cards under the header, `awards()` in `components.js`), and on Stats (leaderboard 🥄 column, highlight card, history cells). The Stats highlight cards (`highlight()`) put the qualifier text in the detail line and a
   gold disc icon (`.stat-icon`, `★` or the card's own emoji) in the corner.
-- **Look & feel details**: matches with a result get a `played` class (`.match-row.played` rows, `.bracket-match.played`)
+- **Look & feel details**: a player's own team stands out everywhere: `teamName`'s owner pill is filled in the player's colour (`playerHue(name)` in `components.js`, a stable hue per name shared with `avatar` and the controller pills), match-table cells of an owned side are tinted with a bar in that colour (`td.own-cell`), and bracket rows likewise (`.own-side`); matches with a result get a `played` class (`.match-row.played` rows, `.bracket-match.played`)
   tinted green, and unplayed non-CPU rows a gold left bar; the Stats leaderboard freezes the Player column and
   hides the `col-extra` columns behind a checkbox (pure CSS `:has`); the group-stage page has one `.toolbar`
   (expand/collapse, CPU toggle | generate/clear fixtures) and its long help text lives in a closed
