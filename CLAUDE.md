@@ -25,6 +25,8 @@ node tools/create-ucl-template.mjs <edition> [db]       # (re)build the "UEFA Ch
 node tools/create-copa-del-rey-template.mjs <edition> [db]   # (re)build "Copa del Rey (<edition>)": every men's club of every Spanish division (by country)
 ```
 
+Docker: `Dockerfile` (node:24-alpine, non-root, data in the `/data` volume: `DB_PATH=/data/champman.db`, backups next to it), `docker-compose.yml` (app + `cloudflared` with `TUNNEL_TOKEN` from `.env`; the app is only reachable through the tunnel, protected by a Cloudflare Access policy since it has no auth) and `docs/DEPLOY.md`. Keep them in step with `package.json` (Node version) and any new writable path.
+
 Env: `PORT`, `DB_PATH` (default `champman.db` in the repo root — the user's real data; back it up before
 anything that changes schema or data). No build step, no linter, no front-end framework.
 The npm test glob matters: `node --test` alone would also run `test/helpers.js` / `test/seed.js` as tests.

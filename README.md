@@ -112,3 +112,8 @@ browser before it is saved, and shows next to the player's name on Stats, Result
 
 Every time the app starts it copies the data file into `backups/` (newest 10 kept). **Config → Download backup**
 gives a consistent copy on demand. To restore, stop the app and put a backup file back as `champman.db`.
+
+## Running on a NAS (Docker + Cloudflare Tunnel)
+
+`docker compose up -d --build` starts the app plus a `cloudflared` tunnel container; see [docs/DEPLOY.md](docs/DEPLOY.md)
+(create the tunnel and an Access policy first — the app has no login of its own).
