@@ -2,7 +2,7 @@ import { intOrNull } from '../form.js';
 import { _ } from '../../i18n/index.js';
 import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { getMatch, updateMatch, updateMatches, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
-import { PLAYOFF_STAGES } from '../../domain/stages.js';
+import { PLAYOFF_STAGES } from '../../domain/stages.js'; // any knockout stage name is valid here; the playoff route checks the bracket
 import { UserError } from '../../errors.js';
 import { groupUrl } from '../components.js';
 

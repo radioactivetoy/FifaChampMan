@@ -33,5 +33,5 @@ test('entered points replace calculated points for those teams', () => {
 test('rotation scope: per group, whole playoff', () => {
   assert.equal(scopeOf({ stage: 'group', groupLetter: 'C' }), 'group:C');
   assert.equal(scopeOf({ stage: 'qf' }), 'playoff');
-  assert.deepEqual(REACHED, ['group', 'r16', 'qf', 'sf', 'final', 'champion']);
+  assert.deepEqual(REACHED, ['group', 'r64', 'r32', 'r16', 'qf', 'sf', 'final', 'champion']);
 });

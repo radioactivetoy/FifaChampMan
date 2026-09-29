@@ -1,7 +1,8 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { assignControllers, groupOwners } from '../domain/controllers.js';
-import { scopeOf, PLAYOFF_STAGES, STAGE_SLOTS, groupTies, assignSlots, tieOutcome } from '../domain/stages.js';
+import { scopeOf, groupTies, assignSlots, tieOutcome } from '../domain/stages.js';
+import { bracketStages, slotsIn, knockoutSize, nextStage, firstRound } from '../domain/bracket.js';
 import { _ } from '../i18n/index.js';
 
 const COLS = `m.id, m.championship_id AS championshipId, m.stage, m.group_letter AS groupLetter, m.matchday, m.leg, m.slot,
@@ -9,7 +10,7 @@ const COLS = `m.id, m.championship_id AS championshipId, m.stage, m.group_letter
   m.home_pens AS homePens, m.away_pens AS awayPens, m.home_controller_id AS homeControllerId, m.away_controller_id AS awayControllerId,
   ht.name AS homeTeamName, at.name AS awayTeamName`;
 const FROM = 'FROM matches m JOIN teams ht ON ht.id = m.home_team_id JOIN teams at ON at.id = m.away_team_id';
-const ORDER = `ORDER BY CASE m.stage WHEN 'group' THEN 0 WHEN 'r16' THEN 1 WHEN 'qf' THEN 2 WHEN 'sf' THEN 3 ELSE 4 END,
+const ORDER = `ORDER BY CASE m.stage WHEN 'group' THEN 0 WHEN 'r64' THEN 1 WHEN 'r32' THEN 2 WHEN 'r16' THEN 3 WHEN 'qf' THEN 4 WHEN 'sf' THEN 5 ELSE 6 END,
   m.group_letter, m.matchday, m.leg, m.id`;
 
 const EDITABLE = {
@@ -86,31 +87,66 @@ export function drawControllers(db, championshipId, matches, rng, { excludeId = 
   });
 }
 
+/** Places in this championship's knockout (see domain/bracket.js). */
+export function bracketSizeOf(db, championshipId) {
+  const row = get(db, 'SELECT format, team_count AS teamCount FROM championships WHERE id = ?', championshipId);
+  if (!row) throw new UserError(_('Championship not found'), 404);
+  return knockoutSize(row);
+}
+
+/** First-round places where a team advances without playing: [{ stage, slot, teamId }]. */
+export const listByes = (db, championshipId) =>
+  all(db, 'SELECT stage, slot, team_id AS teamId FROM bracket_byes WHERE championship_id = ? ORDER BY slot', championshipId);
+
+/** Puts `teamId` in the first-round place `slot` as a bye (replacing whatever bye was there). The place must not hold a match. */
+export function setBye(db, championshipId, slot, teamId) {
+  const size = bracketSizeOf(db, championshipId);
+  const stage = firstRound(size);
+  if (slot < 0 || slot >= slotsIn(stage, size)) throw new UserError(_('There is no such place in the bracket'));
+  if (get(db, 'SELECT 1 AS x FROM matches WHERE championship_id = ? AND stage = ? AND slot = ?', championshipId, stage, slot)) {
+    throw new UserError(_('That place already has a match; remove it first to make it a bye'));
+  }
+  run(db, 'INSERT OR REPLACE INTO bracket_byes (championship_id, stage, slot, team_id) VALUES (?, ?, ?, ?)', championshipId, stage, slot, teamId);
+}
+
+export function removeBye(db, championshipId, slot) {
+  run(db, 'DELETE FROM bracket_byes WHERE championship_id = ? AND slot = ?', championshipId, slot);
+}
+
 /** Gives every playoff tie a stored bracket slot (older matches have none), so slots stop shifting as others are filled. */
 export function backfillSlots(db, championshipId) {
+  const size = bracketSizeOf(db, championshipId);
   const matches = listMatches(db, championshipId);
-  for (const stage of PLAYOFF_STAGES) {
-    const { slots } = assignSlots(groupTies(matches.filter(m => m.stage === stage)), STAGE_SLOTS[stage]);
+  for (const stage of bracketStages(size)) {
+    const { slots } = assignSlots(groupTies(matches.filter(m => m.stage === stage)), slotsIn(stage, size));
     slots.forEach((tie, slot) => { for (const m of tie?.matches ?? []) if (m.slot !== slot) updateMatch(db, m.id, { slot }); });
   }
 }
 
 /**
- * Puts the winners of decided ties into the next round: when both ties feeding an empty slot (2j and 2j+1
- * of the previous round) are decided, that slot's match is created (controllers drawn as usual). It only
- * ever fills empty slots — a match already there is never touched, so hand-entered rounds are safe.
+ * Puts the winners of decided ties into the next round: when both places feeding an empty slot (2j and 2j+1
+ * of the previous round) are decided — a decided tie, or a bye, whose winner is its team — that slot's match is
+ * created (controllers drawn as usual). It only ever fills empty slots — a match already there is never touched,
+ * so hand-entered rounds are safe.
  */
 export function advanceWinners(db, championshipId, rng) {
   transaction(db, () => {
     backfillSlots(db, championshipId);
-    for (let i = 0; i < PLAYOFF_STAGES.length - 1; i++) {
-      const [stage, next] = [PLAYOFF_STAGES[i], PLAYOFF_STAGES[i + 1]];
+    const size = bracketSizeOf(db, championshipId);
+    const stages = bracketStages(size);
+    const byes = listByes(db, championshipId);
+    for (let i = 0; i < stages.length - 1; i++) {
+      const [stage, next] = [stages[i], stages[i + 1]];
       const matches = listMatches(db, championshipId);
-      const placed = st => assignSlots(groupTies(matches.filter(m => m.stage === st)), STAGE_SLOTS[st]).slots;
+      const placed = st => assignSlots(groupTies(matches.filter(m => m.stage === st)), slotsIn(st, size)).slots;
       const [cur, nxt] = [placed(stage), placed(next)];
-      for (let j = 0; j < STAGE_SLOTS[next]; j++) {
+      const winnerAt = slot => {
+        if (cur[slot]) return tieOutcome(cur[slot])?.winnerId ?? null;
+        return i === 0 ? byes.find(b => b.stage === stage && b.slot === slot)?.teamId ?? null : null;
+      };
+      for (let j = 0; j < slotsIn(next, size); j++) {
         if (nxt[j]) continue;
-        const [homeTeamId, awayTeamId] = [cur[2 * j], cur[2 * j + 1]].map(t => (t ? tieOutcome(t)?.winnerId ?? null : null));
+        const [homeTeamId, awayTeamId] = [winnerAt(2 * j), winnerAt(2 * j + 1)];
         if (homeTeamId != null && awayTeamId != null && homeTeamId !== awayTeamId) createPlayoffMatch(db, championshipId, { stage: next, slot: j, homeTeamId, awayTeamId }, rng);
       }
     }
@@ -119,14 +155,15 @@ export function advanceWinners(db, championshipId, rng) {
 
 /** slot: bracket position in the stage; left out, the tie's existing slot (a second leg) or the first free one. */
 export function createPlayoffMatch(db, championshipId, { stage, leg = null, slot, homeTeamId, awayTeamId }, rng) {
-  if (!PLAYOFF_STAGES.includes(stage)) throw new UserError(_('Unknown playoff stage "{stage}"', { stage }));
+  const size = bracketSizeOf(db, championshipId);
+  if (!bracketStages(size).includes(stage)) throw new UserError(_('Unknown playoff stage "{stage}"', { stage }));
   if (homeTeamId === awayTeamId) throw new UserError(_('A team cannot play itself'));
   return transaction(db, () => {
     backfillSlots(db, championshipId);
     if (slot === undefined) {
       const ties = groupTies(listMatches(db, championshipId).filter(m => m.stage === stage));
       const same = ties.find(t => t.key === [homeTeamId, awayTeamId].sort((a, b) => a - b).join('-'));
-      slot = same ? same.matches[0].slot : assignSlots(ties, STAGE_SLOTS[stage]).slots.indexOf(null);
+      slot = same ? same.matches[0].slot : assignSlots(ties, slotsIn(stage, size)).slots.indexOf(null);
       if (slot === -1) slot = null;
     }
     const [match] = drawControllers(db, championshipId, [{ stage, leg, slot, homeTeamId, awayTeamId }], rng);

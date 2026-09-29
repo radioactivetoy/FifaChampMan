@@ -32,7 +32,7 @@ export function playerStats({ players, entries, matches }) {
     if (e.reached === 'champion') s.titles++;
     if (e.cuchara) s.cucharas++;
     if (rank(e.reached) >= rank('final')) s.finals++;
-    if (rank(e.reached) >= rank('r16')) s.qualified++;
+    if (rank(e.reached) > rank('group')) s.qualified++;
     if (rank(e.reached) > rank(s.bestReached)) s.bestReached = e.reached;
     s.history.push({ championshipId: e.championshipId, championshipName: e.championshipName, teamId: e.teamId, stars: e.stars, reached: e.reached, resultStars: e.resultStars, cuchara: !!e.cuchara });
   }

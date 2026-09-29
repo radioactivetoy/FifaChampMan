@@ -45,3 +45,19 @@ test('is deterministic for a seed', () => {
   const b = fillField({ teams: pool, humanTeamIds: [1], rng: createRng(9) });
   assert.deepEqual(a, b);
 });
+
+import { scaleQuotas, DEFAULT_FIELD_QUOTAS as DQ } from '../../src/domain/field.js';
+
+test('scaleQuotas keeps each level\'s share and always adds up to the field size', () => {
+  const sum = q => Object.values(q).reduce((a, b) => a + b, 0);
+  assert.deepEqual(scaleQuotas(DQ, 32), DQ);
+  for (const size of [8, 12, 16, 20, 24, 28, 40, 64]) {
+    const q = scaleQuotas(DQ, size);
+    assert.equal(sum(q), size, `size ${size}`);
+    assert.equal(q[0.5], 0); // empty levels stay empty
+    assert.equal(q[1.5], 0);
+  }
+  const sixteen = scaleQuotas(DQ, 16);
+  assert.ok(sixteen[4.5] >= sixteen[2] && sixteen[5] >= 2); // still weighted toward the top
+  assert.deepEqual(scaleQuotas({ 5: 0, 4: 0 }, 8), { 5: 0, 4: 0 }); // nothing to scale
+});

@@ -58,8 +58,8 @@ export function registerRecapRoutes(app, { db }) {
         </tbody></table>
         <p class="muted">${_('Group columns are the group stage only; "All matches" includes the playoff. "As CPU controller" is how the player did when controlling CPU teams against others.')}</p>
 
-        <h2>${_('Groups with players')}</h2>
-        ${groups.length === 0 ? html`<p class="muted">${_('No groups drawn yet.')}</p>` : ''}
+        ${c.format === 'cup' ? '' : html`<h2>${_('Groups with players')}</h2>`}
+        ${c.format !== 'cup' && groups.length === 0 ? html`<p class="muted">${_('No groups drawn yet.')}</p>` : ''}
         ${groups.map(g => html`<section class="card" id="recap-group-${g.letter}"><h3>${_('Group {letter}', { letter: g.letter })}</h3>
           <table><thead><tr><th>#</th><th>${_('Team')}</th><th>${_('P')}</th><th>${_('W')}</th><th>${_('D')}</th><th>${_('L')}</th><th>${_('GF')}</th><th>${_('GA')}</th><th>${_('GD')}</th><th>${_('Pts')}</th><th>${_('Reached')}</th></tr></thead><tbody>
           ${g.standings.map(r => html`<tr>

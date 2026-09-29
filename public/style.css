@@ -414,3 +414,8 @@ td.player-cell .avatar { margin-right: 0; }
 details.rename-inline { display: inline; }
 details.rename-inline > summary { display: inline; cursor: pointer; color: var(--blue-dark); font-weight: 600; }
 details.rename-inline[open] { display: block; margin-top: 6px; }
+
+/* ---------- bracket byes ---------- */
+.bracket-tie-bye { background: var(--surface-2); border-style: dotted; }
+.bracket-bye-note, .bracket-bye-toggle { display: block; padding: 2px 8px 6px; font-size: 12px; }
+.bracket-bye-toggle { color: var(--muted); cursor: pointer; }

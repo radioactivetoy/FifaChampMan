@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openDb, all, get, run, transaction } from '../../src/db/connection.js';
+import { DatabaseSync } from 'node:sqlite';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 test('creates schema and seeds default tiers', () => {
   const db = openDb(':memory:');
@@ -100,4 +104,17 @@ test('an old single-edition teams table (unique on name alone) is rebuilt so the
   reopened.close();
 
   rmSync(dir, { recursive: true, force: true });
+});
+
+test('an older database (no format / team_count columns, no bracket_byes) is upgraded in place and behaves as before', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mig-'));
+  const path = join(dir, 'old.db');
+  const old = new DatabaseSync(path);
+  old.exec(`CREATE TABLE championships (id INTEGER PRIMARY KEY, name TEXT NOT NULL, edition TEXT NOT NULL DEFAULT 'FC 27', status TEXT NOT NULL DEFAULT 'active',
+    template_id INTEGER, group_stage_closed INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')));
+    INSERT INTO championships (name) VALUES ('Old cup');`);
+  old.close();
+  const db = openDb(path);
+  assert.deepEqual(get(db, 'SELECT format, team_count FROM championships'), { format: 'groups', team_count: 32 });
+  assert.equal(get(db, 'SELECT COUNT(*) AS n FROM bracket_byes').n, 0);
 });

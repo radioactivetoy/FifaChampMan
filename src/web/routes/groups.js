@@ -4,7 +4,7 @@ import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import * as C from '../../repo/championships.js';
 import { listMatches, countMissingControllers } from '../../repo/matches.js';
 import { saveMatchesFromBody } from './matches.js';
-import { GROUP_LETTERS } from '../../domain/draw.js';
+import { groupLettersFor } from '../../domain/draw.js';
 import { intOrNull } from '../form.js';
 import { UserError } from '../../errors.js';
 import { REACHED_LABELS } from '../../domain/stages.js';
@@ -12,6 +12,7 @@ import { REACHED_LABELS } from '../../domain/stages.js';
 export function registerGroupRoutes(app, { db, rng }) {
   app.get('/championships/:id/groups', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
+    if (c.format === 'cup') return res.redirect(`/championships/${c.id}/playoff`);
     const allMatches = listMatches(db, c.id);
     const matches = allMatches.filter(m => m.stage === 'group');
     const standings = new Map(C.groupStandings(db, c.id, c, allMatches).map(g => [g.letter, g.rows]));
@@ -55,7 +56,7 @@ export function registerGroupRoutes(app, { db, rng }) {
       ? html`<form method="post" action="${base}/groups/reopen" class="banner">
           ${th('✓ Group stage closed — see the <a href="{closed}">qualified teams</a> or head to the <a href="{playoff}">Playoff</a>.', { closed: `${base}/groups/closed`, playoff: `${base}/playoff` })}
           <button>${_('Reopen group stage')}</button></form>`
-      : standings.size === GROUP_LETTERS.length
+      : standings.size === c.groupCount
         ? html`<form method="post" action="${base}/groups/close" class="row"
             ${confirmSubmit(_('Close the group stage? Groups with two teams marked as qualified keep them; in the others the top two by points go through. Everyone else is out.'))}>
             <button class="primary">${_('Close group stage')}</button>
@@ -79,7 +80,7 @@ export function registerGroupRoutes(app, { db, rng }) {
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
         <details class="help"><summary>${_('How the group stage works')}</summary>
           <p class="muted">${th('Single round: each team plays the other three once. When fixtures are generated, the player controlling each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn); press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering their result is optional. Fill in as many scores and CPU points as you like within a group, then press <strong>Save results</strong> once for that whole group. Mark who qualified with the "Qualified" buttons.')}</p></details>
-        ${GROUP_LETTERS.map(groupSection)}`,
+        ${groupLettersFor(c.teamCount).map(groupSection)}`,
     }));
   });
 
@@ -101,7 +102,7 @@ export function registerGroupRoutes(app, { db, rng }) {
   app.post('/championships/:id/groups/:letter/save', (req, res) => {
     const id = Number(req.params.id);
     const letter = req.params.letter;
-    if (!GROUP_LETTERS.includes(letter)) throw new UserError(_('Unknown group "{letter}"', { letter }));
+    if (!groupLettersFor(C.getChampionship(db, id).teamCount).includes(letter)) throw new UserError(_('Unknown group "{letter}"', { letter }));
     for (const t of C.getChampionship(db, id).teams.filter(x => x.groupLetter === letter && !x.owner)) {
       const key = `points_${t.teamId}`;
       if (key in req.body) C.setGroupPoints(db, id, t.teamId, intOrNull(req.body[key]));

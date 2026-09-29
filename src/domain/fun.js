@@ -11,7 +11,7 @@ import { REACHED } from './stages.js';
 // Every stat is null when nobody qualifies for it (so the page can simply skip it).
 
 const rank = reached => REACHED.indexOf(reached);
-const STAGE_ORDER = { group: 0, r16: 1, qf: 2, sf: 3, final: 4 };
+const STAGE_ORDER = { group: 0, r64: 1, r32: 2, r16: 3, qf: 4, sf: 5, final: 6 };
 export const chrono = (a, b) => a.championshipId - b.championshipId || STAGE_ORDER[a.stage] - STAGE_ORDER[b.stage]
   || (a.matchday ?? 0) - (b.matchday ?? 0) || a.id - b.id;
 
@@ -91,7 +91,7 @@ export function funStats({ players, entries, matches, teams }) {
   // Cinderella: lowest-star team that reached the playoff (furthest wins ties); Bottler: highest-star team that missed it.
   const withTeam = entries.filter(e => e.teamId != null && e.stars != null);
   const entryOut = e => ({ playerId: e.playerId, player: name.get(e.playerId), team: teamName(e.teamId), stars: e.stars, reached: e.reached, championship: e.championshipName, championshipId: e.championshipId });
-  const cinderellaEntry = pick(withTeam.filter(e => rank(e.reached) >= rank('r16')), (a, b) => a.stars < b.stars || (a.stars === b.stars && rank(a.reached) > rank(b.reached)));
+  const cinderellaEntry = pick(withTeam.filter(e => rank(e.reached) > rank('group')), (a, b) => a.stars < b.stars || (a.stars === b.stars && rank(a.reached) > rank(b.reached)));
   const bottlerEntry = pick(withTeam.filter(e => e.reached === 'group'), (a, b) => a.stars > b.stars);
   const cinderella = cinderellaEntry ? entryOut(cinderellaEntry) : null;
   const bottler = bottlerEntry ? entryOut(bottlerEntry) : null;
@@ -173,7 +173,7 @@ export function championshipStory({ championship, players, matches }) {
   const mvp = top && top[1] > 0 ? { player: ownerOf.get(top[0]), team: championship.teams.find(t => t.teamId === top[0])?.name, goals: top[1] } : null;
 
   const ordinal = n => (currentLang() === 'es' ? `${n}.º` : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`);
-  const END = { group: N_('went out in the group stage'), r16: N_('went out in the Round of 16'), qf: N_('went out in the quarter-finals'), sf: N_('lost in the semi-finals'), final: N_('lost the final'), champion: N_('won it all') };
+  const END = { group: N_('went out in the group stage'), r16: N_('went out in the Round of 16'), r32: N_('went out in the Round of 32'), r64: N_('went out in the Round of 64'), qf: N_('went out in the quarter-finals'), sf: N_('lost in the semi-finals'), final: N_('lost the final'), champion: N_('won it all') };
   const lines = players.filter(p => p.team).map(p => {
     const end = _(END[p.reached] ?? N_('took part'));
     const [player, team] = [p.playerName, p.team.name];

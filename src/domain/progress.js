@@ -1,21 +1,23 @@
 import { REACHED } from './stages.js';
+import { firstRound, teamsIn, nextStage } from './bracket.js';
 
-// How many teams go through to each stage.
-const SLOTS = { r16: 16, qf: 8, sf: 4, final: 2, champion: 1 };
 const rank = reached => REACHED.indexOf(reached);
 
 /**
  * Works out, from the manually marked "reached" stages, who is still in the championship.
  * A team is out once the next stage is full without it (e.g. 16 teams marked for the round of 16
  * and it is still at "group"), or once it has lost a decided playoff tie (`eliminated`, set by
- * getChampionship). teams: [{ teamId, reached, owner }] — owner set for human teams.
+ * getChampionship). teams: [{ teamId, reached, owner }] — owner set for human teams. bracket: the knockout's size
+ * (a power of two, default 16 = round of 16); a team can reach a round only if it has room (two places per tie).
  */
-export function championshipProgress(teams) {
+export function championshipProgress(teams, bracket = 16) {
   const isOut = t => {
     if (t.reached === 'champion') return false;
     if (t.eliminated) return true;
-    const next = REACHED[rank(t.reached) + 1];
-    return teams.filter(o => rank(o.reached) > rank(t.reached)).length >= SLOTS[next];
+    const next = t.reached === 'group' ? firstRound(bracket) : nextStage(t.reached, bracket);
+    if (next == null) return false; // marked with a stage outside this bracket: nothing to compare with
+    const room = next === 'champion' ? 1 : teamsIn(next, bracket);
+    return teams.filter(o => rank(o.reached) > rank(t.reached)).length >= room;
   };
   const champion = teams.find(t => t.reached === 'champion') ?? null;
   const humans = teams.filter(t => t.owner);
