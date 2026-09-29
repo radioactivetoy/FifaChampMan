@@ -1,3 +1,4 @@
+import { _, tn, N_, currentLang } from '../i18n/index.js';
 import { hasResult } from './standings.js';
 import { REACHED } from './stages.js';
 
@@ -171,16 +172,19 @@ export function championshipStory({ championship, players, matches }) {
   const top = [...goals].sort((a, b) => b[1] - a[1])[0];
   const mvp = top && top[1] > 0 ? { player: ownerOf.get(top[0]), team: championship.teams.find(t => t.teamId === top[0])?.name, goals: top[1] } : null;
 
-  const ordinal = n => `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`;
-  const END = { group: 'went out in the group stage', r16: 'went out in the Round of 16', qf: 'went out in the quarter-finals', sf: 'lost in the semi-finals', final: 'lost the final', champion: 'won it all' };
+  const ordinal = n => (currentLang() === 'es' ? `${n}.º` : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`);
+  const END = { group: N_('went out in the group stage'), r16: N_('went out in the Round of 16'), qf: N_('went out in the quarter-finals'), sf: N_('lost in the semi-finals'), final: N_('lost the final'), champion: N_('won it all') };
   const lines = players.filter(p => p.team).map(p => {
-    const grp = p.groupLetter ? `finished ${ordinal(p.groupPosition)} in Group ${p.groupLetter} with ${p.group.points} pts` : 'played the group stage';
-    return `${p.playerName} (${p.team.name}) ${grp} and ${END[p.reached] ?? 'took part'}.`;
+    const end = _(END[p.reached] ?? N_('took part'));
+    const [player, team] = [p.playerName, p.team.name];
+    return p.groupLetter
+      ? _('{player} ({team}) finished {place} in Group {group} with {points} pts and {end}.', { player, team, place: ordinal(p.groupPosition), group: p.groupLetter, points: p.group.points, end })
+      : _('{player} ({team}) played the group stage and {end}.', { player, team, end });
   });
   const champion = championship.teams.find(t => t.reached === 'champion');
-  if (champion) lines.push(champion.owner ? `🏆 ${champion.owner.playerName} won the championship with ${champion.name}!` : `🏆 ${champion.name} won it (simulated by the console).`);
-  for (const p of players.filter(x => x.cuchara)) lines.push(`🥄 ${p.playerName} takes the Cuchara de Madera: 0 points and 0 goals in the group stage.`);
-  if (mvp) lines.push(`⚽ Top scorer among the players' teams: ${mvp.player} (${mvp.team}) with ${mvp.goals} goal${mvp.goals === 1 ? '' : 's'}.`);
+  if (champion) lines.push(champion.owner ? _('🏆 {player} won the championship with {team}!', { player: champion.owner.playerName, team: champion.name }) : _('🏆 {team} won it (simulated by the console).', { team: champion.name }));
+  for (const p of players.filter(x => x.cuchara)) lines.push(_('🥄 {player} takes the Cuchara de Madera: 0 points and 0 goals in the group stage.', { player: p.playerName }));
+  if (mvp) lines.push(tn("⚽ Top scorer among the players' teams: {player} ({team}) with {n} goal.", "⚽ Top scorer among the players' teams: {player} ({team}) with {n} goals.", mvp.goals, { player: mvp.player, team: mvp.team }));
   return { mvp, lines };
 }
 
@@ -190,13 +194,13 @@ export function championshipStory({ championship, players, matches }) {
  */
 export function trophyCabinet(fun, playerId) {
   const held = [
-    ['goldenBoot', '👟', 'Golden Boot'], ['ironWall', '🧱', 'Iron Wall'], ['penaltyKing', '🎯', 'Penalty King'],
-    ['penaltyCurse', '🥶', 'Penalty Curse'], ['cinderella', '🧚', 'Cinderella'], ['bottler', '🍌', 'Bottler'],
-    ['runnerUp', '🥈', 'Eternal runner-up'], ['unbeaten', '🔥', 'Longest unbeaten run'], ['winStreak', '🚀', 'Longest winning run'],
-    ['losingRun', '📉', 'Longest losing run'], ['drawKing', '🤝', 'Draw king'], ['hardestToBeat', '🛡️', 'Hardest to beat'],
-    ['cpuWhisperer', '🎮', 'CPU whisperer'], ['luckiest', '🍀', 'Luckiest group'], ['unluckiest', '☠️', 'Group of death'],
+    ['goldenBoot', '👟', N_('Golden Boot')], ['ironWall', '🧱', N_('Iron Wall')], ['penaltyKing', '🎯', N_('Penalty King')],
+    ['penaltyCurse', '🥶', N_('Penalty Curse')], ['cinderella', '🧚', N_('Cinderella')], ['bottler', '🍌', N_('Bottler')],
+    ['runnerUp', '🥈', N_('Eternal runner-up')], ['unbeaten', '🔥', N_('Longest unbeaten run')], ['winStreak', '🚀', N_('Longest winning run')],
+    ['losingRun', '📉', N_('Longest losing run')], ['drawKing', '🤝', N_('Draw king')], ['hardestToBeat', '🛡️', N_('Hardest to beat')],
+    ['cpuWhisperer', '🎮', N_('CPU whisperer')], ['luckiest', '🍀', N_('Luckiest group')], ['unluckiest', '☠️', N_('Group of death')],
   ];
-  const out = held.filter(([key]) => fun[key]?.playerId === playerId).map(([, icon, title]) => ({ icon, title }));
-  if (fun.rivalry && (fun.rivalry.a === playerId || fun.rivalry.b === playerId)) out.push({ icon: '⚔️', title: 'Biggest rivalry' });
+  const out = held.filter(([key]) => fun[key]?.playerId === playerId).map(([, icon, title]) => ({ icon, title: _(title) }));
+  if (fun.rivalry && (fun.rivalry.a === playerId || fun.rivalry.b === playerId)) out.push({ icon: '⚔️', title: _('Biggest rivalry') });
   return out;
 }
