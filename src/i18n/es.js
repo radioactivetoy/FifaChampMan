@@ -454,4 +454,7 @@ export const es = {
   'Set all star tiers back to the EA table?': '¿Volver a dejar todos los niveles de estrellas según la tabla de EA?',
   'Reset to EA table': 'Restablecer a la tabla de EA',
   'EA does not publish it; this is the table used by the community guides for FC 25/26 (5★ from 83, 4.5★ 79–82, 4★ 75–78, 3.5★ 71–74, 3★ 69–70, 2.5★ 67–68, 2★ 65–66, 1.5★ 63–64, 1★ 60–62, 0.5★ up to 59).': 'EA no la publica; es la tabla que usan las guías de la comunidad para FC 25/26 (5★ desde 83, 4.5★ 79–82, 4★ 75–78, 3.5★ 71–74, 3★ 69–70, 2.5★ 67–68, 2★ 65–66, 1.5★ 63–64, 1★ 60–62, 0.5★ hasta 59).',
+  // ---- Knockout stages ----
+  'Round of 64': 'Ronda de 64',
+  'Round of 32': 'Dieciseisavos de final',
 };

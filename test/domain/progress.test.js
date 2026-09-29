@@ -54,3 +54,16 @@ test('no human teams: never over by elimination', () => {
   const teams = field().map(t => ({ ...t, owner: null }));
   assert.equal(championshipProgress(teams).allPlayersOut, false);
 });
+
+test('a smaller bracket: 8 qualifiers start in the quarter-finals, so 8 places there and 4 in the semi-finals', () => {
+  const teams = (n, reached, extra = {}) => Array.from({ length: n }, (_, i) => ({ teamId: `${reached}${i}`, reached, ...extra }));
+  const human = { teamId: 'me', reached: 'group', owner: { playerName: 'Ana' } };
+  // 8 teams already marked "qf" fill the quarter-finals of a size-8 bracket → the human still at "group" is out
+  assert.equal(championshipProgress([human, ...teams(8, 'qf')], 8).allPlayersOut, true);
+  // with only 7 there is still a place
+  assert.equal(championshipProgress([human, ...teams(7, 'qf')], 8).allPlayersOut, false);
+  // a 4-team cup starts in the semi-finals: two ties, four places
+  assert.equal(championshipProgress([human, ...teams(4, 'sf')], 4).allPlayersOut, true);
+  // a stage that is not part of the bracket never counts a team out on its own
+  assert.equal(championshipProgress([{ ...human, reached: 'r16' }, ...teams(8, 'qf')], 8).allPlayersOut, false);
+});

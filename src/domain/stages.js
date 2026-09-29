@@ -1,16 +1,16 @@
 import { _, N_ } from '../i18n/index.js';
 
-export const PLAYOFF_STAGES = ['r16', 'qf', 'sf', 'final'];
+export const PLAYOFF_STAGES = ['r64', 'r32', 'r16', 'qf', 'sf', 'final'];
 
 // Labels are looked up (and translated) on access, so STAGE_LABELS[stage] / REACHED_LABELS[reached] work everywhere unchanged.
 const translating = source => new Proxy(source, { get: (o, key) => (key in o ? _(o[key]) : undefined) });
 
-export const STAGE_LABELS = translating({ group: N_('Group stage'), r16: N_('Round of 16'), qf: N_('Quarter-final'), sf: N_('Semi-final'), final: N_('Final') });
+export const STAGE_LABELS = translating({ group: N_('Group stage'), r64: N_('Round of 64'), r32: N_('Round of 32'), r16: N_('Round of 16'), qf: N_('Quarter-final'), sf: N_('Semi-final'), final: N_('Final') });
 
 /** How far a team got, in order. */
 export const REACHED = ['group', ...PLAYOFF_STAGES, 'champion'];
 
-export const REACHED_LABELS = translating({ group: N_('Group stage'), r16: N_('Round of 16'), qf: N_('Quarter-final'), sf: N_('Semi-final'), final: N_('Final'), champion: N_('Champion') });
+export const REACHED_LABELS = translating({ group: N_('Group stage'), r64: N_('Round of 64'), r32: N_('Round of 32'), r16: N_('Round of 16'), qf: N_('Quarter-final'), sf: N_('Semi-final'), final: N_('Final'), champion: N_('Champion') });
 
 /** Controller rotation scope: each group separately, the playoff as a whole. */
 export const scopeOf = match => (match.stage === 'group' ? `group:${match.groupLetter}` : 'playoff');

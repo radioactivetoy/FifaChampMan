@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS championships (
   status TEXT NOT NULL DEFAULT 'active',
   template_id INTEGER REFERENCES team_templates(id) ON DELETE SET NULL,
   group_stage_closed INTEGER NOT NULL DEFAULT 0,
+  format TEXT NOT NULL DEFAULT 'groups',
+  team_count INTEGER NOT NULL DEFAULT 32,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -102,4 +104,13 @@ CREATE TABLE IF NOT EXISTS undo_log (
   label TEXT NOT NULL,
   steps TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- A first-round knockout place where a team advances without playing (a bye). See domain/bracket.js.
+CREATE TABLE IF NOT EXISTS bracket_byes (
+  championship_id INTEGER NOT NULL REFERENCES championships(id) ON DELETE CASCADE,
+  stage TEXT NOT NULL,
+  slot INTEGER NOT NULL,
+  team_id INTEGER NOT NULL REFERENCES teams(id),
+  PRIMARY KEY (championship_id, stage, slot)
 );
