@@ -177,8 +177,8 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   holds once ties have a different number of legs or a "⋯ more" is expanded); `public/filter.js`'s
   `setupBracketConnectors` measures the real rendered tie positions after load — and again on resize and on
   any "⋯ more" toggle — and overwrites the guess with the true pixel values, so the line always actually
-  touches both ties regardless of their real heights. There is no seeding algorithm and no auto-advancing a
-  winner into the next round — that stays entirely manual.
+  touches both ties regardless of their real heights. There is no seeding algorithm; winners advance only
+  as described above (into empty slots).
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no
