@@ -124,3 +124,24 @@ test('a CPU side controlled by a player shows who controls it on the bracket mat
     assert.match(page, /class="bracket-controller own" style="--ph:\d+" title="[^"]*\(own team\)">🎮 \w+ · own team<\/span>/);
   } finally { await app.close(); }
 });
+
+test('"Use all teams of the pool" puts every template team in the field, no quotas, and sets the size to match', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const { saveTemplate, setTemplateTeams } = await import('../../src/repo/templates.js');
+    const { listTeams } = await import('../../src/repo/teams.js');
+    const pool = listTeams(app.db).filter(t => t.country === listTeams(app.db)[0].country);
+    const tid = saveTemplate(app.db, { name: 'Spain' });
+    setTemplateTeams(app.db, tid, pool.map(t => t.id));
+    const rng = createRng(3);
+    const id = createChampionship(app.db, { name: 'Copa', playerIds: seedPlayers(app.db), templateId: tid, format: 'cup', teamCount: 8, rng });
+    const draw = (await app.get(`/championships/${id}/draw`)).text;
+    assert.ok(draw.includes(`Use all teams of the pool (${pool.length})`));
+    await app.post(`/championships/${id}/field/all`);
+    const c = getChampionship(app.db, id);
+    assert.equal(c.teams.length, pool.length);
+    assert.equal(c.teamCount, pool.length);
+    assert.deepEqual(new Set(c.teams.map(t => t.teamId)), new Set(pool.map(t => t.id)));
+  } finally { await app.close(); }
+});

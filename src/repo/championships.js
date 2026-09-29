@@ -234,6 +234,33 @@ export function fillFieldRandom(db, championshipId, rng, quotas = DEFAULT_FIELD_
   });
 }
 
+/** Every team of the pool (edition + template) plus the players' own teams: what "use all teams" would put in the field. */
+function wholePoolIds(db, championshipId) {
+  const humanTeamIds = all(db, 'SELECT team_id AS teamId FROM championship_players WHERE championship_id = ? AND team_id IS NOT NULL', championshipId).map(r => r.teamId);
+  return [...new Set([...teamPool(db, championshipId).map(t => t.id), ...humanTeamIds])];
+}
+
+export const wholePoolCount = (db, championshipId) => wholePoolIds(db, championshipId).length;
+
+/**
+ * Puts every team of the pool in the field (nothing is picked by star quota) and sets the number of teams to match —
+ * e.g. a cup for a whole national league system. The size must still be valid for the format (a cup 4–64, groups 8–32 in fours).
+ */
+export function fillFieldWholePool(db, championshipId) {
+  transaction(db, () => {
+    if (get(db, 'SELECT 1 AS x FROM matches WHERE championship_id = ?', championshipId) || get(db, 'SELECT 1 AS x FROM bracket_byes WHERE championship_id = ?', championshipId)) {
+      throw new UserError(_('Matches already exist; clear them before refilling the field'));
+    }
+    const { format, players } = getChampionship(db, championshipId);
+    const ids = wholePoolIds(db, championshipId);
+    checkSize(format, ids.length);
+    if (players.length > ids.length) throw new UserError(_('There are more players than teams in the field'));
+    run(db, 'DELETE FROM championship_teams WHERE championship_id = ?', championshipId);
+    for (const teamId of ids) run(db, 'INSERT INTO championship_teams (championship_id, team_id) VALUES (?, ?)', championshipId, teamId);
+    run(db, 'UPDATE championships SET team_count = ?, group_stage_closed = 0 WHERE id = ?', ids.length, championshipId);
+  });
+}
+
 // ---------- draw & group fixtures ----------
 
 const hasGroupMatches = (db, championshipId) =>

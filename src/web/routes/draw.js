@@ -28,6 +28,10 @@ export function registerDrawRoutes(app, { db, rng }) {
           ${[...STAR_LEVELS].reverse().map(s => html`<label>${stars(s)} <input name="quota_${s}" type="number" min="0" class="num" value="${defaultQuotas[s] ?? 0}"></label>`)}
           <button>${_('Fill field randomly')}</button>
         </form>
+        <form method="post" action="${base}/field/all" class="row" ${confirmSubmit(_('Replace the whole field with every team of the pool (and set the number of teams to match)?'))}>
+          <button>${_('Use all teams of the pool ({count})', { count: C.wholePoolCount(db, c.id) })}</button>
+          <span class="muted">${_('No star quotas: every team from the template (or edition) goes in — e.g. all Spanish divisions for a Copa del Rey.')}</span>
+        </form>
         <form method="post" action="${base}/field/add" class="row">
           ${select({ name: 'teamId', items: available.map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` })) })}<button>${_('Add team')}</button>
         </form>
@@ -64,6 +68,11 @@ export function registerDrawRoutes(app, { db, rng }) {
     const defaultQuotas = fieldQuotasMap(db);
     const quotas = Object.fromEntries(STAR_LEVELS.map(s => [s, intOrNull(req.body[`quota_${s}`]) ?? defaultQuotas[s] ?? 0]));
     C.fillFieldRandom(db, Number(req.params.id), rng, quotas);
+    res.redirect(`/championships/${req.params.id}/draw`);
+  });
+
+  app.post('/championships/:id/field/all', (req, res) => {
+    C.fillFieldWholePool(db, Number(req.params.id));
     res.redirect(`/championships/${req.params.id}/draw`);
   });
 

@@ -95,6 +95,7 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   the groups deletes them. **Result stars** (`resultStars`): reaching the first knockout round is 3★ only after a group stage; in a cup
   it falls back to the record ladder. "Qualified" in stats = reached beyond `group`.
 
+- **Fill from the whole pool** (`fillFieldWholePool`, `POST /championships/:id/field/all`, button on Field & draw): puts *every* team of the pool (edition + template, plus the players' own teams) in the field with no star quotas and sets `team_count` to that number (still validated by `checkSize`; refused once matches/byes exist). This is how a Copa del Rey template (`tools/create-copa-del-rey-template.mjs`) becomes a cup of all Spanish clubs.
 - **Stars**: team stars = manual `stars_override` or the tier its OVR falls in (tiers table, editable on
   `/config`). Defaults are EA's team-overall → star table as given by the community guides for FC 25/26 (5★ ≥ 83,
   4.5★ 79–82, 4★ 75–78, 3.5★ 71–74, 3★ 69–70, 2.5★ 67–68, 2★ 65–66, 1.5★ 63–64, 1★ 60–62, 0.5★ ≤ 59; EA publishes no
