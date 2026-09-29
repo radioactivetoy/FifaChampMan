@@ -368,3 +368,13 @@ details.help > p { margin: 8px 0 0; }
 .award-spoon { border-color: #d3bb98; background: linear-gradient(160deg, #f8f1e6, #eadcc6); }
 .award-spoon small { color: #7a5f3a; }
 .award-spoon .award-icon { background: radial-gradient(circle at 35% 30%, #efd9b4, #c79a5b 70%); box-shadow: 0 0 0 3px rgba(160, 120, 60, .25); }
+
+/* ---------- fun stats ---------- */
+.fun-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin: 8px 0 18px; }
+.fun-card { display: flex; gap: 12px; align-items: center; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.fun-icon { flex: 0 0 auto; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; font-size: 22px; background: var(--surface-2); }
+.fun-title { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.fun-main { font-size: 18px; font-weight: 800; line-height: 1.2; }
+.fun-detail { font-size: 12.5px; }
+svg.journey { display: block; background: var(--surface-2); border-radius: 6px; }
+ul.story { margin: 6px 0 14px; padding-left: 20px; line-height: 1.7; }

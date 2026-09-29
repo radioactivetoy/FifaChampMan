@@ -190,6 +190,14 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   hides the `col-extra` columns behind a checkbox (pure CSS `:has`); the group-stage page has one `.toolbar`
   (expand/collapse, CPU toggle | generate/clear fixtures) and its long help text lives in a closed
   `<details class="help">`, as does the playoff's.
+- **Fun stats** (`domain/fun.js`, pure, tested in `test/domain/fun.test.js`): `funStats({ players, entries, matches, teams })`
+  feeds the Stats page's "Fun stats" cards (Golden Boot, Roller Coaster, Iron Wall, Penalty King/Curse, Cinderella,
+  Bottler, Eternal runner-up, longest unbeaten/winning/losing run, Draw king, Hardest to beat, CPU whisperer,
+  Luckiest group / Group of death by average opposition OVR, Biggest rivalry) plus the Nemesis & victim table and
+  the Star journey sparklines; each is `null` (card hidden) until someone qualifies. "Own" = the player's own team;
+  penalties are credited to whoever controlled each side; matches are ordered by championship id, stage, matchday.
+  `championshipStory` writes the Recap page's "The story" lines (results per player, champion, Cuchara, top
+  scorer among the players' teams). New stats belong in these two functions, not in the routes.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no

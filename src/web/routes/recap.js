@@ -1,6 +1,8 @@
 import { html, page } from '../html.js';
 import { champNav, stars, teamName, badge } from '../components.js';
 import * as C from '../../repo/championships.js';
+import { listMatches } from '../../repo/matches.js';
+import { championshipStory } from '../../domain/fun.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS } from '../../domain/stages.js';
 
 const wdl = r => `${r.won}-${r.drawn}-${r.lost}`;
@@ -29,9 +31,11 @@ export function registerRecapRoutes(app, { db }) {
   app.get('/championships/:id/recap', (req, res) => {
     C.syncReachedFromPlayoff(db, Number(req.params.id));
     const { championship: c, players, groups, playoff } = C.championshipRecap(db, Number(req.params.id));
+    const story = championshipStory({ championship: c, players, matches: listMatches(db, c.id) });
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'recap')}
+        ${story.lines.length ? html`<h2>The story</h2><ul class="story">${story.lines.map(l => html`<li>${l}</li>`)}</ul>` : ''}
         <h2>Players</h2>
         <table><thead><tr><th>Player</th><th>Team</th><th>Played at</th><th>Group</th><th>Pos</th><th>Pts</th>
           <th>W-D-L</th><th>Goals</th><th>GD</th><th>Reached</th><th>All matches</th><th>As CPU controller</th><th>Stars earned</th></tr></thead><tbody>

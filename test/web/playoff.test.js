@@ -347,3 +347,23 @@ test('Cuchara de Madera: 0 points and 0 goals in the group stage shows on result
     await app.close();
   }
 });
+
+test('the Stats page has a Fun stats section and the Recap page tells the championship story', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const { insertMatch } = await import('../../src/repo/matches.js');
+    const human = getChampionship(app.db, id).players.find(p => p.teamId);
+    const cpu = teams.filter(t => !t.owner);
+    cpu.slice(0, 3).forEach((o, i) => insertMatch(app.db, id, { stage: 'group', groupLetter: 'A', matchday: i + 1, homeTeamId: human.teamId, awayTeamId: o.teamId, homeScore: 3, awayScore: 0, homeControllerId: human.playerId }));
+    const stats = (await app.get('/stats')).text;
+    assert.match(stats, /<h2>Fun stats<\/h2>/);
+    assert.match(stats, /Golden Boot[\s\S]*?9 goals/);
+    assert.match(stats, /Iron Wall/);
+    assert.match(stats, /Star journey/);
+    const recap = (await app.get(`/championships/${id}/recap`)).text;
+    assert.match(recap, /<h2>The story<\/h2>/);
+    assert.match(recap, /Top scorer among the players(?:'|&#39;) teams/);
+  } finally {
+    await app.close();
+  }
+});

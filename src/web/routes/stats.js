@@ -5,7 +5,23 @@ import { listTeams } from '../../repo/teams.js';
 import { listAllMatches } from '../../repo/matches.js';
 import { allEntries, listChampions } from '../../repo/championships.js';
 import { playerStats, headToHead, biggestWins } from '../../domain/stats.js';
+import { funStats } from '../../domain/fun.js';
 import { REACHED, REACHED_LABELS } from '../../domain/stages.js';
+
+const pctText = x => `${Math.round(x * 100)}%`;
+
+/** One fun-stat card: icon, title, big line, small detail — or nothing when nobody qualifies. */
+const funCard = (icon, title, main, detail) => (main == null ? '' : html`<div class="fun-card">
+  <div class="fun-icon" aria-hidden="true">${icon}</div><div><div class="muted fun-title">${title}</div>
+  <div class="fun-main">${main}</div><div class="muted fun-detail">${detail}</div></div></div>`);
+
+/** Tiny line chart of the star level played at over the championships (0.5★ … 5★). */
+function journeySvg(points) {
+  const W = 150, H = 34, x = i => (points.length === 1 ? W / 2 : 6 + (i * (W - 12)) / (points.length - 1)), y = st => H - 5 - ((st - 0.5) / 4.5) * (H - 10);
+  const path = points.map((p, i) => `${x(i).toFixed(1)},${y(p.stars).toFixed(1)}`).join(' ');
+  return raw(`<svg class="journey" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Star level over time">
+    <polyline points="${path}" fill="none" stroke="#2f6bff" stroke-width="2"/>${points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.stars).toFixed(1)}" r="3" fill="#f2b705" stroke="#06103a" stroke-width="1"/>`).join('')}</svg>`);
+}
 
 const points = r => r.won * 3 + r.drawn;
 const pct = (n, d) => (d ? Math.round((n / d) * 100) : null);
@@ -54,6 +70,7 @@ export function registerStatsRoutes(app, { db }) {
     const teamLabel = id => { const t = teamsById.get(id); return t ? html`${badge(t)}${t.name}` : '?'; };
     const entryFor = (playerId, championshipId) => entries.find(e => e.playerId === playerId && e.championshipId === championshipId);
     const active = stats.filter(s => s.championships > 0);
+    const fun = funStats({ players: players.map(p => ({ id: p.id, name: p.name })), entries, matches, teams: teamsById });
 
     res.send(page({
       title: 'Stats',
@@ -93,6 +110,40 @@ export function registerStatsRoutes(app, { db }) {
           ${num(pct(s.cpu.won, s.cpu.played), pct(s.cpu.won, s.cpu.played) == null ? null : `${pct(s.cpu.won, s.cpu.played)}%`, 'col-extra')}
         </tr>`)}
         </tbody></table></div>
+
+        <h2>Fun stats</h2>
+        <div class="fun-cards">
+          ${fun.goldenBoot && funCard('👟', 'Golden Boot', fun.goldenBoot.player, `${fun.goldenBoot.goals} goals in ${fun.goldenBoot.championship}`)}
+          ${fun.rollerCoaster && funCard('🎢', 'Roller Coaster', `${fun.rollerCoaster.homeTeam} ${fun.rollerCoaster.homeScore}–${fun.rollerCoaster.awayScore} ${fun.rollerCoaster.awayTeam}`, `${fun.rollerCoaster.goals} goals · ${fun.rollerCoaster.championship}`)}
+          ${fun.ironWall && funCard('🧱', 'Iron Wall', fun.ironWall.player, `${fun.ironWall.conceded} conceded in a full group · ${fun.ironWall.championship}`)}
+          ${fun.penaltyKing && funCard('🎯', 'Penalty King', fun.penaltyKing.player, `${fun.penaltyKing.won} shoot-out win${fun.penaltyKing.won === 1 ? '' : 's'}`)}
+          ${fun.penaltyCurse && funCard('🥶', 'Penalty Curse', fun.penaltyCurse.player, `${fun.penaltyCurse.lost} shoot-out loss${fun.penaltyCurse.lost === 1 ? '' : 'es'}`)}
+          ${fun.cinderella && funCard('🧚', 'Cinderella', fun.cinderella.player, `${fun.cinderella.team} (${fun.cinderella.stars}★) got as far as: ${REACHED_LABELS[fun.cinderella.reached]} · ${fun.cinderella.championship}`)}
+          ${fun.bottler && funCard('🍌', 'Bottler', fun.bottler.player, `${fun.bottler.team} (${fun.bottler.stars}★) went out in the groups · ${fun.bottler.championship}`)}
+          ${fun.runnerUp && funCard('🥈', 'Eternal runner-up', fun.runnerUp.player, `${fun.runnerUp.finals} lost final${fun.runnerUp.finals === 1 ? '' : 's'}`)}
+          ${fun.unbeaten && funCard('🔥', 'Longest unbeaten run', fun.unbeaten.player, `${fun.unbeaten.length} games with their own team`)}
+          ${fun.winStreak && funCard('🚀', 'Longest winning run', fun.winStreak.player, `${fun.winStreak.length} wins in a row`)}
+          ${fun.losingRun && funCard('📉', 'Longest losing run', fun.losingRun.player, `${fun.losingRun.length} defeats in a row`)}
+          ${fun.drawKing && funCard('🤝', 'Draw king', fun.drawKing.player, `${fun.drawKing.draws} draws in ${fun.drawKing.played} games`)}
+          ${fun.hardestToBeat && funCard('🛡️', 'Hardest to beat', fun.hardestToBeat.player, `lost only ${pctText(fun.hardestToBeat.lostPct)} of ${fun.hardestToBeat.played} games`)}
+          ${fun.cpuWhisperer && funCard('🎮', 'CPU whisperer', fun.cpuWhisperer.player, `${pctText(fun.cpuWhisperer.cpuPct)} wins with CPU teams vs ${pctText(fun.cpuWhisperer.ownPct)} with their own`)}
+          ${fun.luckiest && funCard('🍀', 'Luckiest group', fun.luckiest.player, `opposition averaged ${fun.luckiest.oppOvr} OVR · ${fun.luckiest.championship}`)}
+          ${fun.unluckiest && funCard('☠️', 'Group of death', fun.unluckiest.player, `opposition averaged ${fun.unluckiest.oppOvr} OVR · ${fun.unluckiest.championship}`)}
+          ${fun.rivalry && funCard('⚔️', 'Biggest rivalry', `${fun.rivalry.playerA} vs ${fun.rivalry.playerB}`, `${fun.rivalry.played} games · ${fun.rivalry.won}-${fun.rivalry.drawn}-${fun.rivalry.lost} from ${fun.rivalry.playerA}'s side`)}
+        </div>
+        ${fun.nemesis.length ? html`<h3>Nemesis &amp; victim</h3>
+        <p class="muted">Who beats each player most, and who they beat most, in games between two players (W-D-L from the row player's side).</p>
+        <table><thead><tr><th>Player</th><th>Nemesis</th><th>Victim</th></tr></thead><tbody>
+        ${fun.nemesis.map(n => html`<tr><td><strong>${n.player}</strong></td>
+          <td>${n.nemesis ? html`😈 ${n.nemesis.opponent} <span class="muted">${n.nemesis.won}-${n.nemesis.drawn}-${n.nemesis.lost}</span>` : html`<span class="muted">—</span>`}</td>
+          <td>${n.victim ? html`🐑 ${n.victim.opponent} <span class="muted">${n.victim.won}-${n.victim.drawn}-${n.victim.lost}</span>` : html`<span class="muted">—</span>`}</td></tr>`)}
+        </tbody></table>` : ''}
+        ${fun.journeys.length ? html`<h3>Star journey</h3>
+        <p class="muted">The star level each player played at, championship by championship.</p>
+        <table><thead><tr><th>Player</th><th>Level over time</th><th></th></tr></thead><tbody>
+        ${fun.journeys.map(j => html`<tr><td><strong>${j.player}</strong></td><td>${journeySvg(j.points)}</td>
+          <td class="muted">${j.points.map(p => `${p.stars}★`).join(' → ')}</td></tr>`)}
+        </tbody></table>` : ''}
 
         <h2>Championship history</h2>
         ${champions.length === 0 ? html`<p class="muted">No championships yet.</p>` : html`
