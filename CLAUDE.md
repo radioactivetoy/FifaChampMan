@@ -167,7 +167,7 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   (`data-auto`), so a hand-picked team is never overwritten, and only Save persists. A level tie is decided by its penalties in the
   preview too: saved matches use the Pens inputs in "⋯ more", new (empty-slot) ties get their own `new_<stage>_<slot>_homePens/awayPens` row,
   shown only while the two scores are level and saved with the match. Each bracket match also shows a `🎮 <player> controls <team>` line for each side
-  (the owner for a player's team, the drawn controller for a CPU side; drawn once when the match is created — a shootout is the same game, no second draw).
+  (the owner for a player's team, marked "(own team)" and bold, the drawn controller for a CPU side; drawn once when the match is created — a shootout is the same game, no second draw).
   `assignSlots` places ties (from `groupTies`: up to two legs between the same two teams) into slots, giving
   older slot-less matches the lowest free one in first-seen order; `backfillSlots` persists that on the next
   save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff

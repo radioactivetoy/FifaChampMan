@@ -121,5 +121,6 @@ test('a CPU side controlled by a player shows who controls it on the bracket mat
     const page = (await app.get(`/championships/${id}/playoff`)).text;
     assert.match(page, /bracket-controller">🎮 \w+ controls /);
     assert.ok((page.match(/bracket-controller/g) ?? []).length >= 2); // the owner's own side is listed too
+    assert.match(page, /bracket-controller own">🎮 \w+ controls [^<]+\(own team\)/);
   } finally { await app.close(); }
 });

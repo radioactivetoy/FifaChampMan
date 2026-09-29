@@ -423,3 +423,4 @@ details.rename-inline[open] { display: block; margin-top: 6px; }
 .bracket-new-pens[hidden] { display: none; }
 .bracket-new-pens .num { width: 44px; }
 .bracket-controller { display: block; padding: 0 8px 4px; color: var(--muted); font-size: 12px; }
+.bracket-controller.own { color: var(--text, inherit); font-weight: 600; }
