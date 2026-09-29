@@ -367,3 +367,42 @@ test('the Stats page has a Fun stats section and the Recap page tells the champi
     await app.close();
   }
 });
+
+test('Config offers a downloadable, valid SQLite backup', async () => {
+  const { app } = await setup();
+  try {
+    assert.match((await app.get('/config')).text, /Download backup/);
+    const res = await fetch(`${app.baseUrl}/config/backup`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-disposition') ?? '', /champman-\d{8}-\d{4}\.db/);
+    assert.equal(Buffer.from(await res.arrayBuffer()).subarray(0, 15).toString(), 'SQLite format 3');
+  } finally {
+    await app.close();
+  }
+});
+
+test('player profile page, Elo ranking on Stats, and the copy-summary button on Recap', async () => {
+  const { app, id } = await setup();
+  try {
+    const { insertMatch } = await import('../../src/repo/matches.js');
+    const [a, b] = getChampionship(app.db, id).players.filter(p => p.teamId);
+    insertMatch(app.db, id, { stage: 'group', groupLetter: 'A', matchday: 1, homeTeamId: a.teamId, awayTeamId: b.teamId, homeScore: 2, awayScore: 0, homeControllerId: a.playerId, awayControllerId: b.playerId });
+    const profile = await app.get(`/players/${a.playerId}`);
+    assert.equal(profile.status, 200);
+    assert.match(profile.text, new RegExp(`<h1>${a.playerName}</h1>`));
+    assert.match(profile.text, /Trophy cabinet/);
+    assert.match(profile.text, new RegExp(`<a href="/players/${b.playerId}"><strong>${b.playerName}</strong>`)); // head to head row
+    assert.equal((await app.get('/players/99999')).status, 404);
+
+    const stats = (await app.get('/stats')).text;
+    assert.match(stats, /<h2>Elo ranking<\/h2>/);
+    assert.match(stats, /<strong>1019<\/strong>/); // 2-0 between two fresh players: 24 * log2(3) * 0.5 = +19
+    assert.match((await app.get('/players')).text, new RegExp(`href="/players/${a.playerId}"`));
+
+    const recap = (await app.get(`/championships/${id}/recap`)).text;
+    assert.match(recap, /<button type="button" data-copy="[^"]+">📋 Copy summary<\/button>/);
+    assert.match(recap, /Copy summary/);
+  } finally {
+    await app.close();
+  }
+});

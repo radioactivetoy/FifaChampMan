@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
 import { html, page } from '../html.js';
 import { intOrNull } from '../form.js';
 import { stars } from '../components.js';
@@ -11,6 +14,11 @@ export function registerConfigRoutes(app, { db }) {
     res.send(page({
       title: 'Config',
       body: html`
+        <h2>Backup</h2>
+        <p class="muted">A consistent copy of all the data (players, championships, results, teams). The app also keeps its own
+          copy of the data file in <code>backups/</code> every time it starts (the newest 10).</p>
+        <p><a class="button-link" href="/config/backup" download>⬇ Download backup</a></p>
+
         <h2>Star tiers</h2>
         <p class="muted">A team gets the highest star level whose minimum OVR it reaches (unless its stars are set by hand on the Teams page).</p>
         <form method="post" action="/config/tiers"><table><thead><tr><th>Stars</th><th>Minimum OVR</th></tr></thead><tbody>
@@ -35,6 +43,15 @@ export function registerConfigRoutes(app, { db }) {
           <td><form method="post" action="/templates/${t.id}/delete" class="inline" onsubmit="return confirm('Delete this template?')"><button class="danger">Delete</button></form></td></tr>`)}
         </tbody></table>`,
     }));
+  });
+
+  // Consistent snapshot of the live database (VACUUM INTO), sent as a download.
+  app.get('/config/backup', (req, res) => {
+    const dir = mkdtempSync(join(tmpdir(), 'champman-'));
+    const file = join(dir, 'backup.db');
+    db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
+    res.download(file, `champman-${stamp}.db`, () => rmSync(dirname(file), { recursive: true, force: true }));
   });
 
   app.post('/config/tiers', (req, res) => {

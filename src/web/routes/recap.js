@@ -35,7 +35,8 @@ export function registerRecapRoutes(app, { db }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'recap')}
-        ${story.lines.length ? html`<h2>The story</h2><ul class="story">${story.lines.map(l => html`<li>${l}</li>`)}</ul>` : ''}
+        ${story.lines.length ? html`<h2>The story</h2><ul class="story">${story.lines.map(l => html`<li>${l}</li>`)}</ul>
+          <button type="button" data-copy="${`${c.name} (${c.edition})\n${story.lines.map(l => `• ${l}`).join('\n')}`}">📋 Copy summary</button> <span class="muted" data-copy-status></span>` : ''}
         <h2>Players</h2>
         <table><thead><tr><th>Player</th><th>Team</th><th>Played at</th><th>Group</th><th>Pos</th><th>Pts</th>
           <th>W-D-L</th><th>Goals</th><th>GD</th><th>Reached</th><th>All matches</th><th>As CPU controller</th><th>Stars earned</th></tr></thead><tbody>

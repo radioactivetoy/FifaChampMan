@@ -1,4 +1,4 @@
-import { html, raw, select } from './html.js';
+import { html, raw, select, escape } from './html.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, tieOutcome, assignSlots, STAGE_SLOTS } from '../domain/stages.js';
 import { championshipProgress } from '../domain/progress.js';
 
@@ -287,4 +287,43 @@ export function playoffBracket(c, matches, { formId, teamItems }) {
   return html`<div class="bracket scroll-x">${columns}${finalColumn}</div>
     ${extras.length ? html`<h3>Other playoff matches</h3><div class="bracket-extra">${extras.map(([stage, tie]) =>
       html`<div><small class="muted">${STAGE_LABELS[stage]}</small>${bracketTie(c, tie, formId, byId, teamItems, playerItems, null, false)}</div>`)}</div>` : ''}`;
+}
+
+/** One fun-stat card: icon, title, big line, small detail — or nothing when nobody qualifies. */
+export const funCard = (icon, title, main, detail) => (main == null ? '' : html`<div class="fun-card">
+  <div class="fun-icon" aria-hidden="true">${icon}</div><div><div class="muted fun-title">${title}</div>
+  <div class="fun-main">${main}</div><div class="muted fun-detail">${detail}</div></div></div>`);
+
+/** Tiny line chart of the star level played at over the championships (0.5★ … 5★). */
+export function journeySvg(points) {
+  const W = 150, H = 34, x = i => (points.length === 1 ? W / 2 : 6 + (i * (W - 12)) / (points.length - 1)), y = st => H - 5 - ((st - 0.5) / 4.5) * (H - 10);
+  const path = points.map((p, i) => `${x(i).toFixed(1)},${y(p.stars).toFixed(1)}`).join(' ');
+  return raw(`<svg class="journey" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Star level over time">
+    <polyline points="${path}" fill="none" stroke="#2f6bff" stroke-width="2"/>${points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.stars).toFixed(1)}" r="3" fill="#f2b705" stroke="#06103a" stroke-width="1"/>`).join('')}</svg>`);
+}
+
+
+const ELO_COLOURS = ['#2f6bff', '#e5484d', '#30a46c', '#f2b705', '#8e4ec6', '#12a594', '#f76b15', '#6e56cf'];
+
+/** Line chart of Elo ratings, one line per player, one point per championship. rows: eloRatings(); '' with fewer than two championships. */
+export function eloChart(rows) {
+  const champs = [...new Map(rows.flatMap(r => r.history).map(h => [h.championshipId, h.championship])).entries()].sort((a, b) => a[0] - b[0]);
+  if (champs.length < 2) return '';
+  const values = rows.flatMap(r => r.history.map(h => h.rating));
+  const lo = Math.floor((Math.min(...values) - 10) / 10) * 10, hi = Math.ceil((Math.max(...values) + 10) / 10) * 10;
+  const [W, H, L, R, T, B] = [640, 240, 46, 16, 12, 34];
+  const x = i => L + (i * (W - L - R)) / (champs.length - 1);
+  const y = v => T + (1 - (v - lo) / (hi - lo || 1)) * (H - T - B);
+  const index = new Map(champs.map(([id], i) => [id, i]));
+  const grid = [lo, Math.round((lo + hi) / 2), hi].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#d9dff2" stroke-width="1"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="#5b6690">${v}</text>`).join('');
+  const step = Math.ceil(champs.length / 6);
+  const labels = champs.map(([, name], i) => (i % step === 0 || i === champs.length - 1
+    ? `<text x="${x(i)}" y="${H - 12}" text-anchor="middle" font-size="11" fill="#5b6690">${escape(name.length > 14 ? `${name.slice(0, 13)}…` : name)}</text>` : '')).join('');
+  const lines = rows.map((r, n) => {
+    const colour = ELO_COLOURS[n % ELO_COLOURS.length];
+    const pts = r.history.map(h => `${x(index.get(h.championshipId)).toFixed(1)},${y(h.rating).toFixed(1)}`);
+    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${colour}" stroke-width="2.5"/>${r.history.map(h => `<circle cx="${x(index.get(h.championshipId)).toFixed(1)}" cy="${y(h.rating).toFixed(1)}" r="3.5" fill="${colour}"><title>${escape(r.name)}: ${h.rating} after ${escape(h.championship)}</title></circle>`).join('')}`;
+  }).join('');
+  return html`<svg class="elo-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Elo rating over time">${raw(grid + labels + lines)}</svg>
+    <p class="elo-legend">${rows.map((r, n) => html`<span><i style="background:${ELO_COLOURS[n % ELO_COLOURS.length]}"></i>${r.name}</span>`)}</p>`;
 }

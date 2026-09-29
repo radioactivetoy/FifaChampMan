@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
 import { html, page } from './web/html.js';
 import { registerPlayerRoutes } from './web/routes/players.js';
+import { registerProfileRoutes } from './web/routes/profile.js';
 import { registerTeamRoutes } from './web/routes/teams.js';
 import { registerTemplateRoutes } from './web/routes/templates.js';
 import { registerConfigRoutes } from './web/routes/config.js';
@@ -26,6 +27,7 @@ export function createApp({ db, rng }) {
   const ctx = { db, rng };
   app.get('/', (req, res) => res.redirect('/championships'));
   registerPlayerRoutes(app, ctx);
+  registerProfileRoutes(app, ctx);
   registerTeamRoutes(app, ctx);
   registerTemplateRoutes(app, ctx);
   registerConfigRoutes(app, ctx);

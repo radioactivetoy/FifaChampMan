@@ -1,27 +1,15 @@
 import { html, page, raw, select } from '../html.js';
-import { stars, badge } from '../components.js';
+import { stars, badge, funCard, journeySvg, eloChart } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
 import { listAllMatches } from '../../repo/matches.js';
 import { allEntries, listChampions } from '../../repo/championships.js';
 import { playerStats, headToHead, biggestWins } from '../../domain/stats.js';
 import { funStats } from '../../domain/fun.js';
+import { eloRatings } from '../../domain/elo.js';
 import { REACHED, REACHED_LABELS } from '../../domain/stages.js';
 
 const pctText = x => `${Math.round(x * 100)}%`;
-
-/** One fun-stat card: icon, title, big line, small detail — or nothing when nobody qualifies. */
-const funCard = (icon, title, main, detail) => (main == null ? '' : html`<div class="fun-card">
-  <div class="fun-icon" aria-hidden="true">${icon}</div><div><div class="muted fun-title">${title}</div>
-  <div class="fun-main">${main}</div><div class="muted fun-detail">${detail}</div></div></div>`);
-
-/** Tiny line chart of the star level played at over the championships (0.5★ … 5★). */
-function journeySvg(points) {
-  const W = 150, H = 34, x = i => (points.length === 1 ? W / 2 : 6 + (i * (W - 12)) / (points.length - 1)), y = st => H - 5 - ((st - 0.5) / 4.5) * (H - 10);
-  const path = points.map((p, i) => `${x(i).toFixed(1)},${y(p.stars).toFixed(1)}`).join(' ');
-  return raw(`<svg class="journey" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Star level over time">
-    <polyline points="${path}" fill="none" stroke="#2f6bff" stroke-width="2"/>${points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.stars).toFixed(1)}" r="3" fill="#f2b705" stroke="#06103a" stroke-width="1"/>`).join('')}</svg>`);
-}
 
 const points = r => r.won * 3 + r.drawn;
 const pct = (n, d) => (d ? Math.round((n / d) * 100) : null);
@@ -70,6 +58,7 @@ export function registerStatsRoutes(app, { db }) {
     const teamLabel = id => { const t = teamsById.get(id); return t ? html`${badge(t)}${t.name}` : '?'; };
     const entryFor = (playerId, championshipId) => entries.find(e => e.playerId === playerId && e.championshipId === championshipId);
     const active = stats.filter(s => s.championships > 0);
+    const elo = eloRatings({ players: players.map(p => ({ id: p.id, name: p.name })), matches, championshipNames: new Map(entries.map(e => [e.championshipId, e.championshipName])) });
     const fun = funStats({ players: players.map(p => ({ id: p.id, name: p.name })), entries, matches, teams: teamsById });
 
     res.send(page({
@@ -98,7 +87,7 @@ export function registerStatsRoutes(app, { db }) {
           <th>P</th><th>W-D-L</th><th class="col-extra">GF</th><th class="col-extra">GA</th><th class="col-extra">GD</th><th class="col-extra">Pts/game</th><th>Win %</th>
           <th class="col-extra">As CPU W-D-L</th><th class="col-extra">As CPU win %</th></tr></thead><tbody>
         ${stats.map(s => html`<tr>
-          <td data-sort="${s.name.toLowerCase()}"><a href="#player-${s.playerId}"><strong>${s.name}</strong></a></td>
+          <td data-sort="${s.name.toLowerCase()}"><a href="/players/${s.playerId}"><strong>${s.name}</strong></a></td>
           ${num(s.championships)}${num(s.titles)}${num(s.cucharas)}${num(s.finals)}${num(s.qualified)}
           <td data-sort="${REACHED.indexOf(s.bestReached)}">${s.bestReached ? REACHED_LABELS[s.bestReached] : '—'}</td>
           ${num(s.avgStars, s.avgStars == null ? null : `${s.avgStars}★`)}${num(s.lastStars, s.lastStars == null ? null : `${s.lastStars}★`)}
@@ -110,6 +99,16 @@ export function registerStatsRoutes(app, { db }) {
           ${num(pct(s.cpu.won, s.cpu.played), pct(s.cpu.won, s.cpu.played) == null ? null : `${pct(s.cpu.won, s.cpu.played)}%`, 'col-extra')}
         </tr>`)}
         </tbody></table></div>
+
+        <h2>Elo ranking</h2>
+        <p class="muted">A rating for the people, from every game between two players (own team or CPU team alike). Everyone starts at 1000;
+          beating a higher-rated player pays more, and a bigger win moves it a bit more.</p>
+        ${elo.length === 0 ? html`<p class="muted">Needs at least one match between two players.</p>` : html`
+        <table><thead><tr><th>#</th><th>Player</th><th>Elo</th><th>Peak</th><th>Games</th><th>Last championship</th></tr></thead><tbody>
+        ${elo.map((e, i) => html`<tr><td>${i + 1}</td><td><a href="/players/${e.playerId}"><strong>${e.name}</strong></a></td><td><strong>${e.rating}</strong></td><td>${e.peak}</td><td>${e.games}</td>
+          <td>${e.change == null ? html`<span class="muted">—</span>` : html`<span class="${e.change > 0 ? 'h2h-up' : e.change < 0 ? 'h2h-down' : ''} elo-change">${e.change > 0 ? '▲' : e.change < 0 ? '▼' : '='} ${Math.abs(e.change)}</span>`}</td></tr>`)}
+        </tbody></table>
+        ${eloChart(elo)}`}
 
         <h2>Fun stats</h2>
         <div class="fun-cards">

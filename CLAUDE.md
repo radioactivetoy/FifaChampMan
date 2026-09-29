@@ -198,6 +198,21 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   penalties are credited to whoever controlled each side; matches are ordered by championship id, stage, matchday.
   `championshipStory` writes the Recap page's "The story" lines (results per player, champion, Cuchara, top
   scorer among the players' teams). New stats belong in these two functions, not in the routes.
+- **Backups**: `server.js` calls `backupOnStart` (`db/backup.js`) *before* opening the database, copying
+  `champman.db` to `backups/<name>-YYYYMMDD-HHMMSS.db` next to it (newest 10 kept, folder git-ignored) — so a copy
+  exists from before any migration runs. Config has a "Download backup" link (`GET /config/backup`, `VACUUM INTO`
+  a temp file, streamed as a download).
+- **Elo** (`domain/elo.js`, `eloRatings`): rates the *people* from every match where two different players each
+  controlled a side (own or CPU team). Start 1000, K 24, margin factor `log2(|goal diff|+1)` capped at 2.5, draws
+  half a win, one history snapshot per championship (feeds the Stats "Elo ranking" table and `eloChart`, which
+  needs 2+ championships).
+- **Player profile** (`GET /players/:id`, `web/routes/profile.js`): headline badges, Elo/rank, own-team and CPU
+  records, best/worst run, trophy cabinet (`trophyCabinet` in `domain/fun.js`: the fun-stat trophies whose holder
+  is this player), star journey, head-to-head vs everyone (nemesis/victim marked), championship history. Linked
+  from the Players list and the Stats leaderboard/Elo names.
+- **Copy summary**: the Recap's "The story" has a `button[data-copy]` (`setupCopyButtons` in `filter.js`); it falls
+  back to a hidden textarea + `execCommand('copy')` because `navigator.clipboard` needs https and friends use plain
+  http over the LAN.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no

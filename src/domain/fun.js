@@ -11,7 +11,7 @@ import { REACHED } from './stages.js';
 
 const rank = reached => REACHED.indexOf(reached);
 const STAGE_ORDER = { group: 0, r16: 1, qf: 2, sf: 3, final: 4 };
-const chrono = (a, b) => a.championshipId - b.championshipId || STAGE_ORDER[a.stage] - STAGE_ORDER[b.stage]
+export const chrono = (a, b) => a.championshipId - b.championshipId || STAGE_ORDER[a.stage] - STAGE_ORDER[b.stage]
   || (a.matchday ?? 0) - (b.matchday ?? 0) || a.id - b.id;
 
 const pick = (items, better) => items.reduce((best, x) => (best == null || better(x, best) ? x : best), null);
@@ -182,4 +182,21 @@ export function championshipStory({ championship, players, matches }) {
   for (const p of players.filter(x => x.cuchara)) lines.push(`🥄 ${p.playerName} takes the Cuchara de Madera: 0 points and 0 goals in the group stage.`);
   if (mvp) lines.push(`⚽ Top scorer among the players' teams: ${mvp.player} (${mvp.team}) with ${mvp.goals} goal${mvp.goals === 1 ? '' : 's'}.`);
   return { mvp, lines };
+}
+
+/**
+ * The trophies a player currently holds among the fun stats (the ones that name a player), for their profile.
+ * fun: the result of funStats. Returns [{ icon, title }].
+ */
+export function trophyCabinet(fun, playerId) {
+  const held = [
+    ['goldenBoot', '👟', 'Golden Boot'], ['ironWall', '🧱', 'Iron Wall'], ['penaltyKing', '🎯', 'Penalty King'],
+    ['penaltyCurse', '🥶', 'Penalty Curse'], ['cinderella', '🧚', 'Cinderella'], ['bottler', '🍌', 'Bottler'],
+    ['runnerUp', '🥈', 'Eternal runner-up'], ['unbeaten', '🔥', 'Longest unbeaten run'], ['winStreak', '🚀', 'Longest winning run'],
+    ['losingRun', '📉', 'Longest losing run'], ['drawKing', '🤝', 'Draw king'], ['hardestToBeat', '🛡️', 'Hardest to beat'],
+    ['cpuWhisperer', '🎮', 'CPU whisperer'], ['luckiest', '🍀', 'Luckiest group'], ['unluckiest', '☠️', 'Group of death'],
+  ];
+  const out = held.filter(([key]) => fun[key]?.playerId === playerId).map(([, icon, title]) => ({ icon, title }));
+  if (fun.rivalry && (fun.rivalry.a === playerId || fun.rivalry.b === playerId)) out.push({ icon: '⚔️', title: 'Biggest rivalry' });
+  return out;
 }

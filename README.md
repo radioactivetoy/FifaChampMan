@@ -92,3 +92,8 @@ Going up a level: choose between two random teams of the new level. Otherwise a 
 ## Develop
 
 `npm test` runs all tests (Node's built-in test runner).
+
+## Backups
+
+Every time the app starts it copies the data file into `backups/` (newest 10 kept). **Config → Download backup**
+gives a consistent copy on demand. To restore, stop the app and put a backup file back as `champman.db`.

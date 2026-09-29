@@ -14,7 +14,7 @@ export function registerPlayerRoutes(app, { db }) {
         <table><thead><tr><th>Name</th><th></th></tr></thead><tbody>
         ${players.map(p => html`<tr>
           <td><form id="p${p.id}" method="post" action="/players/${p.id}"></form><input form="p${p.id}" name="name" value="${p.name}" required></td>
-          <td class="actions"><button form="p${p.id}">Save</button>
+          <td class="actions"><a class="button-link" href="/players/${p.id}">Profile</a> <button form="p${p.id}">Save</button>
             <form method="post" action="/players/${p.id}/delete" class="inline" onsubmit="return confirm('Delete this player?')"><button class="danger">Delete</button></form></td>
         </tr>`)}
         </tbody></table>`,

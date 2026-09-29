@@ -78,3 +78,12 @@ test('championshipStory: MVP among the players\' teams and auto-written lines', 
   assert.ok(lines.some(l => l.includes('🥄 Ben')));
   assert.ok(lines.some(l => l.includes('Top scorer')));
 });
+
+test('trophyCabinet lists what a player holds', async () => {
+  const { trophyCabinet } = await import('../../src/domain/fun.js');
+  const f = funStats({ players, entries, matches, teams });
+  const ana = trophyCabinet(f, 1).map(t => t.title);
+  assert.ok(ana.includes('Golden Boot') && ana.includes('Iron Wall') && ana.includes('Eternal runner-up'));
+  assert.ok(trophyCabinet(f, 2).map(t => t.title).includes('Bottler'));
+  assert.deepEqual(trophyCabinet(f, 99), []);
+});

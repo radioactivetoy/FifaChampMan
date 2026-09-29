@@ -378,3 +378,17 @@ details.help > p { margin: 8px 0 0; }
 .fun-detail { font-size: 12.5px; }
 svg.journey { display: block; background: var(--surface-2); border-radius: 6px; }
 ul.story { margin: 6px 0 14px; padding-left: 20px; line-height: 1.7; }
+
+a.button-link { display: inline-block; padding: 7px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--navy-800); font-weight: 600; text-decoration: none; box-shadow: var(--shadow); }
+a.button-link:hover { background: var(--surface-2); }
+
+svg.elo-chart { width: 100%; max-width: 680px; height: auto; display: block; margin: 10px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.elo-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 14px; font-size: 13px; }
+.elo-legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.elo-change { font-weight: 700; }
+.profile-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 14px; }
+.profile-head .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.profile-head .badge-pill { padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.cabinet { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 16px; }
+.cabinet span { padding: 6px 12px; border-radius: 999px; background: #fff7dc; border: 1px solid #f0d27a; font-weight: 600; font-size: 13px; }
+button[data-copy] { margin: 4px 0 12px; }

@@ -11,6 +11,7 @@ export async function startTestApp({ seed = 42 } = {}) {
   const base = `http://127.0.0.1:${server.address().port}`;
   return {
     db,
+    baseUrl: base,
     async get(path, { redirect = 'follow' } = {}) {
       const r = await fetch(base + path, { redirect });
       return { status: r.status, text: await r.text() };

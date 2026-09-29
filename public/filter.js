@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupViewSwitch();
   setupGroupsPersistence();
   setupBracketConnectors();
+  setupCopyButtons();
   markCurrentNav();
 });
 
@@ -160,5 +161,26 @@ function markCurrentNav() {
   for (const a of document.querySelectorAll('header nav a')) {
     const href = a.getAttribute('href');
     a.classList.toggle('current', path === href || path.startsWith(`${href}/`));
+  }
+}
+
+// "Copy summary" buttons (button[data-copy]): copies the attribute's text. navigator.clipboard only exists on
+// https / localhost, and friends open the app over plain http on the LAN, so fall back to a hidden textarea.
+function setupCopyButtons() {
+  for (const button of document.querySelectorAll('button[data-copy]')) {
+    button.addEventListener('click', async () => {
+      const text = button.dataset.copy;
+      let ok = false;
+      try { if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); ok = true; } } catch { /* fall through */ }
+      if (!ok) {
+        const area = document.createElement('textarea');
+        area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
+        document.body.appendChild(area); area.select();
+        try { ok = document.execCommand('copy'); } catch { ok = false; }
+        area.remove();
+      }
+      const status = button.parentElement.querySelector('[data-copy-status]');
+      if (status) { status.textContent = ok ? 'Copied!' : 'Could not copy — select the text above instead.'; setTimeout(() => { status.textContent = ''; }, 2500); }
+    });
   }
 }
