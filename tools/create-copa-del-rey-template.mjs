@@ -2,6 +2,7 @@
 // division in that edition's teams (LALIGA EA SPORTS, LALIGA HYPERMOTION, and any lower Spanish league the game has).
 // Selected by country rather than a fixed league list, so a renamed division is still picked up.
 // Run: node tools/create-copa-del-rey-template.mjs <edition> [db path]
+import { existsSync } from 'node:fs';
 import { openDb, all } from '../src/db/connection.js';
 import { listTemplates, saveTemplate, setTemplateTeams } from '../src/repo/templates.js';
 import { listTeams } from '../src/repo/teams.js';
@@ -16,7 +17,12 @@ if (!edition) {
 }
 const NAME = `Copa del Rey (${edition})`;
 
-const db = openDb(process.argv[3] ?? 'champman.db');
+const dbPath = process.argv[3] ?? 'champman.db';
+if (!existsSync(dbPath)) { // openDb would silently create an empty database
+  console.error(`Database "${dbPath}" not found — run this from the repo root or pass the path.`);
+  process.exit(1);
+}
+const db = openDb(dbPath);
 const teams = listTeams(db, { edition }).filter(t => SPAIN.includes(t.country.trim().toLowerCase()) && !isWomens(t));
 if (teams.length === 0) {
   const countries = all(db, 'SELECT DISTINCT country FROM teams WHERE edition = ? ORDER BY country', edition).map(r => r.country);
@@ -26,8 +32,8 @@ if (teams.length === 0) {
 const id = listTemplates(db).find(t => t.name === NAME)?.id ?? saveTemplate(db, { name: NAME });
 setTemplateTeams(db, id, teams.map(t => t.id));
 
-const byLeague = {}, byStars = {};
-for (const t of teams) { byLeague[t.league] = (byLeague[t.league] ?? 0) + 1; byStars[t.stars] = (byStars[t.stars] ?? 0) + 1; }
+const byLeague = {};
+for (const t of teams) byLeague[t.league] = (byLeague[t.league] ?? 0) + 1;
 console.log(`Template "${NAME}" (id ${id}): ${teams.length} clubs`);
 console.log('Per league:', Object.entries(byLeague).map(([l, n]) => `${l} ${n}`).join(', '));
-console.log('Per star level:', Object.entries(byStars).sort((a, b) => b[0] - a[0]).map(([s, n]) => `${s}★ ${n}`).join(', '));
+console.log('Use it on a cup and press "Use all teams of the pool" on Field & draw: every club goes in, no star quotas.');
