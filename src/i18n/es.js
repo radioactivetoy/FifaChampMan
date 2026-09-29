@@ -116,7 +116,7 @@ export const es = {
   'Add team': 'Añadir equipo',
   'Manual stars': 'Estrellas manuales',
   'Images': 'Imágenes',
-  'from OVR': 'según OVR',
+  'from OVR': 'por OVR',
   'edit': 'editar',
   'Club badge': 'Escudo del club',
   'League badge': 'Escudo de la liga',

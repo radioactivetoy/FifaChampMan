@@ -198,6 +198,21 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   penalties are credited to whoever controlled each side; matches are ordered by championship id, stage, matchday.
   `championshipStory` writes the Recap page's "The story" lines (results per player, champion, Cuchara, top
   scorer among the players' teams). New stats belong in these two functions, not in the routes.
+- **Languages (i18n)**: Spanish (Spain) is the default, English the alternative; an ES | EN switch in the header sets a
+  per-browser `lang` cookie (`POST /lang`, returns to the same-site referer). `src/i18n/index.js`: **`_('English text')`**
+  (gettext idiom — the English text *is* the key; `t` is an alias, but files have local variables called `t`, so use
+  `_`), `tn(one, other, n)` for plurals (`{n}` filled in), `th(text, params)` (in `web/html.js`) for text with markup
+  (params escaped), `N_('…')` to mark a string in a lookup table without translating it yet, `{placeholders}` in the
+  text. The language of the request lives in an `AsyncLocalStorage` set by middleware in `app.js`, so `_()` works in
+  components, repo error messages and domain code (`stages.js` labels are Proxies that translate on access; `fun.js`
+  story text uses `_` directly) with no language argument; outside a request it is English. Spanish lives in
+  `src/i18n/es.js` (missing entry → English fallback). **Every user-facing string goes through `_`/`tn`/`th` and needs an
+  `es.js` entry — `test/i18n/coverage.test.js` fails otherwise (and on unused entries or mismatched placeholders).**
+  Not translated: team/league/country/player/championship names (data). Attributes: `confirm()` dialogs use
+  `confirmSubmit(_('…'))` (JSON-encoded, so apostrophes are safe); client-script strings come from `window.T`
+  (emitted by `page()`, defined in `clientStrings()` in `web/html.js`). Spanish style: castellano de España, tuteo,
+  glossary at the top of `es.js` (PJ/G/E/P/GF/GC/DG, Octavos/Cuartos/Semifinal, Controlador, Bota de Oro…). Numbers keep
+  `.` decimals (`2.5★`). Tests run in English by default (`startTestApp({ lang: 'es' })` for Spanish).
 - **Backups**: `server.js` calls `backupOnStart` (`db/backup.js`) *before* opening the database, copying
   `champman.db` to `backups/<name>-YYYYMMDD-HHMMSS.db` next to it (newest 10 kept, folder git-ignored) — so a copy
   exists from before any migration runs. Config has a "Download backup" link (`GET /config/backup`, `VACUUM INTO`
@@ -263,5 +278,5 @@ Women's clubs get a " (W)" suffix to keep team names unique.
 
 Tests mirror the layers: `test/domain` (pure), `test/repo` (in-memory `openDb()`), `test/web` (`startTestApp()`
 from `test/helpers.js` boots the app on a random port; `post()` doesn't follow redirects so `location` can be
-asserted). `test/seed.js` makes 100 teams (OVR 90→41, 8 countries) and named players. Write the failing test
+asserted; `startTestApp({ lang })` picks the default language, English unless told otherwise). `test/seed.js` makes 100 teams (OVR 90→41, 8 countries) and named players. Write the failing test
 first; commit per feature with the `Co-Authored-By` trailer.

@@ -93,6 +93,11 @@ Going up a level: choose between two random teams of the new level. Otherwise a 
 
 `npm test` runs all tests (Node's built-in test runner).
 
+## Language
+
+The app is in **Spanish (Spain)** by default; the **ES | EN** switch in the top-right of the header changes it (each browser or phone
+remembers its own choice). Team, league, country and player names are data and are never translated.
+
 ## Player photos
 
 **Players → Add photo** (works from a phone's camera or gallery too). The picture is cropped square and shrunk in the
