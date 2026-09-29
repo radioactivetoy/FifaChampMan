@@ -22,6 +22,7 @@ npm test                                   # node --test "test/**/*.test.js"
 node --test test/domain/draw.test.js       # one file
 node --test --test-name-pattern "draw" test/domain/draw.test.js   # one test by name
 node tools/create-ucl-template.mjs <edition> [db]       # (re)build the "UEFA Champions League" template for one edition
+node tools/create-copa-del-rey-template.mjs <edition> [db]   # (re)build "Copa del Rey (<edition>)": every men's club of every Spanish division (by country)
 ```
 
 Env: `PORT`, `DB_PATH` (default `champman.db` in the repo root — the user's real data; back it up before
