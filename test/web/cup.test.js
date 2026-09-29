@@ -74,3 +74,21 @@ test('result stars: qualifying earns 3★ only after a group stage; a cup first-
   assert.equal(resultStars({ reached: 'qf', record: rec, format: 'cup', firstRound: 'r16' }), 3.5);
   assert.equal(resultStars({ reached: 'r16', record: rec }), 3);
 });
+
+test('saving two decided first-round ties creates the tie they feed; every tie carries data-stage/data-slot for the live preview', async () => {
+  const { app, id } = await cup(40); // 64-place bracket: Round of 64 → Round of 32
+  try {
+    const t = getChampionship(app.db, id).teams.map(x => x.teamId);
+    const body = {};
+    for (let i = 0; i < 2; i++) Object.assign(body, {
+      [`new_r64_${i}_homeTeamId`]: t[2 * i], [`new_r64_${i}_awayTeamId`]: t[2 * i + 1], [`new_r64_${i}_homeScore`]: '2', [`new_r64_${i}_awayScore`]: '1',
+    });
+    await app.post(`/championships/${id}/playoff/save`, body);
+    const r32 = listMatches(app.db, id).filter(m => m.stage === 'r32');
+    assert.deepEqual(r32.map(m => [m.slot, m.homeTeamId, m.awayTeamId]), [[0, t[0], t[2]]]);
+    const page = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(page, /class="bracket-round" data-stage="r64"/);
+    assert.match(page, /class="bracket-tie[^"]*" data-stage="r64" data-slot="0"/); // saved tie
+    assert.match(page, /class="bracket-tie bracket-tie-empty[^"]*" data-stage="r64" data-slot="2"/); // empty tie
+  } finally { await app.close(); }
+});

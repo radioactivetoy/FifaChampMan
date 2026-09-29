@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupViewSwitch();
   setupGroupsPersistence();
   setupBracketConnectors();
+  setupBracketAdvance();
   setupCopyButtons();
   setupPhotoUpload();
   markCurrentNav();
@@ -154,6 +155,54 @@ function setupBracketConnectors() {
   window.addEventListener('load', reposition); // late-loading fonts/images can still shift heights slightly
   document.querySelectorAll('details.bracket-match-more').forEach(d => d.addEventListener('toggle', reposition));
   document.querySelector('[data-cpu-toggle]')?.addEventListener('change', reposition);
+}
+
+// Live preview of the bracket: as scores are typed, the winner of each decided tie (or a bye's team) is put into the
+// next round's dropdown, so the tree fills in before Save. Only ever a preview — the server does the real advance on
+// save. A next-round dropdown the user picked by hand (or that already belongs to a saved match) is never overwritten:
+// we only write into selects that are empty or still hold what we wrote (data-auto).
+function setupBracketAdvance() {
+  const bracket = document.querySelector('.bracket');
+  if (!bracket) return;
+  const stages = [...bracket.querySelectorAll('.bracket-round')].map(r => r.dataset.stage);
+  const tieAt = (stage, slot) => bracket.querySelector(`.bracket-tie[data-stage="${stage}"][data-slot="${slot}"]`);
+  const num = el => (el && el.value !== '' ? Number(el.value) : null);
+  const winnerOf = tie => {
+    if (!tie) return null;
+    const bye = tie.querySelector('select[name^="bye_"]');
+    if (bye) return bye.value ? Number(bye.value) : null;
+    const goals = new Map(); let complete = true;
+    for (const match of tie.querySelectorAll('.bracket-match')) {
+      const rows = ['home', 'away'].map(side => {
+        const row = match.querySelector(`.bracket-match-row[data-side="${side}"]`);
+        return { team: num(row?.querySelector('select')), score: num(row?.querySelector('input.num')) };
+      });
+      if (rows.some(r => r.team == null || r.score == null)) { complete = false; continue; }
+      for (const r of rows) goals.set(r.team, (goals.get(r.team) ?? 0) + r.score);
+    }
+    if (!complete || goals.size !== 2) return null;
+    const [a, b] = [...goals.entries()];
+    return a[1] === b[1] ? null : (a[1] > b[1] ? a[0] : b[0]);
+  };
+  const refresh = () => {
+    for (let i = 0; i < stages.length - 1; i++) {
+      const [stage, next] = [stages[i], stages[i + 1]];
+      const count = bracket.querySelectorAll(`.bracket-tie[data-stage="${stage}"]`).length;
+      for (let j = 0; j < count / 2; j++) {
+        const target = tieAt(next, j);
+        if (!target || !target.classList.contains('bracket-tie-empty')) continue; // saved matches are left alone
+        [['home', winnerOf(tieAt(stage, 2 * j))], ['away', winnerOf(tieAt(stage, 2 * j + 1))]].forEach(([side, winner]) => {
+          const select = target.querySelector(`.bracket-match-row[data-side="${side}"] select`);
+          if (!select || (select.value && select.value !== select.dataset.auto)) return; // hand-picked: keep
+          select.value = winner == null ? '' : String(winner);
+          select.dataset.auto = select.value; // remembers what we wrote, so a later hand-pick differs from it
+        });
+      }
+    }
+  };
+  bracket.addEventListener('input', refresh);
+  bracket.addEventListener('change', refresh);
+  refresh();
 }
 
 // Highlights the header link of the section being viewed.

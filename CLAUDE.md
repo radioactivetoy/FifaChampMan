@@ -161,7 +161,10 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   Save playoff, `advanceWinners` (`repo/matches.js`) creates the next-round match in an *empty* slot once both
   feeding ties are decided (`tieOutcome`), and the page preselects a single known winner in the empty slot's
   dropdown (a save carrying only that prefill and no scores is ignored). It never touches an existing match, so
-  hand-entered rounds are safe — correcting an earlier result means fixing the next round by hand.
+  hand-entered rounds are safe — correcting an earlier result means fixing the next round by hand. Before saving, `public/filter.js`'s
+  `setupBracketAdvance` previews the same thing live: typing scores fills the next round's *empty* ties' dropdowns with the winners
+  (ties carry `data-stage`/`data-slot`, rounds `data-stage`); it only writes into selects that are empty or still hold what it wrote
+  (`data-auto`), so a hand-picked team is never overwritten, and only Save persists.
   `assignSlots` places ties (from `groupTies`: up to two legs between the same two teams) into slots, giving
   older slot-less matches the lowest free one in first-seen order; `backfillSlots` persists that on the next
   save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff

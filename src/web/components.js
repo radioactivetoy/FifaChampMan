@@ -180,7 +180,7 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
 function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
   const base = `/championships/${c.id}/matches/${m.id}`;
   const num = (name, value) => html`<input form="${formId}" name="${name}_${m.id}" type="number" min="0" class="num" value="${value ?? ''}">`;
-  const scoreRow = side => html`<div class="bracket-match-row">
+  const scoreRow = side => html`<div class="bracket-match-row" data-side="${side}">
     ${byId.get(m[`${side}TeamId`]) ? badge(byId.get(m[`${side}TeamId`])) : ''}
     ${select({ name: `${side}TeamId_${m.id}`, form: formId, items: teamItems, selected: m[`${side}TeamId`], blank: '—' })}
     ${num(`${side}Score`, m[`${side}Score`])}
@@ -208,12 +208,12 @@ function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
 }
 
 /** One tie's card: both legs plus the aggregate line once decided. `connect`: 'right' | 'left' | null (final has none). */
-function bracketTie(c, tie, formId, byId, teamItems, playerItems, connect, paired) {
+function bracketTie(c, tie, formId, byId, teamItems, playerItems, connect, paired, place = {}) {
   const agg = tieAggregate(tie);
   const winner = agg?.winnerId != null ? byId.get(agg.winnerId) : null;
   const [homeId, awayId] = [tie.matches[0].homeTeamId, tie.matches[0].awayTeamId];
   const connectClass = connect ? ` connect-${connect}${paired ? ' paired' : ''}` : '';
-  return html`<div class="bracket-tie${connectClass}">
+  return html`<div class="bracket-tie${connectClass}" data-stage="${place.stage ?? tie.matches[0].stage}" data-slot="${place.slot ?? tie.matches[0].slot}">
     ${tie.matches.map(m => bracketMatch(c, m, formId, byId, teamItems, playerItems))}
     ${agg ? html`<p class="muted bracket-agg">${_('Agg {home}-{away}', { home: agg.goals[homeId] ?? 0, away: agg.goals[awayId] ?? 0 })}${winner ? th(' · <strong>{team}</strong> through', { team: winner.name }) : agg.winnerId === null ? _(' · level (penalties/replay decide)') : ''}</p>` : ''}
   </div>`;
@@ -270,17 +270,17 @@ export function playoffBracket(c, matches, { formId, teamItems, byes = [] }) {
     // The teams coming through the two places feeding this slot (previous round, slots 2j and 2j+1) are preselected.
     const prevStage = stages[stages.indexOf(stage) - 1];
     const fed = prevStage ? { home: throughAt(prevStage, 2 * slot), away: throughAt(prevStage, 2 * slot + 1) } : {};
-    const row = side => html`<div class="bracket-match-row">
+    const row = side => html`<div class="bracket-match-row" data-side="${side}">
       ${select({ name: field(`${side}TeamId`), form: formId, items: teamItems, blank: '—', selected: fed[side] })}
       <input form="${formId}" name="${field(`${side}Score`)}" type="number" min="0" class="num">
     </div>`;
-    return html`<div class="bracket-tie bracket-tie-empty${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}">
+    return html`<div class="bracket-tie bracket-tie-empty${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}" data-stage="${stage}" data-slot="${slot}">
       <div class="bracket-match">${row('home')}${row('away')}</div>
       ${stage === first ? html`<label class="bracket-bye-toggle"><input type="checkbox" form="${formId}" name="${field('bye')}" value="1"> ${_('Bye: the first team goes straight through')}</label>` : ''}</div>`;
   };
 
   // A first-round place held by a bye: one team, no match. Clearing the dropdown and saving frees the place.
-  const byeTie = (slot, connect, paired) => html`<div class="bracket-tie bracket-tie-bye${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}">
+  const byeTie = (slot, connect, paired) => html`<div class="bracket-tie bracket-tie-bye${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}" data-stage="${first}" data-slot="${slot}">
     <div class="bracket-match"><div class="bracket-match-row">
       ${byId.get(byeAt(slot).teamId) ? badge(byId.get(byeAt(slot).teamId)) : ''}
       ${select({ name: `bye_${slot}`, form: formId, items: teamItems, selected: byeAt(slot).teamId, blank: '—' })}
@@ -295,10 +295,10 @@ export function playoffBracket(c, matches, { formId, teamItems, byes = [] }) {
     const isFinal = stage === 'final';
     const [connect, paired] = [isFinal ? null : 'right', !isFinal];
     const ties = Array.from({ length: count }, (_, i) => (slots[i]
-      ? bracketTie(c, slots[i], formId, byId, teamItems, playerItems, connect, paired)
+      ? bracketTie(c, slots[i], formId, byId, teamItems, playerItems, connect, paired, { stage, slot: i })
       : stage === first && byeAt(i) ? byeTie(i, connect, paired) : emptyTie(stage, i, connect, paired)));
     const pairs = paired ? Array.from({ length: count / 2 }, (_, j) => pairConnector(j, count, connect)) : '';
-    return html`<div class="bracket-round${isFinal ? ' bracket-final' : ''}">
+    return html`<div class="bracket-round${isFinal ? ' bracket-final' : ''}" data-stage="${stage}">
       <h3>${STAGE_LABELS[stage]}</h3>
       <div class="bracket-round-ties">${ties}${pairs}</div>
     </div>`;
