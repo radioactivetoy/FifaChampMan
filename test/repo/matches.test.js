@@ -93,3 +93,21 @@ test('rerollControllers keeps the owner and re-draws the CPU side', () => {
   assert.equal(m.homeControllerId, players[0]);
   assert.ok([players[1], players[2]].includes(m.awayControllerId));
 });
+
+test('controllers who own a team in the same group are flagged and re-drawn by "draw missing controllers"', async () => {
+  const db = openDb();
+  const rng = createRng(7);
+  run(db, "INSERT INTO players (id, name) VALUES (1, 'A'), (2, 'B'), (3, 'C'), (4, 'D')");
+  for (let i = 1; i <= 4; i++) run(db, `INSERT INTO teams (id, name, edition, ovr) VALUES (${i}, 'T${i}', 'FC 27', 70)`);
+  run(db, "INSERT INTO championships (id, name) VALUES (1, 'X')");
+  for (let i = 1; i <= 4; i++) run(db, `INSERT INTO championship_teams (championship_id, team_id, group_letter) VALUES (1, ${i}, 'A')`);
+  run(db, 'INSERT INTO championship_players (championship_id, player_id, team_id) VALUES (1, 1, 1), (1, 2, 2), (1, 3, NULL), (1, 4, NULL)');
+  // T1 (A) v T3 (CPU) controlled by B: B owns T2 in the same group — not allowed
+  const id = insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 1, homeTeamId: 1, awayTeamId: 3, homeControllerId: 1, awayControllerId: 2 });
+  insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 1, homeTeamId: 2, awayTeamId: 4 });
+  insertMatch(db, 1, { stage: 'group', groupLetter: 'A', matchday: 2, homeTeamId: 1, awayTeamId: 2, homeControllerId: 1, awayControllerId: 2 });
+  assert.equal(countMissingControllers(db, 1), 2); // the invalid one, and T2 v T4 with nobody
+  assert.equal(fillMissingControllers(db, 1, rng), 2);
+  assert.equal(countMissingControllers(db, 1), 0);
+  assert.ok([3, 4].includes(getMatch(db, id).awayControllerId));
+});

@@ -1,6 +1,6 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
-import { assignControllers } from '../domain/controllers.js';
+import { assignControllers, groupOwners } from '../domain/controllers.js';
 import { scopeOf, PLAYOFF_STAGES, STAGE_SLOTS, groupTies, assignSlots, tieOutcome } from '../domain/stages.js';
 import { _ } from '../i18n/index.js';
 
@@ -134,12 +134,15 @@ export function createPlayoffMatch(db, championshipId, { stage, leg = null, slot
   });
 }
 
-/** Human-vs-CPU matches whose CPU side has no controller yet. */
+/** Human-vs-CPU matches whose CPU side has no controller yet, or is controlled by a player from the same group (not allowed). */
 function matchesMissingController(db, championshipId) {
   const owners = ownerMap(db, championshipId);
-  return listMatches(db, championshipId).filter(m => {
+  const all = listMatches(db, championshipId);
+  const mates = groupOwners({ matches: all, ownerByTeam: owners, scopeOf });
+  const bad = (m, controllerId) => controllerId == null || mates.get(scopeOf(m))?.has(controllerId);
+  return all.filter(m => {
     const homeHuman = owners.has(m.homeTeamId), awayHuman = owners.has(m.awayTeamId);
-    return (awayHuman && !homeHuman && m.homeControllerId == null) || (homeHuman && !awayHuman && m.awayControllerId == null);
+    return (awayHuman && !homeHuman && bad(m, m.homeControllerId)) || (homeHuman && !awayHuman && bad(m, m.awayControllerId));
   });
 }
 

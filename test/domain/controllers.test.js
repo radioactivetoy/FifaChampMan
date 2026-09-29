@@ -62,3 +62,32 @@ test('existing matches count toward the rotation (human sides ignored)', () => {
   });
   assert.equal(m.awayControllerId, 'p4');
 });
+
+test('a player never controls a CPU team in a group where they own a team', () => {
+  const scopeOf = m => `group:${m.g}`;
+  // group A: p1 and p2 own teams 1 and 2; teams 3 and 4 are CPU. Group B: only p3 owns a team (5); 6-8 are CPU.
+  const matches = [
+    { g: 'A', homeTeamId: 1, awayTeamId: 3 }, { g: 'A', homeTeamId: 1, awayTeamId: 4 }, { g: 'A', homeTeamId: 2, awayTeamId: 3 },
+    { g: 'A', homeTeamId: 2, awayTeamId: 4 }, { g: 'A', homeTeamId: 1, awayTeamId: 2 }, { g: 'A', homeTeamId: 3, awayTeamId: 4 },
+    { g: 'B', homeTeamId: 5, awayTeamId: 6 }, { g: 'B', homeTeamId: 5, awayTeamId: 7 }, { g: 'B', homeTeamId: 5, awayTeamId: 8 },
+  ];
+  const ownerByTeam = new Map([[1, 'p1'], [2, 'p2'], [5, 'p3']]);
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    const out = assignControllers({ matches, ownerByTeam, playerIds: players, rng: createRng(seed), scopeOf });
+    for (const m of out.filter(x => x.g === 'A' && (x.homeTeamId <= 2 || x.awayTeamId <= 2))) {
+      for (const [teamId, controller] of [[m.homeTeamId, m.homeControllerId], [m.awayTeamId, m.awayControllerId]]) {
+        if (teamId > 2 && controller != null) assert.ok(['p3', 'p4'].includes(controller), `seed ${seed}: ${controller} controls CPU team ${teamId} in their own group`);
+      }
+    }
+    // group B has no other owner, so p1, p2 and p4 may control there
+    assert.ok(out.filter(x => x.g === 'B').every(m => m.awayControllerId !== 'p3'));
+  }
+});
+
+test('if every other player owns a team in the group, the CPU side gets nobody', () => {
+  const [m] = assignControllers({
+    matches: [{ g: 'A', homeTeamId: 1, awayTeamId: 3 }, { g: 'A', homeTeamId: 2, awayTeamId: 3 }],
+    ownerByTeam: new Map([[1, 'p1'], [2, 'p2']]), playerIds: ['p1', 'p2'], rng: createRng(1), scopeOf: m => `group:${m.g}`,
+  });
+  assert.equal(m.awayControllerId, null);
+});

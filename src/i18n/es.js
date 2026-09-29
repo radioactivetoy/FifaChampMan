@@ -33,7 +33,7 @@ export const es = {
   'All players are out. Who won in the console simulation?': 'Todos los jugadores están eliminados. ¿Quién ganó en la simulación de la consola?',
   'Save winner & close championship': 'Guardar ganador y cerrar campeonato',
   '🎲 Draw missing controllers ({count})': '🎲 Sortear los controladores que faltan ({count})',
-  'Some matches against a player\'s team have no one controlling the CPU side yet.': 'Algunos partidos contra el equipo de un jugador aún no tienen a nadie que controle el lado de la CPU.',
+  'Some matches against a player\'s team have no valid controller for the CPU side yet (none drawn, or a player from the same group).': 'Algunos partidos contra el equipo de un jugador aún no tienen un controlador válido para el lado de la CPU (ninguno sorteado, o un jugador del mismo grupo).',
   'Save results': 'Guardar resultados',
   'Saves every score, controller and matchday above in one go.': 'Guarda de una vez todos los marcadores, controladores y jornadas de arriba.',
   'Saves every score, controller and matchday, and the CPU teams\' points, above in one go.': 'Guarda de una vez todos los marcadores, controladores y jornadas de arriba, y los puntos de los equipos de la CPU.',

@@ -104,7 +104,7 @@ export const fillControllersButton = (c, count, back) => (count
   ? html`<form method="post" action="/championships/${c.id}/controllers/fill" class="row">
       <input type="hidden" name="back" value="${back}">
       <button class="primary">${_('🎲 Draw missing controllers ({count})', { count })}</button>
-      <span class="muted">${_("Some matches against a player's team have no one controlling the CPU side yet.")}</span></form>`
+      <span class="muted">${_("Some matches against a player's team have no valid controller for the CPU side yet (none drawn, or a player from the same group).")}</span></form>`
   : '');
 
 /**

@@ -250,8 +250,11 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   back to a hidden textarea + `execCommand('copy')` because `navigator.clipboard` needs https and friends use plain
   http over the LAN.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
-  fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
-  playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no
+  fixture/match creation: never the opponent's owner, **and in the group stage never any player who owns a team in that
+  same group** (`groupOwners` in `domain/controllers.js` — they play those teams' rivals, so it would be cheating; if no
+  one is left the CPU side stays uncontrolled), least-used first within the scope (each group; the whole
+  playoff) — "nobody repeats until everyone played". "Draw missing controllers" also re-draws CPU sides controlled by a
+  same-group player (fixes older data). CPU-vs-CPU matches are simulated by the console: no
   controllers, results optional, hidden by default. "Draw missing controllers" fills gaps.
 - **Qualification is manual** (`championship_teams.reached`: group → r16 → qf → sf → final → champion).
   CPU teams' group points can be typed in (`points_override`, never for player teams). "Close group stage"
