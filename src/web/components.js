@@ -41,8 +41,16 @@ export function teamFilterBar(teams) {
 export function champNav(c, active) {
   const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results'], ['recap', 'Recap']];
   return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
-    ${finishBanner(c)}
+    ${finishBanner(c)}${championLine(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;
+}
+
+/** On a finished championship: who won, and a shout-out when it was a player's own team. */
+function championLine(c) {
+  if (c.status !== 'finished') return '';
+  const champion = c.teams.find(t => t.reached === 'champion');
+  if (!champion) return '';
+  return html`<p class="champion-line">🏆 Champion: ${teamName(champion)}${champion.owner ? html` — <strong>${champion.owner.playerName}</strong> won it! 🎉` : ''}</p>`;
 }
 
 /**

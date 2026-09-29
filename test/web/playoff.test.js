@@ -254,3 +254,21 @@ test('a reopened championship lets you change the winner before closing again', 
     await app.close();
   }
 });
+
+test('a finished championship shows its champion, and says so when a player won it', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const human = teams.find(t => t.owner), cpu = teams.find(t => !t.owner);
+    await app.post(`/championships/${id}/finish`, { winnerTeamId: String(cpu.teamId) });
+    let text = (await app.get(`/championships/${id}/results`)).text;
+    assert.match(text, /Champion: [\s\S]*?class="champion-line"|class="champion-line">🏆 Champion:/);
+    assert.doesNotMatch(text, /won it!/);
+
+    await app.post(`/championships/${id}/status`, { status: 'active' });
+    await app.post(`/championships/${id}/finish`, { winnerTeamId: String(human.teamId) });
+    text = (await app.get(`/championships/${id}/results`)).text;
+    assert.match(text, new RegExp(`<strong>${human.owner.playerName}</strong> won it!`));
+  } finally {
+    await app.close();
+  }
+});

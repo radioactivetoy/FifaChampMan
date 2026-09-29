@@ -184,7 +184,8 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
 - **Out / over**: a team is out once the next stage is full without it (16 at r16, 8 at qf, …). When all
   players are out, a banner asks for the console-simulated winner and closes the championship. If a winner
   is already set (e.g. after reopening) the banner shows it with a dropdown to change it before closing
-  (`setChampion` demotes the old one to the final).
+  (`setChampion` demotes the old one to the final). Once finished, `champNav` shows a "🏆 Champion" line on every
+  championship tab, with a shout-out when the champion is a player's own team.
 - Deleting a championship requires typing its exact name (checked server-side); FKs cascade.
 
 ## Team data
