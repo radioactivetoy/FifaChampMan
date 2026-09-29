@@ -114,7 +114,7 @@ details summary { cursor: pointer; color: var(--blue-dark); font-weight: 600; }
 small.muted, span.muted { font-size: 13px; }
 .error { color: var(--danger); font-weight: 600; }
 .owner {
-  display: inline-block; color: var(--blue-dark); background: #e8efff; font-weight: 700; font-size: 12px;
+  display: inline-block; color: #fff; background: hsl(var(--ph, 222), 55%, 42%); font-weight: 700; font-size: 12px;
   padding: 1px 8px; border-radius: 999px; margin-left: 2px; vertical-align: 1px;
 }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); margin: 12px 0; }
@@ -422,5 +422,12 @@ details.rename-inline[open] { display: block; margin-top: 6px; }
 .bracket-new-pens { padding: 2px 8px 6px; align-items: center; gap: 4px; }
 .bracket-new-pens[hidden] { display: none; }
 .bracket-new-pens .num { width: 44px; }
-.bracket-controller { display: block; padding: 0 8px 4px; color: var(--muted); font-size: 12px; }
-.bracket-controller.own { color: var(--text, inherit); font-weight: 600; }
+/* controller pill under each side of a bracket match, in the controlling player's colour (same hue as their avatar) */
+.bracket-controller { display: inline-block; margin: 0 0 4px 8px; padding: 1px 9px; border-radius: 999px; font-size: 12px; line-height: 1.5;
+  color: hsl(var(--ph), 55%, 30%); background: hsl(var(--ph), 70%, 92%); border: 1px solid hsl(var(--ph), 45%, 75%); }
+.bracket-controller.own { color: #fff; background: hsl(var(--ph), 55%, 42%); border-color: hsl(var(--ph), 55%, 42%); font-weight: 600; }
+/* a player's own team stands out: tinted row with a bar in the player's colour */
+.bracket-match-row.own-side { background: hsl(var(--ph), 70%, 94%); border-left: 4px solid hsl(var(--ph), 55%, 42%); border-radius: 8px; padding-left: 4px; }
+/* a player's own team stands out wherever it appears in a match row: tinted cell with a bar in the player's colour */
+td.own-cell { background: hsl(var(--ph), 70%, 94%); box-shadow: inset 4px 0 0 hsl(var(--ph), 55%, 42%); }
+tr.match-row.played td.own-cell { background: hsl(var(--ph), 70%, 92%); }
