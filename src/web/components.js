@@ -327,3 +327,16 @@ export function eloChart(rows) {
   return html`<svg class="elo-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Elo rating over time">${raw(grid + labels + lines)}</svg>
     <p class="elo-legend">${rows.map((r, n) => html`<span><i style="background:${ELO_COLOURS[n % ELO_COLOURS.length]}"></i>${r.name}</span>`)}</p>`;
 }
+
+/**
+ * A player's round picture, or a coloured circle with their initials when they have none. p: a player row
+ * ({ id|playerId, name|playerName, hasPhoto }); size in px.
+ */
+export function avatar(p, { size = 28 } = {}) {
+  const id = p.id ?? p.playerId, name = p.name ?? p.playerName ?? '?';
+  const style = `width:${size}px;height:${size}px`;
+  if (p.hasPhoto) return html`<img class="avatar" src="/players/${id}/photo" alt="" loading="lazy" style="${style}">`;
+  const hue = [...name].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) % 360, 7);
+  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  return html`<span class="avatar avatar-initials" style="${style};background:hsl(${hue},55%,42%);font-size:${Math.round(size * 0.42)}px" aria-hidden="true">${initials}</span>`;
+}

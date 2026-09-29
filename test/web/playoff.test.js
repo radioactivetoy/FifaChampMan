@@ -406,3 +406,36 @@ test('player profile page, Elo ranking on Stats, and the copy-summary button on 
     await app.close();
   }
 });
+
+test('player photos: upload as a data URL, serve it back, show avatars, reject bad files, remove it', async () => {
+  const { app, id } = await setup();
+  try {
+    const player = getChampionship(app.db, id).players[0];
+    // 1x1 PNG
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    assert.equal((await app.get(`/players/${player.playerId}/photo`)).status, 404);
+    assert.match((await app.get('/players')).text, /Add photo/);
+    assert.match((await app.get('/players')).text, /class="avatar avatar-initials"/);
+
+    const r = await app.post(`/players/${player.playerId}/photo`, { photo: `data:image/png;base64,${png.toString('base64')}` });
+    assert.equal(r.status, 302);
+    const res = await fetch(`${app.baseUrl}/players/${player.playerId}/photo`);
+    assert.equal(res.headers.get('content-type'), 'image/png');
+    assert.deepEqual(Buffer.from(await res.arrayBuffer()), png);
+    const page = (await app.get('/players')).text;
+    assert.match(page, new RegExp(`<img class="avatar" src="/players/${player.playerId}/photo"`));
+    assert.match(page, /Change photo/);
+    assert.match((await app.get(`/players/${player.playerId}`)).text, new RegExp(`src="/players/${player.playerId}/photo"`));
+
+    // Not an image / wrong bytes / not a data URL are refused, and the old photo stays.
+    assert.equal((await app.post(`/players/${player.playerId}/photo`, { photo: 'data:image/png;base64,AAAA' })).status, 400);
+    assert.equal((await app.post(`/players/${player.playerId}/photo`, { photo: 'hello' })).status, 400);
+    assert.equal((await app.post(`/players/${player.playerId}/photo`, { photo: 'data:text/html;base64,PGI+' })).status, 400);
+    assert.equal((await fetch(`${app.baseUrl}/players/${player.playerId}/photo`)).status, 200);
+
+    await app.post(`/players/${player.playerId}/photo/delete`);
+    assert.equal((await app.get(`/players/${player.playerId}/photo`)).status, 404);
+  } finally {
+    await app.close();
+  }
+});

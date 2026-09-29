@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS team_template_teams (
 
 CREATE TABLE IF NOT EXISTS players (
   id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE
+  name TEXT NOT NULL UNIQUE,
+  photo BLOB,
+  photo_type TEXT
 );
 
 CREATE TABLE IF NOT EXISTS championships (

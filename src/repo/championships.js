@@ -27,7 +27,7 @@ export function getChampionship(db, id) {
   const c = { ...row, groupStageClosed: row.groupStageClosed === 1 };
   const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
   const matches = listMatches(db, id);
-  const players = all(db, `SELECT cp.player_id AS playerId, p.name AS playerName, cp.stars, cp.team_id AS teamId,
+  const players = all(db, `SELECT cp.player_id AS playerId, p.name AS playerName, p.photo IS NOT NULL AS hasPhoto, cp.stars, cp.team_id AS teamId,
         cp.offered_team_ids AS offeredJson, cp.result_stars_override AS resultStarsOverride
       FROM championship_players cp JOIN players p ON p.id = cp.player_id
       WHERE cp.championship_id = ? ORDER BY p.name`, id)

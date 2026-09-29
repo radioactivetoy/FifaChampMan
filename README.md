@@ -93,6 +93,11 @@ Going up a level: choose between two random teams of the new level. Otherwise a 
 
 `npm test` runs all tests (Node's built-in test runner).
 
+## Player photos
+
+**Players → Add photo** (works from a phone's camera or gallery too). The picture is cropped square and shrunk in the
+browser before it is saved, and shows next to the player's name on Stats, Results, Recap and their profile.
+
 ## Backups
 
 Every time the app starts it copies the data file into `backups/` (newest 10 kept). **Config → Download backup**

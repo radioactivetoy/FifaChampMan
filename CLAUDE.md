@@ -210,6 +210,13 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   records, best/worst run, trophy cabinet (`trophyCabinet` in `domain/fun.js`: the fun-stat trophies whose holder
   is this player), star journey, head-to-head vs everyone (nemesis/victim marked), championship history. Linked
   from the Players list and the Stats leaderboard/Elo names.
+- **Player photos**: `players.photo` (BLOB) + `photo_type`, added by migration, so backups carry them. Upload is
+  `input[data-photo-upload]` on the Players page: `setupPhotoUpload` (`filter.js`) crops to a centred square, shrinks
+  to 256px and re-encodes as JPEG in the browser, then posts a `data:` URL to `POST /players/:id/photo` —
+  `parsePhotoDataUrl` (`repo/players.js`) accepts only JPEG/PNG/WebP data URLs whose magic bytes match and ≤ 400 KB.
+  `GET /players/:id/photo` serves it (`no-cache`, so a changed photo shows at once). `avatar(p, { size })` in
+  `components.js` renders the round picture or a coloured initials circle (players carry `hasPhoto`), used on the
+  Players list, profile, Stats leaderboard/Elo/head-to-head, Results and Recap. No multipart/upload dependency.
 - **Copy summary**: the Recap's "The story" has a `button[data-copy]` (`setupCopyButtons` in `filter.js`); it falls
   back to a hidden textarea + `execCommand('copy')` because `navigator.clipboard` needs https and friends use plain
   http over the LAN.

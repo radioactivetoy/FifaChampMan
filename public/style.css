@@ -392,3 +392,11 @@ svg.elo-chart { width: 100%; max-width: 680px; height: auto; display: block; mar
 .cabinet { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 16px; }
 .cabinet span { padding: 6px 12px; border-radius: 999px; background: #fff7dc; border: 1px solid #f0d27a; font-weight: 600; font-size: 13px; }
 button[data-copy] { margin: 4px 0 12px; }
+
+/* ---------- player pictures ---------- */
+.avatar { display: inline-block; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 8px; flex: 0 0 auto; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--line); }
+.avatar-initials { display: inline-grid; place-items: center; color: #fff; font-weight: 700; line-height: 1; }
+td.player-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+td.player-cell .avatar { margin-right: 0; }
+.photo-pick { cursor: pointer; padding: 5px 10px; font-size: 13px; }
+.profile-head .avatar { margin-right: 4px; }

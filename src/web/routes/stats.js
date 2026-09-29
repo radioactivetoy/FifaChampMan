@@ -1,5 +1,5 @@
 import { html, page, raw, select } from '../html.js';
-import { stars, badge, funCard, journeySvg, eloChart } from '../components.js';
+import { stars, badge, funCard, journeySvg, eloChart, avatar } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
 import { listAllMatches } from '../../repo/matches.js';
@@ -55,6 +55,7 @@ export function registerStatsRoutes(app, { db }) {
     const h2h = headToHead({ matches, entries });
     const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
     const playerName = new Map(players.map(p => [p.id, p.name]));
+    const playerById = new Map(players.map(p => [p.id, p]));
     const teamLabel = id => { const t = teamsById.get(id); return t ? html`${badge(t)}${t.name}` : '?'; };
     const entryFor = (playerId, championshipId) => entries.find(e => e.playerId === playerId && e.championshipId === championshipId);
     const active = stats.filter(s => s.championships > 0);
@@ -87,7 +88,7 @@ export function registerStatsRoutes(app, { db }) {
           <th>P</th><th>W-D-L</th><th class="col-extra">GF</th><th class="col-extra">GA</th><th class="col-extra">GD</th><th class="col-extra">Pts/game</th><th>Win %</th>
           <th class="col-extra">As CPU W-D-L</th><th class="col-extra">As CPU win %</th></tr></thead><tbody>
         ${stats.map(s => html`<tr>
-          <td data-sort="${s.name.toLowerCase()}"><a href="/players/${s.playerId}"><strong>${s.name}</strong></a></td>
+          <td data-sort="${s.name.toLowerCase()}">${avatar(playerById.get(s.playerId), { size: 24 })}<a href="/players/${s.playerId}"><strong>${s.name}</strong></a></td>
           ${num(s.championships)}${num(s.titles)}${num(s.cucharas)}${num(s.finals)}${num(s.qualified)}
           <td data-sort="${REACHED.indexOf(s.bestReached)}">${s.bestReached ? REACHED_LABELS[s.bestReached] : '—'}</td>
           ${num(s.avgStars, s.avgStars == null ? null : `${s.avgStars}★`)}${num(s.lastStars, s.lastStars == null ? null : `${s.lastStars}★`)}
@@ -105,7 +106,7 @@ export function registerStatsRoutes(app, { db }) {
           beating a higher-rated player pays more, and a bigger win moves it a bit more.</p>
         ${elo.length === 0 ? html`<p class="muted">Needs at least one match between two players.</p>` : html`
         <table><thead><tr><th>#</th><th>Player</th><th>Elo</th><th>Peak</th><th>Games</th><th>Last championship</th></tr></thead><tbody>
-        ${elo.map((e, i) => html`<tr><td>${i + 1}</td><td><a href="/players/${e.playerId}"><strong>${e.name}</strong></a></td><td><strong>${e.rating}</strong></td><td>${e.peak}</td><td>${e.games}</td>
+        ${elo.map((e, i) => html`<tr><td>${i + 1}</td><td>${avatar(playerById.get(e.playerId), { size: 24 })}<a href="/players/${e.playerId}"><strong>${e.name}</strong></a></td><td><strong>${e.rating}</strong></td><td>${e.peak}</td><td>${e.games}</td>
           <td>${e.change == null ? html`<span class="muted">—</span>` : html`<span class="${e.change > 0 ? 'h2h-up' : e.change < 0 ? 'h2h-down' : ''} elo-change">${e.change > 0 ? '▲' : e.change < 0 ? '▼' : '='} ${Math.abs(e.change)}</span>`}</td></tr>`)}
         </tbody></table>
         ${eloChart(elo)}`}

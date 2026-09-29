@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupGroupsPersistence();
   setupBracketConnectors();
   setupCopyButtons();
+  setupPhotoUpload();
   markCurrentNav();
 });
 
@@ -181,6 +182,31 @@ function setupCopyButtons() {
       }
       const status = button.parentElement.querySelector('[data-copy-status]');
       if (status) { status.textContent = ok ? 'Copied!' : 'Could not copy — select the text above instead.'; setTimeout(() => { status.textContent = ''; }, 2500); }
+    });
+  }
+}
+
+// Player pictures (input[data-photo-upload] inside a form with a hidden "photo" field): the chosen image is cropped
+// to a centred square, shrunk to 256px and re-encoded as JPEG in the browser, then the form is submitted with the
+// result as a data URL — phone photos are several MB, and this keeps the database (and its backups) small.
+function setupPhotoUpload() {
+  for (const input of document.querySelectorAll('input[data-photo-upload]')) {
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) return;
+      const form = input.closest('form');
+      const image = new Image();
+      image.onload = () => {
+        const side = Math.min(image.width, image.height), size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = size;
+        canvas.getContext('2d').drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, size, size);
+        form.elements.photo.value = canvas.toDataURL('image/jpeg', 0.85);
+        URL.revokeObjectURL(image.src);
+        form.submit();
+      };
+      image.onerror = () => alert('Could not read that image — try a JPEG or PNG.');
+      image.src = URL.createObjectURL(file);
     });
   }
 }

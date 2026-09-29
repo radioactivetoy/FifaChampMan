@@ -1,5 +1,5 @@
 import { html, page } from '../html.js';
-import { stars, badge, funCard, journeySvg } from '../components.js';
+import { stars, badge, funCard, journeySvg, avatar } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
 import { listAllMatches } from '../../repo/matches.js';
@@ -34,6 +34,7 @@ export function registerProfileRoutes(app, { db }) {
     const journey = fun.journeys.find(j => j.playerId === id);
     const nemesis = fun.nemesis.find(n => n.playerId === id);
     const nameOf = new Map(players.map(p => [p.id, p.name]));
+    const playerById = new Map(players.map(p => [p.id, p]));
     const history = entries.filter(e => e.playerId === id).sort((a, b) => a.championshipId - b.championshipId);
     const runs = history.filter(e => e.teamId != null);
     const best = [...runs].sort((a, b) => rank(b.reached) - rank(a.reached) || b.resultStars - a.resultStars)[0];
@@ -45,6 +46,7 @@ export function registerProfileRoutes(app, { db }) {
       title: player.name,
       body: html`
         <div class="profile-head">
+          ${avatar(player, { size: 72 })}
           <div class="badges">
             <span class="badge-pill">🏆 ${stats.titles} title${stats.titles === 1 ? '' : 's'}</span>
             <span class="badge-pill">🥈 ${history.filter(e => e.reached === 'final').length} lost final${history.filter(e => e.reached === 'final').length === 1 ? '' : 's'}</span>
@@ -73,7 +75,7 @@ export function registerProfileRoutes(app, { db }) {
         <h2>Head to head</h2>
         ${rivals.length === 0 ? html`<p class="muted">No games against other players yet.</p>` : html`
         <table><thead><tr><th>Opponent</th><th>Games</th><th>W-D-L</th><th>Goals</th><th></th></tr></thead><tbody>
-        ${rivals.map(r => html`<tr><td><a href="/players/${r.opponentId}"><strong>${nameOf.get(r.opponentId)}</strong></a></td><td>${r.played}</td><td>${wdl(r)}</td><td>${r.goalsFor}:${r.goalsAgainst}</td>
+        ${rivals.map(r => html`<tr><td>${avatar(playerById.get(r.opponentId), { size: 24 })}<a href="/players/${r.opponentId}"><strong>${nameOf.get(r.opponentId)}</strong></a></td><td>${r.played}</td><td>${wdl(r)}</td><td>${r.goalsFor}:${r.goalsAgainst}</td>
           <td>${nemesis?.nemesis?.opponentId === r.opponentId ? '😈 nemesis' : nemesis?.victim?.opponentId === r.opponentId ? '🐑 victim' : ''}</td></tr>`)}
         </tbody></table>`}
 
