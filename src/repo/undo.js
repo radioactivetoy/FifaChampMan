@@ -1,5 +1,6 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
+import { _ } from '../i18n/index.js';
 
 // Undo for destructive buttons. Before deleting, a route captures exactly the rows it is about to remove (and the old
 // values of any rows it is about to change) as *steps* and records them with a label; "Undo" replays the steps. Only
@@ -40,7 +41,7 @@ export const dismissUndo = (db, id) => { run(db, 'DELETE FROM undo_log WHERE id 
 /** Replays an entry and removes it. Throws a UserError (leaving everything unchanged) if it can no longer be applied. */
 export function applyUndo(db, id) {
   const entry = get(db, 'SELECT label, steps FROM undo_log WHERE id = ?', id);
-  if (!entry) throw new UserError('That undo is no longer available', 404);
+  if (!entry) throw new UserError(_('That undo is no longer available'), 404);
   try {
     transaction(db, () => {
       for (const step of decode(entry.steps)) {
@@ -56,7 +57,7 @@ export function applyUndo(db, id) {
       run(db, 'DELETE FROM undo_log WHERE id = ?', id);
     });
   } catch (err) {
-    if (/FOREIGN KEY|constraint/i.test(err.message)) throw new UserError("Can't undo that any more — something it depended on has changed since");
+    if (/FOREIGN KEY|constraint/i.test(err.message)) throw new UserError(_("Can't undo that any more — something it depended on has changed since"));
     throw err;
   }
   return entry.label;

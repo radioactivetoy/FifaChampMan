@@ -2,6 +2,7 @@ import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { assignControllers } from '../domain/controllers.js';
 import { scopeOf, PLAYOFF_STAGES, STAGE_SLOTS, groupTies, assignSlots, tieOutcome } from '../domain/stages.js';
+import { _ } from '../i18n/index.js';
 
 const COLS = `m.id, m.championship_id AS championshipId, m.stage, m.group_letter AS groupLetter, m.matchday, m.leg, m.slot,
   m.home_team_id AS homeTeamId, m.away_team_id AS awayTeamId, m.home_score AS homeScore, m.away_score AS awayScore,
@@ -31,7 +32,7 @@ export const listAllMatches = db => all(db, `SELECT ${COLS} ${FROM} ${ORDER}`);
 
 export function getMatch(db, id) {
   const m = get(db, `SELECT ${COLS} ${FROM} WHERE m.id = ?`, id);
-  if (!m) throw new UserError('Match not found', 404);
+  if (!m) throw new UserError(_('Match not found'), 404);
   return m;
 }
 
@@ -118,8 +119,8 @@ export function advanceWinners(db, championshipId, rng) {
 
 /** slot: bracket position in the stage; left out, the tie's existing slot (a second leg) or the first free one. */
 export function createPlayoffMatch(db, championshipId, { stage, leg = null, slot, homeTeamId, awayTeamId }, rng) {
-  if (!PLAYOFF_STAGES.includes(stage)) throw new UserError(`Unknown playoff stage "${stage}"`);
-  if (homeTeamId === awayTeamId) throw new UserError('A team cannot play itself');
+  if (!PLAYOFF_STAGES.includes(stage)) throw new UserError(_('Unknown playoff stage "{stage}"', { stage }));
+  if (homeTeamId === awayTeamId) throw new UserError(_('A team cannot play itself'));
   return transaction(db, () => {
     backfillSlots(db, championshipId);
     if (slot === undefined) {

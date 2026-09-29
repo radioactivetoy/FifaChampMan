@@ -2,6 +2,7 @@ import { all, get, run, transaction } from '../db/connection.js';
 import { starsForOvr } from '../domain/tiers.js';
 import { DEFAULT_EDITION } from '../domain/editions.js';
 import { UserError } from '../errors.js';
+import { _ } from '../i18n/index.js';
 
 const COLS = 't.id, t.name, t.edition, t.country, t.league, t.ovr, t.stars_override AS starsOverride, t.badge_url AS badgeUrl, t.league_badge_url AS leagueBadgeUrl, t.country_flag_url AS countryFlagUrl';
 
@@ -49,7 +50,7 @@ export function saveTeam(db, { id, name, edition = DEFAULT_EDITION, country = ''
     return Number(run(db, `INSERT INTO teams (name, edition, country, league, ovr, stars_override, badge_url, league_badge_url, country_flag_url)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, ...values).lastInsertRowid);
   } catch (err) {
-    if (/UNIQUE/.test(err.message)) throw new UserError(`A team called "${name}" already exists for edition "${edition}"`);
+    if (/UNIQUE/.test(err.message)) throw new UserError(_('A team called "{name}" already exists for edition "{edition}"', { name, edition }));
     throw err;
   }
 }
@@ -78,7 +79,7 @@ export function deleteTeam(db, id) {
   try {
     run(db, 'DELETE FROM teams WHERE id = ?', id);
   } catch (err) {
-    if (/FOREIGN KEY/.test(err.message)) throw new UserError('This team is used in a championship and cannot be deleted');
+    if (/FOREIGN KEY/.test(err.message)) throw new UserError(_('This team is used in a championship and cannot be deleted'));
     throw err;
   }
 }

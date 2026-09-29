@@ -1,5 +1,6 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
+import { _ } from '../i18n/index.js';
 
 export function listTemplates(db) {
   return all(db, `SELECT t.id, t.name, (SELECT COUNT(*) FROM team_template_teams tt WHERE tt.template_id = t.id) AS teamCount
@@ -8,7 +9,7 @@ export function listTemplates(db) {
 
 export function getTemplate(db, id) {
   const t = get(db, 'SELECT id, name FROM team_templates WHERE id = ?', id);
-  if (!t) throw new UserError('Template not found', 404);
+  if (!t) throw new UserError(_('Template not found'), 404);
   const teamIds = all(db, 'SELECT team_id AS teamId FROM team_template_teams WHERE template_id = ? ORDER BY team_id', id).map(r => r.teamId);
   return { ...t, teamIds };
 }
@@ -21,7 +22,7 @@ export function saveTemplate(db, { id, name }) {
     }
     return Number(run(db, 'INSERT INTO team_templates (name) VALUES (?)', name).lastInsertRowid);
   } catch (err) {
-    if (/UNIQUE/.test(err.message)) throw new UserError(`A template called "${name}" already exists`);
+    if (/UNIQUE/.test(err.message)) throw new UserError(_('A template called "{name}" already exists', { name }));
     throw err;
   }
 }

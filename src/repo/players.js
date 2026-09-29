@@ -1,6 +1,7 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { rowsOf, insertSteps, updateSteps } from './undo.js';
 import { UserError } from '../errors.js';
+import { _ } from '../i18n/index.js';
 
 /** All players by name (inactive ones too unless activeOnly): { id, name, active, hasPhoto }. */
 export const listPlayers = (db, { activeOnly = false } = {}) => all(db,
@@ -9,7 +10,7 @@ export const listPlayers = (db, { activeOnly = false } = {}) => all(db,
 
 /** Inactive players are hidden from new championships (pickers) but keep all their history and stats. */
 export function setPlayerActive(db, id, active) {
-  if (run(db, 'UPDATE players SET active = ? WHERE id = ?', active ? 1 : 0, id).changes === 0) throw new UserError('Player not found', 404);
+  if (run(db, 'UPDATE players SET active = ? WHERE id = ?', active ? 1 : 0, id).changes === 0) throw new UserError(_('Player not found'), 404);
 }
 
 const MAX_PHOTO_BYTES = 400 * 1024;
@@ -22,16 +23,16 @@ const PHOTO_TYPES = [
 /** Validates an uploaded picture sent as a data URL (the browser resizes it first) → { buffer, type }. */
 export function parsePhotoDataUrl(dataUrl) {
   const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl ?? ''));
-  if (!m) throw new UserError('Choose an image file (JPEG, PNG or WebP)');
+  if (!m) throw new UserError(_('Choose an image file (JPEG, PNG or WebP)'));
   const buffer = Buffer.from(m[2], 'base64');
   const type = PHOTO_TYPES.find(([t, looksLike]) => t === m[1] && looksLike(buffer))?.[0];
-  if (!type) throw new UserError('That file is not a valid image');
-  if (buffer.length > MAX_PHOTO_BYTES) throw new UserError('The photo is too big (max 400 KB after resizing)');
+  if (!type) throw new UserError(_('That file is not a valid image'));
+  if (buffer.length > MAX_PHOTO_BYTES) throw new UserError(_('The photo is too big (max 400 KB after resizing)'));
   return { buffer, type };
 }
 
 export function setPlayerPhoto(db, id, { buffer, type }) {
-  if (run(db, 'UPDATE players SET photo = ?, photo_type = ? WHERE id = ?', buffer, type, id).changes === 0) throw new UserError('Player not found', 404);
+  if (run(db, 'UPDATE players SET photo = ?, photo_type = ? WHERE id = ?', buffer, type, id).changes === 0) throw new UserError(_('Player not found'), 404);
 }
 
 export const clearPlayerPhoto = (db, id) => { run(db, 'UPDATE players SET photo = NULL, photo_type = NULL WHERE id = ?', id); };
@@ -50,7 +51,7 @@ export function savePlayer(db, { id, name }) {
     }
     return Number(run(db, 'INSERT INTO players (name) VALUES (?)', name).lastInsertRowid);
   } catch (err) {
-    if (/UNIQUE/.test(err.message)) throw new UserError(`A player called "${name}" already exists`);
+    if (/UNIQUE/.test(err.message)) throw new UserError(_('A player called "{name}" already exists', { name }));
     throw err;
   }
 }
@@ -62,8 +63,8 @@ export function savePlayer(db, { id, name }) {
  */
 export function deletePlayer(db, id) {
   const player = get(db, 'SELECT active FROM players WHERE id = ?', id);
-  if (!player) throw new UserError('Player not found', 404);
-  if (player.active === 1) throw new UserError('Deactivate the player first; only inactive players can be deleted');
+  if (!player) throw new UserError(_('Player not found'), 404);
+  if (player.active === 1) throw new UserError(_('Deactivate the player first; only inactive players can be deleted'));
   return transaction(db, () => {
     const controlled = rowsOf(db, 'matches', 'home_controller_id = ? OR away_controller_id = ?', id, id);
     const steps = [

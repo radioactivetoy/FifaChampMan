@@ -11,6 +11,7 @@ import { groupFixtures } from '../domain/fixtures.js';
 import { REACHED, playoffOutcomes } from '../domain/stages.js';
 import { STAR_LEVELS } from '../domain/tiers.js';
 import { DEFAULT_EDITION } from '../domain/editions.js';
+import { _ } from '../i18n/index.js';
 
 // ---------- championships ----------
 
@@ -23,7 +24,7 @@ export function listChampionships(db) {
 export function getChampionship(db, id) {
   const row = get(db, `SELECT id, name, status, edition, template_id AS templateId, group_stage_closed AS groupStageClosed, created_at AS createdAt
     FROM championships WHERE id = ?`, id);
-  if (!row) throw new UserError('Championship not found', 404);
+  if (!row) throw new UserError(_('Championship not found'), 404);
   const c = { ...row, groupStageClosed: row.groupStageClosed === 1 };
   const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
   const matches = listMatches(db, id);
@@ -50,7 +51,7 @@ export function getChampionship(db, id) {
 }
 
 export function createChampionship(db, { name, playerIds, templateId = null, edition = DEFAULT_EDITION, rng }) {
-  if (playerIds.length === 0) throw new UserError('Pick at least one player');
+  if (playerIds.length === 0) throw new UserError(_('Pick at least one player'));
   return transaction(db, () => {
     const id = Number(run(db, 'INSERT INTO championships (name, edition, template_id) VALUES (?, ?, ?)', name, edition, templateId).lastInsertRowid);
     for (const playerId of playerIds) addChampionshipPlayer(db, id, playerId, rng);
@@ -63,7 +64,7 @@ export function updateChampionship(db, id, { name, status, templateId, edition }
   if (templateId !== undefined) run(db, 'UPDATE championships SET template_id = ? WHERE id = ?', templateId, id);
   if (edition !== undefined) run(db, 'UPDATE championships SET edition = ? WHERE id = ?', edition, id);
   if (status !== undefined) {
-    if (!['active', 'finished'].includes(status)) throw new UserError(`Unknown status "${status}"`);
+    if (!['active', 'finished'].includes(status)) throw new UserError(_('Unknown status "{status}"', { status }));
     run(db, 'UPDATE championships SET status = ? WHERE id = ?', status, id);
   }
 }
@@ -110,7 +111,7 @@ function applyOffer(db, championshipId, playerId, offer) {
 export function addChampionshipPlayer(db, championshipId, playerId, rng) {
   transaction(db, () => {
     if (get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId)) {
-      throw new UserError('That player is already in this championship');
+      throw new UserError(_('That player is already in this championship'));
     }
     run(db, 'INSERT INTO championship_players (championship_id, player_id) VALUES (?, ?)', championshipId, playerId);
     applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng));
@@ -126,17 +127,17 @@ export function removeChampionshipPlayer(db, championshipId, playerId) {
 export function rerollOffer(db, championshipId, playerId, rng) {
   transaction(db, () => {
     const entry = get(db, 'SELECT stars FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
-    if (!entry) throw new UserError('That player is not in this championship');
+    if (!entry) throw new UserError(_('That player is not in this championship'));
     applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: entry.stars }));
   });
 }
 
 /** Overrides the player's level for this championship and draws their team(s) from that tier. */
 export function setPlayerLevel(db, championshipId, playerId, stars, rng) {
-  if (!STAR_LEVELS.includes(stars)) throw new UserError(`${stars} is not a star level`);
+  if (!STAR_LEVELS.includes(stars)) throw new UserError(_('{value} is not a star level', { value: stars }));
   transaction(db, () => {
     if (!get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId)) {
-      throw new UserError('That player is not in this championship');
+      throw new UserError(_('That player is not in this championship'));
     }
     applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: stars }));
   });
@@ -146,13 +147,13 @@ export function setPlayerLevel(db, championshipId, playerId, stars, rng) {
 export function setPlayerTeam(db, championshipId, playerId, teamId) {
   transaction(db, () => {
     const current = get(db, 'SELECT team_id AS teamId FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
-    if (!current) throw new UserError('That player is not in this championship');
+    if (!current) throw new UserError(_('That player is not in this championship'));
     if (current.teamId === teamId) return;
     if (get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND team_id = ?', championshipId, teamId)) {
-      throw new UserError('That team already belongs to another player');
+      throw new UserError(_('That team already belongs to another player'));
     }
     if (inField(db, championshipId, teamId)) {
-      throw new UserError('That team is already in the field as a CPU team; remove it from the field first');
+      throw new UserError(_('That team is already in the field as a CPU team; remove it from the field first'));
     }
     run(db, 'UPDATE championship_players SET team_id = ? WHERE championship_id = ? AND player_id = ?', teamId, championshipId, playerId);
     if (current.teamId != null) {
@@ -170,16 +171,16 @@ const inField = (db, championshipId, teamId) =>
   !!get(db, 'SELECT 1 AS x FROM championship_teams WHERE championship_id = ? AND team_id = ?', championshipId, teamId);
 
 export function addFieldTeam(db, championshipId, teamId) {
-  if (inField(db, championshipId, teamId)) throw new UserError('That team is already in the field');
+  if (inField(db, championshipId, teamId)) throw new UserError(_('That team is already in the field'));
   run(db, 'INSERT INTO championship_teams (championship_id, team_id) VALUES (?, ?)', championshipId, teamId);
 }
 
 export function removeFieldTeam(db, championshipId, teamId) {
   if (get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND team_id = ?', championshipId, teamId)) {
-    throw new UserError("That team belongs to a player; change the player's team instead");
+    throw new UserError(_("That team belongs to a player; change the player's team instead"));
   }
   if (get(db, 'SELECT 1 AS x FROM matches WHERE championship_id = ? AND (home_team_id = ? OR away_team_id = ?)', championshipId, teamId, teamId)) {
-    throw new UserError('That team has matches; delete them first');
+    throw new UserError(_('That team has matches; delete them first'));
   }
   run(db, 'DELETE FROM championship_teams WHERE championship_id = ? AND team_id = ?', championshipId, teamId);
 }
@@ -187,7 +188,7 @@ export function removeFieldTeam(db, championshipId, teamId) {
 export function fillFieldRandom(db, championshipId, rng, quotas = DEFAULT_FIELD_QUOTAS) {
   transaction(db, () => {
     if (get(db, 'SELECT 1 AS x FROM matches WHERE championship_id = ?', championshipId)) {
-      throw new UserError('Matches already exist; clear them before refilling the field');
+      throw new UserError(_('Matches already exist; clear them before refilling the field'));
     }
     const humanTeamIds = all(db, 'SELECT team_id AS teamId FROM championship_players WHERE championship_id = ? AND team_id IS NOT NULL', championshipId)
       .map(r => r.teamId);
@@ -208,9 +209,9 @@ const hasGroupMatches = (db, championshipId) =>
 
 export function runDraw(db, championshipId, rng) {
   transaction(db, () => {
-    if (hasGroupMatches(db, championshipId)) throw new UserError('Group fixtures exist; clear them before redoing the draw');
+    if (hasGroupMatches(db, championshipId)) throw new UserError(_('Group fixtures exist; clear them before redoing the draw'));
     const { teams } = getChampionship(db, championshipId);
-    if (teams.length !== FIELD_SIZE) throw new UserError(`The draw needs exactly ${FIELD_SIZE} teams (the field has ${teams.length})`);
+    if (teams.length !== FIELD_SIZE) throw new UserError(_('The draw needs exactly {size} teams (the field has {count})', { size: FIELD_SIZE, count: teams.length }));
     const pots = makePots(teams.map(t => ({ id: t.teamId, name: t.name, country: t.country, ovr: t.ovr })));
     const groups = drawGroups(pots, rng);
     pots.forEach((pot, i) => pot.forEach(t =>
@@ -231,11 +232,11 @@ export function setPlacement(db, championshipId, teamId, { pot, groupLetter }) {
  */
 export function generateGroupFixtures(db, championshipId, rng) {
   transaction(db, () => {
-    if (hasGroupMatches(db, championshipId)) throw new UserError('Group fixtures already exist; clear them first');
+    if (hasGroupMatches(db, championshipId)) throw new UserError(_('Group fixtures already exist; clear them first'));
     const { teams } = getChampionship(db, championshipId);
     const fixtures = GROUP_LETTERS.flatMap(letter => {
       const groupTeams = teams.filter(t => t.groupLetter === letter).sort((a, b) => (a.pot ?? 9) - (b.pot ?? 9));
-      if (groupTeams.length !== 4) throw new UserError(`Group ${letter} has ${groupTeams.length} teams; it needs 4`);
+      if (groupTeams.length !== 4) throw new UserError(_('Group {letter} has {count} teams; it needs 4', { letter, count: groupTeams.length }));
       return groupFixtures(groupTeams.map(t => t.teamId)).map(f => ({ ...f, stage: 'group', groupLetter: letter }));
     });
     for (const m of drawControllers(db, championshipId, fixtures, rng)) insertMatch(db, championshipId, m);
@@ -263,9 +264,9 @@ export function groupStandings(db, championshipId, c = getChampionship(db, champ
 /** Points typed in for a CPU team's group (null clears them). Player teams' points are always calculated. */
 export function setGroupPoints(db, championshipId, teamId, points) {
   if (get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND team_id = ?', championshipId, teamId)) {
-    throw new UserError("A player's team points are calculated from its results");
+    throw new UserError(_("A player's team points are calculated from its results"));
   }
-  if (points != null && (!Number.isInteger(points) || points < 0)) throw new UserError('Points must be a whole number, 0 or more');
+  if (points != null && (!Number.isInteger(points) || points < 0)) throw new UserError(_('Points must be a whole number, 0 or more'));
   run(db, 'UPDATE championship_teams SET points_override = ? WHERE championship_id = ? AND team_id = ?', points, championshipId, teamId);
 }
 
@@ -279,7 +280,7 @@ export function closeGroupStage(db, championshipId) {
     const c = getChampionship(db, championshipId);
     const groups = groupStandings(db, championshipId, c);
     if (groups.length !== GROUP_LETTERS.length || groups.some(g => g.rows.length !== 4)) {
-      throw new UserError('Run the group draw first: every group needs 4 teams');
+      throw new UserError(_('Run the group draw first: every group needs 4 teams'));
     }
     for (const g of groups) {
       const marked = g.rows.filter(r => r.team.reached !== 'group');
@@ -374,7 +375,7 @@ export function setChampion(db, championshipId, teamId) {
 }
 
 export function setReached(db, championshipId, teamId, reached) {
-  if (!REACHED.includes(reached)) throw new UserError(`Unknown stage "${reached}"`);
+  if (!REACHED.includes(reached)) throw new UserError(_('Unknown stage "{stage}"', { stage: reached }));
   run(db, 'UPDATE championship_teams SET reached = ? WHERE championship_id = ? AND team_id = ?', reached, championshipId, teamId);
 }
 
