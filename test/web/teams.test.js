@@ -100,7 +100,7 @@ test('csv import assigns every row to the given edition; a blank edition falls b
   const app = await startTestApp();
   try {
     const r = await app.post('/teams/import', { csv: 'name,ovr\nPorto,78', edition: 'FC 26' });
-    assert.match(r.text, /Imported 1 team.*into "FC 26"/s);
+    assert.match(r.text, /Imported 1 team.*into (?:"|&quot;)FC 26/s);
     assert.equal(listTeams(app.db)[0].edition, 'FC 26');
 
     await app.post('/teams/import', { csv: 'name,ovr\nPorto,80', edition: '' });

@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { es } from './es.js';
 
+// In code call `_` with the English text (or `th`/`tn`/`N_`).
 // Two languages: English (the source text itself is the key, so English needs no dictionary) and Spanish (Spain, es.js).
 // The language of the current request lives in an AsyncLocalStorage set by the middleware in app.js, so t() can be called
 // anywhere — components, repo error messages — without passing a language around. Outside a request (unit tests of the
@@ -23,6 +24,9 @@ export function t(text, params = {}) {
   const translated = DICTIONARIES[currentLang()]?.[text];
   return fill(typeof translated === 'string' ? translated : text, params);
 }
+
+/** The name used in code: `_` followed by the English text (gettext idiom). `t` is kept as an alias because many files have local variables called `t` (teams). */
+export const _ = t;
 
 /**
  * Plural: tn(one, other, count) with the English singular/plural texts. `n` is filled in automatically. The Spanish entry is keyed by the

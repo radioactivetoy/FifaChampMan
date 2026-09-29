@@ -1,4 +1,5 @@
 import { t, currentLang, LANGS } from '../i18n/index.js';
+export { _, N_, tn } from '../i18n/index.js';
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -11,6 +12,9 @@ class SafeHtml {
 
 /** Marks a string as already-safe HTML. */
 export const raw = value => new SafeHtml(String(value));
+
+/** onsubmit attribute asking for confirmation; the message is JSON-encoded so quotes/apostrophes in any language are safe. */
+export const confirmSubmit = message => raw(`onsubmit="return confirm(${escape(JSON.stringify(message))})"`);
 
 function render(value) {
   if (value instanceof SafeHtml) return value.value;

@@ -1,4 +1,4 @@
-import { html, page, raw } from '../html.js';
+import { html, page, raw, tn, _ } from '../html.js';
 import { recordUndo, rowsOf, insertSteps, updateSteps } from '../../repo/undo.js';
 import { requiredText, toArray } from '../form.js';
 import { stars, badge, leagueBadge, flag, teamFilterBar, filterAttrs } from '../components.js';
@@ -9,7 +9,7 @@ import { getTemplate, saveTemplate, setTemplateTeams, deleteTemplate } from '../
 // create action and the per-template edit/delete pages.
 export function registerTemplateRoutes(app, { db }) {
   app.post('/templates', (req, res) => {
-    const id = saveTemplate(db, { name: requiredText(req.body.name, 'Name') });
+    const id = saveTemplate(db, { name: requiredText(req.body.name, _('Name')) });
     res.redirect(`/templates/${id}`);
   });
 
@@ -19,29 +19,29 @@ export function registerTemplateRoutes(app, { db }) {
     const teams = listTeams(db);
     res.send(page({
       title: t.name,
-      body: html`<p><a href="/config">← Config</a></p>
+      body: html`<p><a href="/config">${_('← Config')}</a></p>
       <form method="post" action="/templates/${t.id}">
-        <p class="row"><input name="name" value="${t.name}" required><button class="primary">Save template</button>
-          <span class="muted">${selected.size} teams selected</span></p>
+        <p class="row"><input name="name" value="${t.name}" required><button class="primary">${_('Save template')}</button>
+          <span class="muted">${tn('{n} team selected', '{n} teams selected', selected.size)}</span></p>
         ${teamFilterBar(teams)}
         <p class="row">
-          <button type="button" onclick="document.querySelectorAll('[data-filter-row]:not([hidden]) input').forEach(c => c.checked = true)">Tick all shown</button>
-          <button type="button" onclick="document.querySelectorAll('[data-filter-row]:not([hidden]) input').forEach(c => c.checked = false)">Untick all shown</button>
+          <button type="button" onclick="document.querySelectorAll('[data-filter-row]:not([hidden]) input').forEach(c => c.checked = true)">${_('Tick all shown')}</button>
+          <button type="button" onclick="document.querySelectorAll('[data-filter-row]:not([hidden]) input').forEach(c => c.checked = false)">${_('Untick all shown')}</button>
         </p>
-        <table><thead><tr><th></th><th>Team</th><th>League</th><th>Country</th><th>OVR</th><th>Stars</th></tr></thead><tbody>
+        <table><thead><tr><th></th><th>${_('Team')}</th><th>${_('League')}</th><th>${_('Country')}</th><th>OVR</th><th>${_('Stars')}</th></tr></thead><tbody>
         ${teams.map(team => html`<tr ${filterAttrs(team)}>
           <td><input type="checkbox" name="teamIds" value="${team.id}"${selected.has(team.id) ? raw(' checked') : ''}></td>
           <td>${badge(team)}${team.name}</td><td>${leagueBadge(team)}${team.league}</td><td>${flag(team)}${team.country}</td>
           <td>${team.ovr}</td><td>${stars(team.stars)}</td></tr>`)}
         </tbody></table>
-        <p><button class="primary">Save template</button></p></form>`,
+        <p><button class="primary">${_('Save template')}</button></p></form>`,
     }));
   });
 
   app.post('/templates/:id', (req, res) => {
     const id = Number(req.params.id);
     getTemplate(db, id); // 404 if missing
-    saveTemplate(db, { id, name: requiredText(req.body.name, 'Name') });
+    saveTemplate(db, { id, name: requiredText(req.body.name, _('Name')) });
     setTemplateTeams(db, id, toArray(req.body.teamIds).map(Number));
     res.redirect(`/templates/${id}`);
   });
@@ -49,7 +49,7 @@ export function registerTemplateRoutes(app, { db }) {
   app.post('/templates/:id/delete', (req, res) => {
     const id = Number(req.params.id);
     const [template] = rowsOf(db, 'team_templates', 'id = ?', id);
-    recordUndo(db, `Deleted template "${template?.name ?? ''}"`, [
+    recordUndo(db, _('Deleted template "{name}"', { name: template?.name ?? '' }), [
       ...insertSteps('team_templates', template ? [template] : []),
       ...insertSteps('team_template_teams', rowsOf(db, 'team_template_teams', 'template_id = ?', id)),
       ...updateSteps('championships', ['id'], ['template_id'], rowsOf(db, 'championships', 'template_id = ?', id)),

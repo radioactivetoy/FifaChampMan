@@ -1,4 +1,4 @@
-import { html, raw, select, escape } from './html.js';
+import { html, raw, select, escape, _, th, confirmSubmit } from './html.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, tieOutcome, assignSlots, STAGE_SLOTS } from '../domain/stages.js';
 import { championshipProgress } from '../domain/progress.js';
 
@@ -29,18 +29,18 @@ export const filterAttrs = t => html`data-filter-row data-stars="${t.stars}" dat
 export function teamFilterBar(teams) {
   const distinct = key => [...new Set(teams.map(t => t[key]).filter(Boolean))].sort().map(v => ({ value: v, label: v }));
   return html`<div class="row" data-filter-bar>
-    ${select({ name: 'stars', items: [...new Set(teams.map(t => t.stars))].sort((a, b) => b - a).map(s => ({ value: s, label: stars(s) })), blank: 'All stars' })}
-    ${select({ name: 'league', items: distinct('league'), blank: 'All leagues' })}
-    ${select({ name: 'country', items: distinct('country'), blank: 'All countries' })}
-    ${select({ name: 'edition', items: distinct('edition'), blank: 'All editions' })}
-    <input name="name" type="search" placeholder="Search name">
+    ${select({ name: 'stars', items: [...new Set(teams.map(t => t.stars))].sort((a, b) => b - a).map(s => ({ value: s, label: stars(s) })), blank: _('All stars') })}
+    ${select({ name: 'league', items: distinct('league'), blank: _('All leagues') })}
+    ${select({ name: 'country', items: distinct('country'), blank: _('All countries') })}
+    ${select({ name: 'edition', items: distinct('edition'), blank: _('All editions') })}
+    <input name="name" type="search" placeholder="${_('Search name')}">
     <span class="muted" data-filter-count></span>
   </div>`;
 }
 
 export function champNav(c, active) {
-  const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results'], ['recap', 'Recap']];
-  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
+  const tabs = [['', _('Players & teams')], ['draw', _('Field & draw')], ['groups', _('Group stage')], ['playoff', _('Playoff')], ['results', _('Results')], ['recap', _('Recap')]];
+  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')}</p>
     ${finishBanner(c)}${awards(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;
 }
@@ -56,10 +56,10 @@ function awards(c) {
   if (!champion && holders.length === 0) return '';
   return html`<div class="awards">
     ${champion ? html`<div class="award award-champion"><span class="award-icon" aria-hidden="true">🏆</span>
-      <div><small>Champion</small><strong>${badge(champion)}${champion.name}</strong>
-        ${champion.owner ? html`<small><strong>${champion.owner.playerName}</strong> won it! 🎉</small>` : ''}</div></div>` : ''}
+      <div><small>${_('Champion')}</small><strong>${badge(champion)}${champion.name}</strong>
+        ${champion.owner ? html`<small>${th('<strong>{player}</strong> won it! 🎉', { player: champion.owner.playerName })}</small>` : ''}</div></div>` : ''}
     ${holders.length ? html`<div class="award award-spoon"><span class="award-icon" aria-hidden="true">🥄</span>
-      <div><small>Cuchara de Madera</small>${holders.map(p => html`<strong>${p.playerName}</strong>${p.team ? html`<small>${p.team.name}</small>` : ''}`)}</div></div>` : ''}
+      <div><small>${_('Cuchara de Madera')}</small>${holders.map(p => html`<strong>${p.playerName}</strong>${p.team ? html`<small>${p.team.name}</small>` : ''}`)}</div></div>` : ''}
   </div>`;
 }
 
@@ -76,14 +76,14 @@ function finishBanner(c) {
   // A winner is already set (e.g. after reopening): it can still be changed before closing.
   if (progress.champion) {
     return html`<form method="post" action="${action}" class="banner" data-finish-banner>
-      🏆 ${teamName(progress.champion)} won the championship. Winner:
+      ${th('🏆 {team} won the championship. Winner:', { team: teamName(progress.champion) })}
       ${select({ name: 'winnerTeamId', items, selected: progress.champion.teamId })}
-      <button class="primary">Close championship</button></form>`;
+      <button class="primary">${_('Close championship')}</button></form>`;
   }
   return html`<form method="post" action="${action}" class="banner" data-finish-banner>
-    All players are out. Who won in the console simulation?
+    ${_('All players are out. Who won in the console simulation?')}
     ${select({ name: 'winnerTeamId', items })}
-    <button class="primary">Save winner & close championship</button></form>`;
+    <button class="primary">${_('Save winner & close championship')}</button></form>`;
 }
 
 /** Badge + team name, with the owning player highlighted for human teams. t: championship team row. */
@@ -103,22 +103,22 @@ export function isCpuOnly(c, m) {
 export const fillControllersButton = (c, count, back) => (count
   ? html`<form method="post" action="/championships/${c.id}/controllers/fill" class="row">
       <input type="hidden" name="back" value="${back}">
-      <button class="primary">🎲 Draw missing controllers (${count})</button>
-      <span class="muted">Some matches against a player's team have no one controlling the CPU side yet.</span></form>`
+      <button class="primary">${_('🎲 Draw missing controllers ({count})', { count })}</button>
+      <span class="muted">${_("Some matches against a player's team have no one controlling the CPU side yet.")}</span></form>`
   : '');
 
 /**
  * One "Save results" button for a matches table sharing `formId` (see matchRow's formId doc).
  * withPoints: also mentions the CPU teams' points fields (group stage only).
  */
-export const saveResultsButton = (formId, count, { label = 'Save results', withPoints = false } = {}) => (count
+export const saveResultsButton = (formId, count, { label = _('Save results'), withPoints = false } = {}) => (count
   ? html`<p class="row"><button form="${formId}" class="primary">${label}</button>
-      <span class="muted">Saves every score, controller and matchday${withPoints ? ', and the CPU teams\' points,' : ''} above in one go.</span></p>`
+      <span class="muted">${withPoints ? _("Saves every score, controller and matchday, and the CPU teams' points, above in one go.") : _('Saves every score, controller and matchday above in one go.')}</span></p>`
   : '');
 
 /** Checkbox that shows the CPU-vs-CPU match rows (hidden by default; see public/filter.js). */
 export const cpuToggle = count => (count
-  ? html`<p><label><input type="checkbox" data-cpu-toggle> Show CPU vs CPU matches (${count})</label></p>`
+  ? html`<p><label><input type="checkbox" data-cpu-toggle> ${_('Show CPU vs CPU matches ({count})', { count })}</label></p>`
   : '');
 
 /**
@@ -141,22 +141,22 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
     if (playoff) return html`${t ? badge(t) : ''}${select({ name: `${side}TeamId_${m.id}`, form: formId, items: teamItems, selected: m[`${side}TeamId`] })}`;
     return t ? teamName(t) : m[`${side}TeamName`];
   };
-  const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: '— CPU —' });
+  const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: _('— CPU —') });
   const first = playoff
     ? html`${select({ name: `stage_${m.id}`, form: formId, items: PLAYOFF_STAGES.map(s => ({ value: s, label: STAGE_LABELS[s] })), selected: m.stage })}
-        leg ${num('leg', m.leg)}`
-    : html`MD ${select({ name: `matchday_${m.id}`, form: formId, items: [1, 2, 3].map(n => ({ value: n, label: n })), selected: m.matchday })}`;
+        ${_('leg')} ${num('leg', m.leg)}`
+    : html`${_('MD')} ${select({ name: `matchday_${m.id}`, form: formId, items: [1, 2, 3].map(n => ({ value: n, label: n })), selected: m.matchday })}`;
   const played = m.homeScore != null && m.awayScore != null;
   return html`<tr class="match-row${played ? ' played' : ''}"${cpuOnly ? raw(' data-cpu-only') : ''}>
     <td>${first}</td>
     <td class="right">${team('home')}<br>${controller('home')}</td>
     <td class="score">${num('homeScore', m.homeScore)} – ${num('awayScore', m.awayScore)}
-      ${playoff ? html`<br><small class="muted">pens</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}` : ''}</td>
+      ${playoff ? html`<br><small class="muted">${_('pens')}</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}` : ''}</td>
     <td>${team('away')}<br>${controller('away')}</td>
     <td class="actions">
-      <form method="post" action="${base}/swap" class="inline"><button title="Swap home and away">⇄</button></form>
-      <form method="post" action="${base}/reroll" class="inline"><button title="Draw a random player to control the CPU team">🎲 Draw</button></form>
-      <form method="post" action="${base}/delete" class="inline" onsubmit="return confirm('Delete this match?')"><button class="danger">✕</button></form></td>
+      <form method="post" action="${base}/swap" class="inline"><button title="${_('Swap home and away')}">⇄</button></form>
+      <form method="post" action="${base}/reroll" class="inline"><button title="${_('Draw a random player to control the CPU team')}">${_('🎲 Draw')}</button></form>
+      <form method="post" action="${base}/delete" class="inline" ${confirmSubmit(_('Delete this match?'))}><button class="danger">✕</button></form></td>
   </tr>`;
 }
 
@@ -183,22 +183,22 @@ function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
     ${select({ name: `${side}TeamId_${m.id}`, form: formId, items: teamItems, selected: m[`${side}TeamId`], blank: '—' })}
     ${num(`${side}Score`, m[`${side}Score`])}
   </div>`;
-  const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: '— CPU —' });
+  const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: _('— CPU —') });
   const played = m.homeScore != null && m.awayScore != null;
   return html`<div class="bracket-match${played ? ' played' : ''}">
     <input type="hidden" form="${formId}" name="stage_${m.id}" value="${m.stage}">
     ${scoreRow('home')}${scoreRow('away')}
     <details class="bracket-match-more">
-      <summary>⋯ more</summary>
+      <summary>${_('⋯ more')}</summary>
       <div class="bracket-match-extra">
-        <label class="row">Leg ${num('leg', m.leg)}</label>
-        <label class="row">Home controller ${controller('home')}</label>
-        <label class="row">Away controller ${controller('away')}</label>
-        <div class="row"><small class="muted">Pens</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}</div>
+        <label class="row">${_('Leg')} ${num('leg', m.leg)}</label>
+        <label class="row">${_('Home controller')} ${controller('home')}</label>
+        <label class="row">${_('Away controller')} ${controller('away')}</label>
+        <div class="row"><small class="muted">${_('Pens')}</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}</div>
         <div class="row">
-          <form method="post" action="${base}/swap" class="inline"><button title="Swap home and away">⇄</button></form>
-          <form method="post" action="${base}/reroll" class="inline"><button title="Draw a random player to control the CPU team">🎲 Draw</button></form>
-          <form method="post" action="${base}/delete" class="inline" onsubmit="return confirm('Delete this match?')"><button class="danger">✕ Delete</button></form>
+          <form method="post" action="${base}/swap" class="inline"><button title="${_('Swap home and away')}">⇄</button></form>
+          <form method="post" action="${base}/reroll" class="inline"><button title="${_('Draw a random player to control the CPU team')}">${_('🎲 Draw')}</button></form>
+          <form method="post" action="${base}/delete" class="inline" ${confirmSubmit(_('Delete this match?'))}><button class="danger">${_('✕ Delete')}</button></form>
         </div>
       </div>
     </details>
@@ -213,7 +213,7 @@ function bracketTie(c, tie, formId, byId, teamItems, playerItems, connect, paire
   const connectClass = connect ? ` connect-${connect}${paired ? ' paired' : ''}` : '';
   return html`<div class="bracket-tie${connectClass}">
     ${tie.matches.map(m => bracketMatch(c, m, formId, byId, teamItems, playerItems))}
-    ${agg ? html`<p class="muted bracket-agg">Agg ${agg.goals[homeId] ?? 0}-${agg.goals[awayId] ?? 0}${winner ? html` · <strong>${winner.name}</strong> through` : agg.winnerId === null ? html` · level (penalties/replay decide)` : ''}</p>` : ''}
+    ${agg ? html`<p class="muted bracket-agg">${_('Agg {home}-{away}', { home: agg.goals[homeId] ?? 0, away: agg.goals[awayId] ?? 0 })}${winner ? th(' · <strong>{team}</strong> through', { team: winner.name }) : agg.winnerId === null ? _(' · level (penalties/replay decide)') : ''}</p>` : ''}
   </div>`;
 }
 
@@ -285,7 +285,7 @@ export function playoffBracket(c, matches, { formId, teamItems }) {
   // Ties that no longer fit their round (older data with more than 8/4/2/1) stay editable below the tree.
   const extras = PLAYOFF_STAGES.flatMap(stage => placed.get(stage).extra.map(tie => [stage, tie]));
   return html`<div class="bracket scroll-x">${columns}${finalColumn}</div>
-    ${extras.length ? html`<h3>Other playoff matches</h3><div class="bracket-extra">${extras.map(([stage, tie]) =>
+    ${extras.length ? html`<h3>${_('Other playoff matches')}</h3><div class="bracket-extra">${extras.map(([stage, tie]) =>
       html`<div><small class="muted">${STAGE_LABELS[stage]}</small>${bracketTie(c, tie, formId, byId, teamItems, playerItems, null, false)}</div>`)}</div>` : ''}`;
 }
 
@@ -298,7 +298,7 @@ export const funCard = (icon, title, main, detail) => (main == null ? '' : html`
 export function journeySvg(points) {
   const W = 150, H = 34, x = i => (points.length === 1 ? W / 2 : 6 + (i * (W - 12)) / (points.length - 1)), y = st => H - 5 - ((st - 0.5) / 4.5) * (H - 10);
   const path = points.map((p, i) => `${x(i).toFixed(1)},${y(p.stars).toFixed(1)}`).join(' ');
-  return raw(`<svg class="journey" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Star level over time">
+  return raw(`<svg class="journey" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escape(_('Star level over time'))}">
     <polyline points="${path}" fill="none" stroke="#2f6bff" stroke-width="2"/>${points.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.stars).toFixed(1)}" r="3" fill="#f2b705" stroke="#06103a" stroke-width="1"/>`).join('')}</svg>`);
 }
 
@@ -322,9 +322,9 @@ export function eloChart(rows) {
   const lines = rows.map((r, n) => {
     const colour = ELO_COLOURS[n % ELO_COLOURS.length];
     const pts = r.history.map(h => `${x(index.get(h.championshipId)).toFixed(1)},${y(h.rating).toFixed(1)}`);
-    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${colour}" stroke-width="2.5"/>${r.history.map(h => `<circle cx="${x(index.get(h.championshipId)).toFixed(1)}" cy="${y(h.rating).toFixed(1)}" r="3.5" fill="${colour}"><title>${escape(r.name)}: ${h.rating} after ${escape(h.championship)}</title></circle>`).join('')}`;
+    return `<polyline points="${pts.join(' ')}" fill="none" stroke="${colour}" stroke-width="2.5"/>${r.history.map(h => `<circle cx="${x(index.get(h.championshipId)).toFixed(1)}" cy="${y(h.rating).toFixed(1)}" r="3.5" fill="${colour}"><title>${escape(_('{player}: {rating} after {championship}', { player: r.name, rating: h.rating, championship: h.championship }))}</title></circle>`).join('')}`;
   }).join('');
-  return html`<svg class="elo-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Elo rating over time">${raw(grid + labels + lines)}</svg>
+  return html`<svg class="elo-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${escape(_('Elo rating over time'))}">${raw(grid + labels + lines)}</svg>
     <p class="elo-legend">${rows.map((r, n) => html`<span><i style="background:${ELO_COLOURS[n % ELO_COLOURS.length]}"></i>${r.name}</span>`)}</p>`;
 }
 

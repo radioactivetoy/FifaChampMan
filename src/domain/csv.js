@@ -1,3 +1,4 @@
+import { _ } from '../i18n/index.js';
 import { STAR_LEVELS } from './tiers.js';
 
 // Accepted header names for each field (first match wins).
@@ -33,14 +34,14 @@ export function parseCsvLine(line, delimiter) {
 export function parseTeamsCsv(text) {
   const lines = text.replace(/^﻿/, '').split(/\r?\n/);
   const firstIndex = lines.findIndex(l => l.trim() !== '');
-  if (firstIndex < 0) return { teams: [], errors: [{ line: 1, message: 'The file is empty' }] };
+  if (firstIndex < 0) return { teams: [], errors: [{ line: 1, message: _('The file is empty') }] };
   const headerLine = lines[firstIndex];
   const delimiter = headerLine.includes(';') && !headerLine.includes(',') ? ';' : ',';
   const header = parseCsvLine(headerLine, delimiter).map(h => h.toLowerCase());
   const col = Object.fromEntries(Object.entries(HEADER_ALIASES)
     .map(([key, aliases]) => [key, header.findIndex(h => aliases.includes(h))]));
   if (col.name < 0 || col.ovr < 0) {
-    return { teams: [], errors: [{ line: firstIndex + 1, message: 'Header must include "name" and "ovr" (or "overall") columns' }] };
+    return { teams: [], errors: [{ line: firstIndex + 1, message: _('Header must include "name" and "ovr" (or "overall") columns') }] };
   }
   const teams = [];
   const errors = [];
@@ -51,9 +52,9 @@ export function parseTeamsCsv(text) {
     const name = cell('name');
     const ovr = Number(cell('ovr'));
     const starsOverride = cell('stars') === '' ? null : Number(cell('stars').replace(',', '.'));
-    if (!name) errors.push({ line: i + 1, message: 'Missing name' });
-    else if (!Number.isInteger(ovr) || ovr < 1 || ovr > 99) errors.push({ line: i + 1, message: `Invalid ovr "${cell('ovr')}"` });
-    else if (starsOverride != null && !STAR_LEVELS.includes(starsOverride)) errors.push({ line: i + 1, message: `Invalid stars "${cell('stars')}"` });
+    if (!name) errors.push({ line: i + 1, message: _('Missing name') });
+    else if (!Number.isInteger(ovr) || ovr < 1 || ovr > 99) errors.push({ line: i + 1, message: _('Invalid ovr "{value}"', { value: cell('ovr') }) });
+    else if (starsOverride != null && !STAR_LEVELS.includes(starsOverride)) errors.push({ line: i + 1, message: _('Invalid stars "{value}"', { value: cell('stars') }) });
     else teams.push({ name, country: cell('country'), league: cell('league'), ovr, badgeUrl: cell('badge'), leagueBadgeUrl: cell('leagueBadge'), countryFlagUrl: cell('countryFlag'), starsOverride });
   });
   return { teams, errors };

@@ -1,4 +1,4 @@
-import { html, page } from '../html.js';
+import { html, page, _, confirmSubmit } from '../html.js';
 import { requiredText } from '../form.js';
 import { avatar } from '../components.js';
 import { recordUndo } from '../../repo/undo.js';
@@ -9,38 +9,37 @@ export function registerPlayerRoutes(app, { db }) {
     const all = listPlayers(db);
     const [players, inactive] = [all.filter(p => p.active), all.filter(p => !p.active)];
     res.send(page({
-      title: 'Players',
+      title: _('Players'),
       body: html`
         <form method="post" action="/players" class="row">
-          <input name="name" placeholder="New player name" required><button class="primary">Add player</button>
+          <input name="name" placeholder="${_('New player name')}" required><button class="primary">${_('Add player')}</button>
         </form>
-        <table><thead><tr><th>Name</th><th></th></tr></thead><tbody>
+        <table><thead><tr><th>${_('Name')}</th><th></th></tr></thead><tbody>
         ${players.map(p => html`<tr>
           <td class="player-cell"><form id="p${p.id}" method="post" action="/players/${p.id}"></form>${avatar(p, { size: 40 })}<input form="p${p.id}" name="name" value="${p.name}" required>
             <form method="post" action="/players/${p.id}/photo" class="inline photo-form">
-              <input type="hidden" name="photo"><label class="button-link photo-pick">📷 ${p.hasPhoto ? 'Change photo' : 'Add photo'}<input type="file" accept="image/*" data-photo-upload hidden></label>
+              <input type="hidden" name="photo"><label class="button-link photo-pick">${p.hasPhoto ? _('📷 Change photo') : _('📷 Add photo')}<input type="file" accept="image/*" data-photo-upload hidden></label>
             </form>
-            ${p.hasPhoto ? html`<form method="post" action="/players/${p.id}/photo/delete" class="inline"><button title="Remove photo">✕ photo</button></form>` : ''}</td>
-          <td class="actions"><a class="button-link" href="/players/${p.id}">Profile</a> <button form="p${p.id}">Save</button>
-            <form method="post" action="/players/${p.id}/deactivate" class="inline"><button title="Hide from new championships; keeps all their history and stats">Deactivate</button></form></td>
+            ${p.hasPhoto ? html`<form method="post" action="/players/${p.id}/photo/delete" class="inline"><button title="${_('Remove photo')}">${_('✕ photo')}</button></form>` : ''}</td>
+          <td class="actions"><a class="button-link" href="/players/${p.id}">${_('Profile')}</a> <button form="p${p.id}">${_('Save')}</button>
+            <form method="post" action="/players/${p.id}/deactivate" class="inline"><button title="${_('Hide from new championships; keeps all their history and stats')}">${_('Deactivate')}</button></form></td>
         </tr>`)}
         </tbody></table>
-        ${inactive.length ? html`<h2>Inactive players</h2>
-        <p class="muted">Hidden when creating championships or adding players, but their history, stats and trophies stay. Reactivate to bring them back,
-          or delete their data for good (they leave every championship they were in; you can undo that for 30 minutes).</p>
-        <table><thead><tr><th>Name</th><th></th></tr></thead><tbody>
+        ${inactive.length ? html`<h2>${_('Inactive players')}</h2>
+        <p class="muted">${_('Hidden when creating championships or adding players, but their history, stats and trophies stay. Reactivate to bring them back, or delete their data for good (they leave every championship they were in; you can undo that for 30 minutes).')}</p>
+        <table><thead><tr><th>${_('Name')}</th><th></th></tr></thead><tbody>
         ${inactive.map(p => html`<tr>
           <td class="player-cell">${avatar(p, { size: 40 })}<a href="/players/${p.id}"><strong>${p.name}</strong></a></td>
           <td class="actions">
-            <form method="post" action="/players/${p.id}/activate" class="inline"><button class="primary">Reactivate</button></form>
-            <form method="post" action="/players/${p.id}/delete" class="inline" onsubmit="return confirm('Delete ${p.name} and all their data? They will be removed from every championship they played in.')"><button class="danger">Delete data</button></form></td>
+            <form method="post" action="/players/${p.id}/activate" class="inline"><button class="primary">${_('Reactivate')}</button></form>
+            <form method="post" action="/players/${p.id}/delete" class="inline" ${confirmSubmit(_('Delete {name} and all their data? They will be removed from every championship they played in.', { name: p.name }))}><button class="danger">${_('Delete data')}</button></form></td>
         </tr>`)}
         </tbody></table>` : ''}`,
     }));
   });
 
   app.post('/players', (req, res) => {
-    savePlayer(db, { name: requiredText(req.body.name, 'Name') });
+    savePlayer(db, { name: requiredText(req.body.name, _('Name')) });
     res.redirect('/players');
   });
 
@@ -62,7 +61,7 @@ export function registerPlayerRoutes(app, { db }) {
   });
 
   app.post('/players/:id', (req, res) => {
-    savePlayer(db, { id: Number(req.params.id), name: requiredText(req.body.name, 'Name') });
+    savePlayer(db, { id: Number(req.params.id), name: requiredText(req.body.name, _('Name')) });
     res.redirect('/players');
   });
 
@@ -80,7 +79,7 @@ export function registerPlayerRoutes(app, { db }) {
   app.post('/players/:id/delete', (req, res) => {
     const id = Number(req.params.id);
     const name = listPlayers(db).find(p => p.id === id)?.name ?? 'player';
-    recordUndo(db, `Deleted player ${name} and their data`, deletePlayer(db, id));
+    recordUndo(db, _('Deleted player {name} and their data', { name }), deletePlayer(db, id));
     res.redirect('/players');
   });
 }

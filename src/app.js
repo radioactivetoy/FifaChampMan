@@ -1,7 +1,7 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
-import { html, page } from './web/html.js';
+import { html, page, th, _ } from './web/html.js';
 import { registerPlayerRoutes } from './web/routes/players.js';
 import { registerProfileRoutes } from './web/routes/profile.js';
 import { registerTeamRoutes } from './web/routes/teams.js';
@@ -50,8 +50,8 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
       if (!undo) return send(body);
       const back = html`<input type="hidden" name="back" value="${req.originalUrl}">`;
       return send(body.replace('</header>', `</header>${html`<div class="undo-bar"><span>↩ ${undo.label}</span>
-        <form method="post" action="/undo/${undo.id}">${back}<button class="primary">Undo</button></form>
-        <form method="post" action="/undo/${undo.id}/dismiss">${back}<button title="Hide">✕</button></form></div>`}`));
+        <form method="post" action="/undo/${undo.id}">${back}<button class="primary">${_('Undo')}</button></form>
+        <form method="post" action="/undo/${undo.id}/dismiss">${back}<button title="${_('Hide')}">✕</button></form></div>`}`));
     };
     next();
   });
@@ -74,14 +74,14 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
   registerUndoRoutes(app, ctx);
 
   app.use((req, res) => {
-    res.status(404).send(page({ title: 'Not found', body: html`<p>Nothing here. <a href="/">Home</a></p>` }));
+    res.status(404).send(page({ title: _('Not found'), body: html`<p>${th('Nothing here. <a href="/">Home</a>')}</p>` }));
   });
   app.use((err, req, res, next) => {
     const status = err instanceof UserError ? err.status : 500;
     if (status === 500) console.error(err);
     res.status(status).send(page({
-      title: status === 500 ? 'Something went wrong' : 'Cannot do that',
-      body: html`<p class="error">${err.message}</p><p><a href="javascript:history.back()">← Back</a></p>`,
+      title: status === 500 ? _('Something went wrong') : _('Cannot do that'),
+      body: html`<p class="error">${err.message}</p><p><a href="javascript:history.back()">${_('← Back')}</a></p>`,
     }));
   });
   return app;

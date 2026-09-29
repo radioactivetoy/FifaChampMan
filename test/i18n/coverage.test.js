@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { es } from '../../src/i18n/es.js';
 
-// Every string the code passes to t()/th()/tn()/N_() must have a Spanish entry, with the same {placeholders}, and the
+// Every string the code passes to _()/th()/tn()/N_() must have a Spanish entry, with the same {placeholders}, and the
 // dictionary must not keep entries nothing uses. (Strings built dynamically must go through N_('…') where they are listed.)
 
 const files = dir => readdirSync(dir).flatMap(f => {
@@ -13,7 +13,7 @@ const files = dir => readdirSync(dir).flatMap(f => {
 });
 
 const LITERAL = String.raw`('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|` + '`(?:[^`\\\\$]|\\\\.|\\$(?!\\{))*`)';
-const CALL = new RegExp(String.raw`(?<![\w.$])(?:t|th|N_)\(\s*${LITERAL}`, 'g');
+const CALL = new RegExp(String.raw`(?<![\w.$])(?:_|t|th|N_)\(\s*${LITERAL}`, 'g');
 const PLURAL = new RegExp(String.raw`(?<![\w.$])tn\(\s*${LITERAL}\s*,\s*${LITERAL}`, 'g');
 const unquote = literal => new Function(`return ${literal}`)();
 
