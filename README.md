@@ -27,8 +27,12 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
    templates (named sets of teams to use as a championship's team pool) all live here.
 3. **Championships → New** – pick the template (or all teams) and tick who plays this time.
    Everyone gets a team from their star level; players going up choose between two.
-4. **Field & draw** – fill the 32-team field randomly by star quotas, then run the group draw
-   (8 groups of 4, pots by OVR, no two clubs from the same country in a group when possible).
+4. **Field & draw** – fill the field randomly by star quotas (32 teams by default; a multiple of 4 from 8 to 32 —
+   the number of groups adapts), then run the group draw (groups of 4, pots by OVR, no two clubs from the same
+   country in a group when possible). A championship can instead be a **cup** (knockout only, 4–64 teams, like the
+   Copa del Rey): there is no group stage and you copy the game's bracket into the Playoff tab by hand. When the
+   number of qualifiers (or cup teams) is not a power of two, the bracket rounds up and the empty first-round
+   places are byes (automatic for the best group winners, tick "Bye" by hand in a cup).
 5. **Group stage** – generate fixtures (single round: 3 matches per team). Who controls each CPU team
    facing a human is drawn automatically (press **🎲 Draw** on a match to re-draw), then
    enter results. CPU-vs-CPU matches are simulated by the console (result optional).

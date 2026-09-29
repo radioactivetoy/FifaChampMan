@@ -385,6 +385,8 @@ export const es = {
   '{player} ({team}) played the group stage and {end}.': '{player} ({team}) jugó la fase de grupos y {end}.',
   'went out in the group stage': 'no pasó de la fase de grupos',
   'went out in the Round of 16': 'cayó en octavos de final',
+  'went out in the Round of 32': 'cayó en dieciseisavos de final',
+  'went out in the Round of 64': 'cayó en treintaidosavos de final',
   'went out in the quarter-finals': 'cayó en cuartos de final',
   'lost in the semi-finals': 'cayó en semifinales',
   'lost the final': 'perdió la final',

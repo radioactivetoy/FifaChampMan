@@ -344,7 +344,7 @@ export function reopenGroupStage(db, championshipId) {
 }
 
 /**
- * The 16 qualified teams, grouped by letter, right after closing the group stage: each row flags
+ * The qualified teams, grouped by letter, right after closing the group stage: each row flags
  * whether every one of that team's own group matches has a score entered, so a premature close
  * (e.g. a CPU-vs-CPU result nobody typed in, and nobody overrode the points either) can be spotted
  * and fixed before trusting the playoff seeding.
@@ -440,7 +440,8 @@ export function playerOutcome(db, championshipId, playerId) {
     : get(db, 'SELECT reached FROM championship_teams WHERE championship_id = ? AND team_id = ?', championshipId, entry.teamId)?.reached ?? 'group';
   const matches = listMatches(db, championshipId);
   const record = teamRecord(entry.teamId, matches);
-  const computedStars = resultStars({ reached, record });
+  const { format, teamCount } = get(db, 'SELECT format, team_count AS teamCount FROM championships WHERE id = ?', championshipId);
+  const computedStars = resultStars({ reached, record, format, firstRound: firstRound(knockoutSize({ format, teamCount })) });
   return { stars: entry.stars, teamId: entry.teamId, reached, record, cuchara: isCucharaDeMadera(entry.teamId, matches), computedStars, resultStars: entry.override ?? computedStars };
 }
 

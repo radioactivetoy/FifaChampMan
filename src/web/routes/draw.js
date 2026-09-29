@@ -31,7 +31,11 @@ export function registerDrawRoutes(app, { db, rng }) {
         <form method="post" action="${base}/field/add" class="row">
           ${select({ name: 'teamId', items: available.map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` })) })}<button>${_('Add team')}</button>
         </form>
-        ${c.format === 'cup' ? '' : html`
+        ${c.format === 'cup' ? html`
+        <table><thead><tr><th>${_('Team')}</th><th>${_('Country')}</th><th>OVR</th><th>${_('Stars')}</th><th></th></tr></thead><tbody>
+        ${c.teams.map(t => html`<tr><td>${teamName(t)}</td><td>${t.country}</td><td>${t.ovr}</td><td>${stars(t.stars)}</td>
+          <td class="actions"><form method="post" action="${base}/field/${t.teamId}/remove" class="inline"><button class="danger">${_('Remove')}</button></form></td></tr>`)}
+        </tbody></table>` : html`
         <h2>${_('Groups')}</h2>
         <form method="post" action="${base}/draw" class="row" ${confirmSubmit(_('Run the group draw now? Current groups will be replaced.'))}>
           <button class="primary">${_('Run group draw')}</button>

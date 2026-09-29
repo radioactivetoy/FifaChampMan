@@ -38,7 +38,7 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   alphabetical group that keeps the rest solvable, no same-country, drops that rule if impossible),
   `controllers.js` (CPU-controller rotation), `rating.js` (result stars ladder + team offers),
   `progress.js` (who is out / championship over), `standings.js`, `stats.js`, `field.js`, `csv.js`,
-  `stages.js` (stage/reached constants, controller-rotation scope, and `STAGE_SLOTS`/`groupTies`/`assignSlots`/`tieAggregate` for
+  `stages.js` (stage/reached constants, controller-rotation scope, and ``groupTies`/`assignSlots`/`tieAggregate` for
   the playoff bracket).
 - `src/repo/` — SQL. Use the `all/get/run` helpers from `db/connection.js` (they copy node:sqlite's
   null-prototype rows into plain objects — `deepEqual` fails otherwise). `transaction()` nests by joining the
@@ -80,6 +80,19 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
 `field_quotas` from `DEFAULT_FIELD_QUOTAS` (`domain/field.js`).
 
 ## Domain rules that are easy to get wrong
+
+- **Formats & size** (`championships.format` `'groups'`|`'cup'`, `team_count`, default `groups`/32; `domain/bracket.js` is the one
+  place that knows knockout geometry): groups are always 4 teams, so `team_count` is a multiple of 4 from 8 to 32 (2–8 groups,
+  `groupLettersFor`, `makePots` = 4 pots of n/4, quotas scaled by `scaleQuotas`); a **cup** is knockout only, any 4–64 teams, no
+  group stage (tab hidden, `/groups` redirects to the playoff, draw/fixtures/close refused, Field tab is just a team list). `getChampionship`
+  adds `groupCount` and `bracketSize` (`knockoutSize`: next power of two ≥ qualifiers `2×groups`, or ≥ cup teams). Stages are
+  `r64 r32 r16 qf sf final` (`bracketStages(size)` = the last log2(size); `slotsIn`, `firstRound`, `nextStage`). Size/format are editable
+  (`POST /championships/:id/size`) only while no draw/matches/byes exist. **Byes**: `bracket_byes(championship_id, stage, slot, team_id)`
+  = first-round places where a team advances unplayed (treated as a decided tie by `advanceWinners`, and as having reached that round
+  by `playoffReached`). After a group close, `closeGroupStage` writes them automatically (`pickByeTeams`, `byeSlots`: slots 0,2,4…
+  first); in a cup they are entered by hand ("Bye" checkbox `new_<stage>_<slot>_bye`, dropdown `bye_<slot>` to change/clear). Reopening
+  the groups deletes them. **Result stars** (`resultStars`): reaching the first knockout round is 3★ only after a group stage; in a cup
+  it falls back to the record ladder. "Qualified" in stats = reached beyond `group`.
 
 - **Stars**: team stars = manual `stars_override` or the tier its OVR falls in (tiers table, editable on
   `/config`). Defaults are EA's team-overall → star table as given by the community guides for FC 25/26 (5★ ≥ 83,
@@ -135,8 +148,8 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   at least one group match still missing a score (unless its points were entered by hand via
   `points_override`, which the standings already trust) (`closedGroupSummary` in `repo/championships.js`) —
   catches a premature close before the playoff seeding is trusted. Reopening goes back to `/groups`.
-- **Playoff**: the Playoff tab always draws the *whole* bracket tree, one-sided, left to right — 8 Round-of-16
-  ties, 4 quarter-finals, 2 semi-finals, the Final (`STAGE_SLOTS` in `domain/stages.js`); two-sided was tried
+- **Playoff**: the Playoff tab always draws the *whole* bracket tree, one-sided, left to right — (default 32 teams) 8 Round-of-16
+  ties, 4 quarter-finals, 2 semi-finals, the Final (`slotsIn` in `domain/bracket.js`; other sizes see Formats & size); two-sided was tried
   and didn't fit a screen. There is no "add match" form: every slot has home/away team
   dropdowns (restricted to qualified teams once the group stage is closed) and score inputs, and **one**
   sticky "Save playoff" button saves the whole tree (`POST /championships/:id/playoff/save`, all inputs

@@ -12,6 +12,7 @@ import { REACHED_LABELS } from '../../domain/stages.js';
 export function registerGroupRoutes(app, { db, rng }) {
   app.get('/championships/:id/groups', (req, res) => {
     const c = C.getChampionship(db, Number(req.params.id));
+    if (c.format === 'cup') return res.redirect(`/championships/${c.id}/playoff`);
     const allMatches = listMatches(db, c.id);
     const matches = allMatches.filter(m => m.stage === 'group');
     const standings = new Map(C.groupStandings(db, c.id, c, allMatches).map(g => [g.letter, g.rows]));
