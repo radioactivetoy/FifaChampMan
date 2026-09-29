@@ -203,3 +203,33 @@ test('saving the playoff promotes winners and marks losers; when every player ha
     await app.close();
   }
 });
+
+test('a team reaches every round it appears in, and editing the playoff clears a manually picked champion', async () => {
+  const { app, id, rng, teams } = await setup();
+  try {
+    const [a, b, c] = teams;
+    const sf = createPlayoffMatch(app.db, id, { stage: 'sf', slot: 0, homeTeamId: a.teamId, awayTeamId: b.teamId }, rng);
+    await app.get(`/championships/${id}/playoff`); // opening the page catches reached up with the matches
+    let ch = getChampionship(app.db, id);
+    assert.equal(ch.teams.find(t => t.teamId === a.teamId).reached, 'sf');
+    assert.equal(ch.teams.find(t => t.teamId === c.teamId).reached, 'group');
+
+    // The console-simulated winner is picked and the championship closed...
+    await app.post(`/championships/${id}/finish`, { winnerTeamId: String(c.teamId) });
+    ch = getChampionship(app.db, id);
+    assert.deepEqual([ch.teams.find(t => t.teamId === c.teamId).reached, ch.status], ['champion', 'finished']);
+    await app.get(`/championships/${id}/playoff`);
+    assert.equal(getChampionship(app.db, id).teams.find(t => t.teamId === c.teamId).reached, 'champion'); // just viewing keeps it
+
+    // ...then a playoff result is edited: the winner is taken back and asked for again.
+    await app.post(`/championships/${id}/playoff/save`, {
+      [`stage_${sf}`]: 'sf', [`homeTeamId_${sf}`]: a.teamId, [`awayTeamId_${sf}`]: b.teamId, [`homeScore_${sf}`]: '1', [`awayScore_${sf}`]: '0',
+    });
+    ch = getChampionship(app.db, id);
+    assert.equal(ch.status, 'active');
+    assert.equal(ch.teams.find(t => t.teamId === c.teamId).reached, 'r16');
+    assert.equal(ch.teams.find(t => t.teamId === a.teamId).reached, 'final');
+  } finally {
+    await app.close();
+  }
+});

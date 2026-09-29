@@ -27,6 +27,7 @@ function matchLine(c, m) {
 
 export function registerRecapRoutes(app, { db }) {
   app.get('/championships/:id/recap', (req, res) => {
+    C.syncReachedFromPlayoff(db, Number(req.params.id));
     const { championship: c, players, groups, playoff } = C.championshipRecap(db, Number(req.params.id));
     res.send(page({
       title: c.name,

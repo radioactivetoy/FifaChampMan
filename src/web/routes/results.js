@@ -10,6 +10,7 @@ const nextStep = o => (o.resultStars > o.stars ? '↑ picks from 2 teams' : o.re
 
 export function registerResultRoutes(app, { db }) {
   app.get('/championships/:id/results', (req, res) => {
+    C.syncReachedFromPlayoff(db, Number(req.params.id));
     const c = C.getChampionship(db, Number(req.params.id));
     const outcomes = C.listOutcomes(db, c.id);
     const base = `/championships/${c.id}`;

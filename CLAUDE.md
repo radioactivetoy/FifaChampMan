@@ -147,13 +147,17 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff
   matches"). `tieAggregate` sums goals per team across legs for the aggregate/winner line. Two-legged ties
   can no longer be created from the UI (the old add form did it) but existing ones still render and save.
-  **Results feed "reached"**: on every Save playoff, `syncReachedFromPlayoff` (`repo/championships.js`) raises
-  `reached` from decided ties (`tieOutcome`/`playoffOutcomes` in `domain/stages.js`: aggregate winner, or level →
-  the penalties winner): the winner reaches the next round (final winner = champion), the loser at least the
-  round he lost in. It only ever raises, so manual marks on Results stand unless a result says the team went
-  further. `getChampionship` also flags a team `eliminated` once it lost a decided tie (and isn't marked
-  further), which `championshipProgress` counts as out — so "all players out" fires without waiting for the
-  next round to fill up.
+  **Results feed "reached"**: `syncReachedFromPlayoff` (`repo/championships.js`) raises `reached` from the
+  playoff — appearing in a round = reaching it, winning a decided tie (`tieOutcome`/`playoffOutcomes` in
+  `domain/stages.js`: aggregate winner, or level → penalties winner) = reaching the next (final winner =
+  champion). It only ever raises, so manual marks on Results stand unless a result says the team went
+  further; it runs on Save playoff and (idempotent) when the Playoff/Results/Recap pages open. `getChampionship`
+  also flags a team `eliminated` once it lost a decided tie (and isn't marked further), which
+  `championshipProgress` counts as out — so "all players out" fires without waiting for the next round to
+  fill. **Editing the playoff invalidates a picked winner**: if Save playoff changes any match,
+  `clearStaleChampion` takes a `champion` that the Final doesn't back up (e.g. the console-simulated winner
+  chosen when all players were out) back to what the playoff says it reached and reopens a finished
+  championship, so the winner is asked for again when it closes. Merely viewing never clears it.
   CPU-vs-CPU ties are always shown here (no hiding toggle), so the tree stays complete.
   `components.js`'s `playoffBracket` renders it.
   Each match (`bracketMatch`) is a compact scoreboard row — badge, team dropdown, score — always plain,

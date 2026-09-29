@@ -318,18 +318,45 @@ export function closedGroupSummary(db, championshipId) {
 // ---------- results ----------
 
 /**
- * Raises "reached" from the playoff results: a tie's winner has reached the next round (the winner of
- * the final is champion), its loser at least the round it lost in. Never lowers a stage, so manual
- * marks on the Results tab stay as they are unless a result says the team went further.
+ * What the playoff matches say each team reached: appearing in a round means reaching it, winning a
+ * decided tie means reaching the next one (the final's winner is champion). Map teamId -> stage.
+ */
+function playoffReached(matches) {
+  const rank = r => REACHED.indexOf(r);
+  const derived = new Map();
+  const raise = (teamId, stage) => { if (rank(stage) > rank(derived.get(teamId) ?? 'group')) derived.set(teamId, stage); };
+  for (const m of matches) if (rank(m.stage) > 0) { raise(m.homeTeamId, m.stage); raise(m.awayTeamId, m.stage); }
+  for (const { stage, winnerId } of playoffOutcomes(matches)) raise(winnerId, REACHED[rank(stage) + 1]);
+  return derived;
+}
+
+/**
+ * Raises "reached" from the playoff results (see playoffReached). Never lowers a stage, so manual marks
+ * on the Results tab stand unless a result says the team went further. Safe to call any time.
  */
 export function syncReachedFromPlayoff(db, championshipId) {
   const rank = r => REACHED.indexOf(r);
   const current = new Map(all(db, 'SELECT team_id AS teamId, reached FROM championship_teams WHERE championship_id = ?', championshipId).map(r => [r.teamId, r.reached]));
-  for (const { stage, winnerId, loserId } of playoffOutcomes(listMatches(db, championshipId))) {
-    for (const [teamId, reached] of [[winnerId, REACHED[rank(stage) + 1]], [loserId, stage]]) {
-      if (current.has(teamId) && rank(reached) > rank(current.get(teamId))) { setReached(db, championshipId, teamId, reached); current.set(teamId, reached); }
-    }
+  for (const [teamId, reached] of playoffReached(listMatches(db, championshipId))) {
+    if (current.has(teamId) && rank(reached) > rank(current.get(teamId))) setReached(db, championshipId, teamId, reached);
   }
+}
+
+/**
+ * The playoff was edited after a winner was picked: a "champion" that the Final does not back up (typically
+ * the console-simulated winner chosen once every player was out) is taken back to what the playoff says
+ * it reached, and a finished championship is reopened — so the winner is asked for again when it closes.
+ * Returns true if a champion was cleared.
+ */
+export function clearStaleChampion(db, championshipId) {
+  const matches = listMatches(db, championshipId);
+  const finalWinner = playoffOutcomes(matches).find(o => o.stage === 'final')?.winnerId ?? null;
+  const derived = playoffReached(matches);
+  const stale = all(db, "SELECT team_id AS teamId FROM championship_teams WHERE championship_id = ? AND reached = 'champion'", championshipId)
+    .filter(r => r.teamId !== finalWinner);
+  for (const { teamId } of stale) setReached(db, championshipId, teamId, derived.get(teamId) === 'champion' ? 'final' : derived.get(teamId) ?? 'r16');
+  if (stale.length) run(db, "UPDATE championships SET status = 'active' WHERE id = ?", championshipId);
+  return stale.length > 0;
 }
 
 export function setReached(db, championshipId, teamId, reached) {

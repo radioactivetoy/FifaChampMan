@@ -12,6 +12,7 @@ const FORM_ID = 'playoff-form';
 
 export function registerPlayoffRoutes(app, { db, rng }) {
   app.get('/championships/:id/playoff', (req, res) => {
+    C.syncReachedFromPlayoff(db, Number(req.params.id)); // catches results saved by other routes or before this existed
     const c = C.getChampionship(db, Number(req.params.id));
     const matches = listMatches(db, c.id).filter(m => m.stage !== 'group');
     // Qualified teams first, then the rest of the field.
@@ -45,6 +46,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
     const body = req.body;
     transaction(db, () => {
       backfillSlots(db, id);
+      const before = JSON.stringify(listMatches(db, id));
       const existing = listMatches(db, id).filter(m => PLAYOFF_STAGES.includes(m.stage));
       const cleared = m => body[`homeTeamId_${m.id}`] === '' && body[`awayTeamId_${m.id}`] === '';
       for (const m of existing.filter(cleared)) deleteMatch(db, m.id);
@@ -65,6 +67,8 @@ export function registerPlayoffRoutes(app, { db, rng }) {
           taken.add(`${stage}-${slot}`);
         }
       }
+      // Editing the playoff invalidates a winner picked earlier (e.g. the console-simulated one): ask again.
+      if (JSON.stringify(listMatches(db, id)) !== before) C.clearStaleChampion(db, id);
       C.syncReachedFromPlayoff(db, id);
     });
     res.redirect(`/championships/${id}/playoff`);
