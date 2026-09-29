@@ -17,14 +17,29 @@ import { registerStatsRoutes } from './web/routes/stats.js';
 import { registerRecapRoutes } from './web/routes/recap.js';
 import { registerUndoRoutes } from './web/routes/undo.js';
 import { latestUndo } from './repo/undo.js';
+import { runWithLang, LANGS } from './i18n/index.js';
 
-export function createApp({ db, rng }) {
+export function createApp({ db, rng, defaultLang = 'es' }) {
   const app = express();
   // A full FC club database pasted as CSV is ~150 KB; the default limit is 100 KB.
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
   app.use((req, res, next) => { req.body ??= {}; next(); });
   // maxAge 0: browsers revalidate style.css / filter.js on each load, so updates show up immediately.
   app.use(express.static(fileURLToPath(new URL('../public', import.meta.url)), { maxAge: 0 }));
+
+  // The request's language: the `lang` cookie (set by the ES | EN switch), else the default. Everything below runs inside it.
+  app.use((req, res, next) => {
+    const cookie = /(?:^|;\s*)lang=(\w+)/.exec(req.headers.cookie ?? '')?.[1];
+    runWithLang(LANGS.includes(cookie) ? cookie : defaultLang, next);
+  });
+  app.post('/lang', (req, res) => {
+    const lang = LANGS.includes(req.body.lang) ? req.body.lang : defaultLang;
+    res.cookie('lang', lang, { maxAge: 365 * 24 * 3600 * 1000, sameSite: 'lax', path: '/' });
+    // back to the page the switch was used on (only if it is on this same site)
+    let back = '/';
+    try { const ref = new URL(req.get('referer') ?? ''); if (ref.host === req.get('host')) back = ref.pathname + ref.search + ref.hash; } catch { /* no referer */ }
+    res.redirect(back);
+  });
 
   // Right after a destructive action (and for 30 minutes) every page carries an "Undo" bar under the header.
   app.use((req, res, next) => {

@@ -29,7 +29,7 @@ function setupTeamFilter() {
       row.hidden = !match;
       if (match) shown++;
     }
-    if (count) count.textContent = `${shown} of ${rows.length} teams`;
+    if (count) count.textContent = (window.T?.teamsShown ?? '{shown} of {total} teams').replace('{shown}', shown).replace('{total}', rows.length);
   };
   bar.addEventListener('input', apply);
   bar.addEventListener('change', apply);
@@ -181,7 +181,7 @@ function setupCopyButtons() {
         area.remove();
       }
       const status = button.parentElement.querySelector('[data-copy-status]');
-      if (status) { status.textContent = ok ? 'Copied!' : 'Could not copy — select the text above instead.'; setTimeout(() => { status.textContent = ''; }, 2500); }
+      if (status) { status.textContent = ok ? (window.T?.copied ?? 'Copied!') : (window.T?.couldNotCopy ?? 'Could not copy — select the text above instead.'); setTimeout(() => { status.textContent = ''; }, 2500); }
     });
   }
 }
@@ -205,7 +205,7 @@ function setupPhotoUpload() {
         URL.revokeObjectURL(image.src);
         form.submit();
       };
-      image.onerror = () => alert('Could not read that image — try a JPEG or PNG.');
+      image.onerror = () => alert(window.T?.badImage ?? 'Could not read that image — try a JPEG or PNG.');
       image.src = URL.createObjectURL(file);
     });
   }

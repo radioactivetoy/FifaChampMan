@@ -404,3 +404,8 @@ td.player-cell .avatar { margin-right: 0; }
 /* ---------- undo bar ---------- */
 .undo-bar { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 16px; background: #fff7dc; border-bottom: 1px solid #f0d27a; font-weight: 600; }
 .undo-bar form { margin: 0; }
+
+/* ---------- language switch (ES | EN) ---------- */
+.lang-switch { display: inline-flex; margin: 0 0 0 10px; border: 1px solid rgba(255, 255, 255, .35); border-radius: 999px; overflow: hidden; vertical-align: middle; }
+.lang-switch button { background: transparent; color: #fff; border: 0; padding: 3px 10px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: none; }
+.lang-switch button.on { background: #fff; color: var(--navy-800); }

@@ -1,3 +1,5 @@
+import { t, currentLang, LANGS } from '../i18n/index.js';
+
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 export const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ESCAPES[c]);
@@ -29,13 +31,31 @@ export function select({ name, items, selected, blank, form }) {
   return html`<select name="${name}"${form ? raw(` form="${escape(form)}"`) : ''}>${blank != null ? html`<option value="">${blank}</option>` : ''}${items.map(i => html`<option value="${i.value}"${isSelected(i.value) ? raw(' selected') : ''}>${i.label}</option>`)}</select>`;
 }
 
+/**
+ * Like t(), but for text that contains markup: `text` is trusted markup written in the code, `params` are escaped
+ * (unless they are already html`` / raw()). Returns safe HTML.
+ */
+export function th(text, params = {}) {
+  return raw(t(text, Object.fromEntries(Object.entries(params).map(([key, value]) => [key, value instanceof SafeHtml ? value.value : escape(value)]))));
+}
+
+/** The few strings public/filter.js needs, as window.T (translated for the current request). */
+const clientStrings = () => ({
+  copied: t('Copied!'),
+  couldNotCopy: t('Could not copy — select the text above instead.'),
+  badImage: t('Could not read that image — try a JPEG or PNG.'),
+  teamsShown: t('{shown} of {total} teams'),
+});
+
 export function page({ title, body }) {
-  return '<!doctype html>' + html`<html lang="en"><head><meta charset="utf-8">
+  const lang = currentLang();
+  return '<!doctype html>' + html`<html lang="${lang === 'es' ? 'es-ES' : 'en'}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} · ChampMan</title><link rel="stylesheet" href="/style.css"><script src="/filter.js" defer></script></head>
+<title>${title} · ChampMan</title><link rel="stylesheet" href="/style.css">${raw(`<script>window.T=${JSON.stringify(clientStrings()).replace(/</g, '\\u003c')}</script>`)}<script src="/filter.js" defer></script></head>
 <body><header><div class="bar">
-<a class="brand" href="/"><span class="brand-mark">★</span><span>ChampMan<small>EA FC Champions League</small></span></a>
+<a class="brand" href="/"><span class="brand-mark">★</span><span>ChampMan<small>${t('EA FC Champions League')}</small></span></a>
 <nav>
-<a href="/championships">Championships</a><a href="/players">Players</a><a href="/teams">Teams</a><a href="/stats">Stats</a><a href="/config">Config</a>
+<a href="/championships">${t('Championships')}</a><a href="/players">${t('Players')}</a><a href="/teams">${t('Teams')}</a><a href="/stats">${t('Stats')}</a><a href="/config">${t('Config')}</a>
+<form method="post" action="/lang" class="lang-switch">${LANGS.map(l => html`<button name="lang" value="${l}" class="${l === lang ? 'on' : ''}" aria-pressed="${l === lang}" title="${l === 'es' ? 'Español' : 'English'}">${l.toUpperCase()}</button>`)}</form>
 </nav></div></header><main><h1>${title}</h1>${body}</main></body></html>`;
 }
