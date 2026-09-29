@@ -187,9 +187,15 @@ function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
   </div>`;
   const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: _('— CPU —') });
   const played = m.homeScore != null && m.awayScore != null;
+  // Who controls a CPU side (drawn when the match was created); the draw/edit controls are in "⋯ more".
+  const playerName = id => c.players.find(p => p.playerId === id)?.playerName;
+  const controllers = ['home', 'away'].map(side => {
+    const team = byId.get(m[`${side}TeamId`]), who = playerName(m[`${side}ControllerId`]);
+    return team && !team.owner && who ? html`<small class="bracket-controller">🎮 ${_('{player} controls {team}', { player: who, team: team.name })}</small>` : '';
+  });
   return html`<div class="bracket-match${played ? ' played' : ''}">
     <input type="hidden" form="${formId}" name="stage_${m.id}" value="${m.stage}">
-    ${scoreRow('home')}${scoreRow('away')}
+    ${scoreRow('home')}${scoreRow('away')}${controllers}
     <details class="bracket-match-more">
       <summary>${_('⋯ more')}</summary>
       <div class="bracket-match-extra">
@@ -275,7 +281,10 @@ export function playoffBracket(c, matches, { formId, teamItems, byes = [] }) {
       <input form="${formId}" name="${field(`${side}Score`)}" type="number" min="0" class="num">
     </div>`;
     return html`<div class="bracket-tie bracket-tie-empty${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}" data-stage="${stage}" data-slot="${slot}">
-      <div class="bracket-match">${row('home')}${row('away')}</div>
+      <div class="bracket-match">${row('home')}${row('away')}
+        <div class="row bracket-new-pens" hidden><small class="muted">${_('Pens')}</small>
+          <input form="${formId}" name="${field('homePens')}" type="number" min="0" class="num"> –
+          <input form="${formId}" name="${field('awayPens')}" type="number" min="0" class="num"></div></div>
       ${stage === first ? html`<label class="bracket-bye-toggle"><input type="checkbox" form="${formId}" name="${field('bye')}" value="1"> ${_('Bye: the first team goes straight through')}</label>` : ''}</div>`;
   };
 

@@ -164,7 +164,10 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   hand-entered rounds are safe — correcting an earlier result means fixing the next round by hand. Before saving, `public/filter.js`'s
   `setupBracketAdvance` previews the same thing live: typing scores fills the next round's *empty* ties' dropdowns with the winners
   (ties carry `data-stage`/`data-slot`, rounds `data-stage`); it only writes into selects that are empty or still hold what it wrote
-  (`data-auto`), so a hand-picked team is never overwritten, and only Save persists.
+  (`data-auto`), so a hand-picked team is never overwritten, and only Save persists. A level tie is decided by its penalties in the
+  preview too: saved matches use the Pens inputs in "⋯ more", new (empty-slot) ties get their own `new_<stage>_<slot>_homePens/awayPens` row,
+  shown only while the two scores are level and saved with the match. Each bracket match also shows a `🎮 <player> controls <team>` line for a
+  CPU side with a controller (drawn once when the match is created — a shootout is the same game, no second draw).
   `assignSlots` places ties (from `groupTies`: up to two legs between the same two teams) into slots, giving
   older slot-less matches the lowest free one in first-seen order; `backfillSlots` persists that on the next
   save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff

@@ -167,24 +167,41 @@ function setupBracketAdvance() {
   const stages = [...bracket.querySelectorAll('.bracket-round')].map(r => r.dataset.stage);
   const tieAt = (stage, slot) => bracket.querySelector(`.bracket-tie[data-stage="${stage}"][data-slot="${slot}"]`);
   const num = el => (el && el.value !== '' ? Number(el.value) : null);
+  // Goals of one match's two sides, plus its penalty shootout when both sides have one (in "⋯ more", or the new tie's own pens row).
+  const readMatch = match => {
+    const rows = ['home', 'away'].map(side => {
+      const row = match.querySelector(`.bracket-match-row[data-side="${side}"]`);
+      return { team: num(row?.querySelector('select')), score: num(row?.querySelector('input.num')) };
+    });
+    const pens = [...match.querySelectorAll('input[name*="Pens"]')].map(num);
+    return { rows, pens: pens.length === 2 && pens.every(v => v != null) ? pens : null };
+  };
   const winnerOf = tie => {
     if (!tie) return null;
     const bye = tie.querySelector('select[name^="bye_"]');
     if (bye) return bye.value ? Number(bye.value) : null;
-    const goals = new Map(); let complete = true;
+    const goals = new Map(); let complete = true, shootout = null;
     for (const match of tie.querySelectorAll('.bracket-match')) {
-      const rows = ['home', 'away'].map(side => {
-        const row = match.querySelector(`.bracket-match-row[data-side="${side}"]`);
-        return { team: num(row?.querySelector('select')), score: num(row?.querySelector('input.num')) };
-      });
+      const { rows, pens } = readMatch(match);
       if (rows.some(r => r.team == null || r.score == null)) { complete = false; continue; }
       for (const r of rows) goals.set(r.team, (goals.get(r.team) ?? 0) + r.score);
+      if (pens) shootout = new Map([[rows[0].team, pens[0]], [rows[1].team, pens[1]]]);
     }
     if (!complete || goals.size !== 2) return null;
     const [a, b] = [...goals.entries()];
-    return a[1] === b[1] ? null : (a[1] > b[1] ? a[0] : b[0]);
+    if (a[1] !== b[1]) return a[1] > b[1] ? a[0] : b[0];
+    const [pa, pb] = [shootout?.get(a[0]), shootout?.get(b[0])];
+    return pa == null || pb == null || pa === pb ? null : (pa > pb ? a[0] : b[0]);
+  };
+  // A new tie's shootout inputs only show while its two scores are level.
+  const togglePens = () => {
+    for (const row of bracket.querySelectorAll('.bracket-new-pens')) {
+      const scores = [...row.parentElement.querySelectorAll('.bracket-match-row input.num')].map(num);
+      row.hidden = !(scores.length === 2 && scores.every(v => v != null) && scores[0] === scores[1]);
+    }
   };
   const refresh = () => {
+    togglePens();
     for (let i = 0; i < stages.length - 1; i++) {
       const [stage, next] = [stages[i], stages[i + 1]];
       const count = bracket.querySelectorAll(`.bracket-tie[data-stage="${stage}"]`).length;

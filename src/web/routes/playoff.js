@@ -73,6 +73,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
           const field = f => body[`new_${stage}_${slot}_${f}`];
           const [homeTeamId, awayTeamId] = [intOrNull(field('homeTeamId')), intOrNull(field('awayTeamId'))];
           const [homeScore, awayScore] = [intOrNull(field('homeScore')), intOrNull(field('awayScore'))];
+          const [homePens, awayPens] = [intOrNull(field('homePens')), intOrNull(field('awayPens'))];
           if (stage === first && field('bye') && homeTeamId != null) {
             if (taken.has(`${stage}-${slot}`)) throw new UserError(_('The {stage} match {n} was filled in meanwhile — reload the page', { stage: STAGE_LABELS[stage], n: slot + 1 }));
             setBye(db, id, slot, homeTeamId);
@@ -84,7 +85,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
           if (homeTeamId == null || awayTeamId == null) throw new UserError(_('Pick both teams for the {stage} match {n} you filled in', { stage: STAGE_LABELS[stage], n: slot + 1 }));
           if (taken.has(`${stage}-${slot}`)) throw new UserError(_('The {stage} match {n} was filled in meanwhile — reload the page', { stage: STAGE_LABELS[stage], n: slot + 1 }));
           const matchId = createPlayoffMatch(db, id, { stage, slot, homeTeamId, awayTeamId }, rng);
-          updateMatch(db, matchId, { homeScore, awayScore });
+          updateMatch(db, matchId, { homeScore, awayScore, homePens, awayPens });
           taken.add(`${stage}-${slot}`);
         }
       }

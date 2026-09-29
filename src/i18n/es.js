@@ -51,6 +51,7 @@ export const es = {
   'Home controller': 'Controlador local',
   'Away controller': 'Controlador visitante',
   'Pens': 'Penaltis',
+  '{player} controls {team}': '{player} controla a {team}',
   '✕ Delete': '✕ Borrar',
   'Agg {home}-{away}': 'Global {home}-{away}',
   ' · <strong>{team}</strong> through': ' · pasa <strong>{team}</strong>',
