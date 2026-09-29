@@ -82,12 +82,15 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
 ## Domain rules that are easy to get wrong
 
 - **Stars**: team stars = manual `stars_override` or the tier its OVR falls in (tiers table, editable on
-  `/config`). FC 27 has no club under 54 OVR, so default tiers are shifted (0.5★ ≤ 60 … 5★ ≥ 82).
+  `/config`). Defaults are EA's team-overall → star table as given by the community guides for FC 25/26 (5★ ≥ 83,
+  4.5★ 79–82, 4★ 75–78, 3.5★ 71–74, 3★ 69–70, 2.5★ 67–68, 2★ 65–66, 1.5★ 63–64, 1★ 60–62, 0.5★ ≤ 59; EA publishes no
+  official table, but it matched real clubs). Tiers are seeded once per database, so changing `DEFAULT_TIERS` does not touch
+  an existing DB — Config has "Reset to EA table" (`resetTiers`).
 - **Config page** (`/config`, `web/routes/config.js`) is the one place for global settings: star tiers, the
   random field's default "teams per star level" quotas (`field_quotas` table, `repo/settings.js`, used by
   `draw.js` as the pre-filled defaults on a championship's Field & draw tab — that form can still override them
   for one fill) and the team-templates list/create form (edited via `/templates/:id`, unchanged). The default
-  quotas model an actual Champions League field: almost all slots at 2★ (~64 OVR) and up, none below — real
+  quotas model an actual Champions League field: almost all slots at 2★ (~65 OVR) and up, none below — real
   minnows don't reach the group stage.
 - **Result stars** (next championship's level): stage reached first (champion 5, final 4.5, sf 4, qf 3.5,
   r16 3), else own-team record over the championship (a win 2, a point 1.5, a goal 1, else 0.5).

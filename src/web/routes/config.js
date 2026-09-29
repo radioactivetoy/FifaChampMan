@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { html, page, th, _, confirmSubmit } from '../html.js';
 import { intOrNull } from '../form.js';
 import { stars } from '../components.js';
-import { listTiers, updateTier } from '../../repo/teams.js';
+import { listTiers, updateTier, resetTiers } from '../../repo/teams.js';
 import { listFieldQuotas, updateFieldQuota } from '../../repo/settings.js';
 import { listTemplates } from '../../repo/templates.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
@@ -23,6 +23,9 @@ export function registerConfigRoutes(app, { db }) {
         <form method="post" action="/config/tiers"><table><thead><tr><th>${_('Stars')}</th><th>${_('Minimum OVR')}</th></tr></thead><tbody>
         ${listTiers(db).map(t => html`<tr><td>${stars(t.stars)}</td><td><input name="tier_${t.stars}" type="number" min="0" max="99" class="num" value="${t.minOvr}"></td></tr>`)}
         </tbody></table><button class="primary">${_('Save tiers')}</button></form>
+        <form method="post" action="/config/tiers/reset" class="row" ${confirmSubmit(_('Set all star tiers back to the EA table?'))}>
+          <button>${_('Reset to EA table')}</button>
+          <span class="muted">${_('EA does not publish it; this is the table used by the community guides for FC 25/26 (5★ from 83, 4.5★ 79–82, 4★ 75–78, 3.5★ 71–74, 3★ 69–70, 2.5★ 67–68, 2★ 65–66, 1.5★ 63–64, 1★ 60–62, 0.5★ up to 59).')}</span></form>
 
         <h2>${_('Random field defaults')}</h2>
         <p class="muted">${_('How many teams of each star level "Fill field randomly" (on a championship\'s Field & draw tab) starts from; human teams always count toward their own level regardless of this quota, and each fill can still override these numbers for that one time.')}</p>
@@ -49,6 +52,11 @@ export function registerConfigRoutes(app, { db }) {
     db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
     res.download(file, `champman-${stamp}.db`, () => rmSync(dirname(file), { recursive: true, force: true }));
+  });
+
+  app.post('/config/tiers/reset', (req, res) => {
+    resetTiers(db);
+    res.redirect('/config');
   });
 
   app.post('/config/tiers', (req, res) => {

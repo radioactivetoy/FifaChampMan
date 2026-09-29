@@ -1,5 +1,5 @@
 import { all, get, run, transaction } from '../db/connection.js';
-import { starsForOvr } from '../domain/tiers.js';
+import { starsForOvr, DEFAULT_TIERS } from '../domain/tiers.js';
 import { DEFAULT_EDITION } from '../domain/editions.js';
 import { UserError } from '../errors.js';
 import { _ } from '../i18n/index.js';
@@ -7,6 +7,11 @@ import { _ } from '../i18n/index.js';
 const COLS = 't.id, t.name, t.edition, t.country, t.league, t.ovr, t.stars_override AS starsOverride, t.badge_url AS badgeUrl, t.league_badge_url AS leagueBadgeUrl, t.country_flag_url AS countryFlagUrl';
 
 export const listTiers = db => all(db, 'SELECT stars, min_ovr AS minOvr FROM tiers ORDER BY stars DESC');
+
+/** Puts the stored star tiers back to EA's table (DEFAULT_TIERS). */
+export function resetTiers(db) {
+  for (const t of DEFAULT_TIERS) updateTier(db, t.stars, t.minOvr);
+}
 
 export function updateTier(db, stars, minOvr) {
   run(db, 'UPDATE tiers SET min_ovr = ? WHERE stars = ?', minOvr, stars);

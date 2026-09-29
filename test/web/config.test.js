@@ -56,3 +56,18 @@ test('creating a template from the config page shows it in the list there', asyn
     await app.close();
   }
 });
+
+test('"Reset to EA table" puts the star tiers back to the defaults', async () => {
+  const app = await startTestApp();
+  try {
+    await app.post('/config/tiers', { 'tier_4.5': '70', tier_5: '75' });
+    assert.equal(listTiers(app.db).find(t => t.stars === 5).minOvr, 75);
+    assert.match((await app.get('/config')).text, /Reset to EA table/);
+    const r = await app.post('/config/tiers/reset');
+    assert.equal(r.status, 302);
+    assert.deepEqual(listTiers(app.db).map(t => [t.stars, t.minOvr]),
+      [[5, 83], [4.5, 79], [4, 75], [3.5, 71], [3, 69], [2.5, 67], [2, 65], [1.5, 63], [1, 60], [0.5, 0]]);
+  } finally {
+    await app.close();
+  }
+});
