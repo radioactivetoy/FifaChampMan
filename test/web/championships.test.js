@@ -118,3 +118,22 @@ test('a championship\'s edition can be changed after creation', async () => {
     await app.close();
   }
 });
+
+test('every championship tab has a rename control and renaming returns to the same tab', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const rng = createRng(1);
+    const id = createChampionship(app.db, { name: 'Old name', playerIds: seedPlayers(app.db), rng });
+    for (const tab of ['', '/draw', '/groups', '/playoff', '/results', '/recap']) {
+      assert.match((await app.get(`/championships/${id}${tab}`)).text, /<details class="rename-inline"><summary>✏️ Rename<\/summary>/, tab);
+    }
+    const r = await fetch(`${app.baseUrl}/championships/${id}`, { method: 'POST', body: new URLSearchParams({ name: 'New name' }), redirect: 'manual', headers: { referer: `${app.baseUrl}/championships/${id}/playoff` } });
+    assert.equal(r.headers.get('location'), `/championships/${id}/playoff`);
+    assert.equal(getChampionship(app.db, id).name, 'New name');
+    assert.match((await app.get(`/championships/${id}/results`)).text, /<h1>New name<\/h1>/);
+    assert.equal((await app.post(`/championships/${id}`, { name: '   ' })).status, 400);
+  } finally {
+    await app.close();
+  }
+});

@@ -104,8 +104,12 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   });
 
   app.post('/championships/:id', (req, res) => {
-    C.updateChampionship(db, Number(req.params.id), { name: requiredText(req.body.name, _('Name')) });
-    res.redirect(`/championships/${req.params.id}`);
+    const id = Number(req.params.id);
+    C.updateChampionship(db, id, { name: requiredText(req.body.name, _('Name')) });
+    // back to the tab the rename was used on
+    let back = `/championships/${id}`;
+    try { const ref = new URL(req.get('referer') ?? ''); if (ref.host === req.get('host') && ref.pathname.startsWith(`/championships/${id}`)) back = ref.pathname; } catch { /* no referer */ }
+    res.redirect(back);
   });
 
   app.post('/championships/:id/template', (req, res) => {

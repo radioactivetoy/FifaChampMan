@@ -448,4 +448,6 @@ export const es = {
   'A template called "{name}" already exists': 'Ya existe una plantilla llamada «{name}»',
   'That undo is no longer available': 'Ese deshacer ya no está disponible',
   'Can\'t undo that any more — something it depended on has changed since': 'Ya no se puede deshacer: algo de lo que dependía ha cambiado desde entonces',
+  // ---- Rename championship ----
+  '✏️ Rename': '✏️ Renombrar',
 };
