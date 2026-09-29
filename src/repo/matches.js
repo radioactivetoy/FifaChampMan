@@ -1,9 +1,9 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { assignControllers } from '../domain/controllers.js';
-import { scopeOf, PLAYOFF_STAGES } from '../domain/stages.js';
+import { scopeOf, PLAYOFF_STAGES, STAGE_SLOTS, groupTies, assignSlots } from '../domain/stages.js';
 
-const COLS = `m.id, m.championship_id AS championshipId, m.stage, m.group_letter AS groupLetter, m.matchday, m.leg,
+const COLS = `m.id, m.championship_id AS championshipId, m.stage, m.group_letter AS groupLetter, m.matchday, m.leg, m.slot,
   m.home_team_id AS homeTeamId, m.away_team_id AS awayTeamId, m.home_score AS homeScore, m.away_score AS awayScore,
   m.home_pens AS homePens, m.away_pens AS awayPens, m.home_controller_id AS homeControllerId, m.away_controller_id AS awayControllerId,
   ht.name AS homeTeamName, at.name AS awayTeamName`;
@@ -12,7 +12,7 @@ const ORDER = `ORDER BY CASE m.stage WHEN 'group' THEN 0 WHEN 'r16' THEN 1 WHEN 
   m.group_letter, m.matchday, m.leg, m.id`;
 
 const EDITABLE = {
-  stage: 'stage', leg: 'leg', matchday: 'matchday', homeTeamId: 'home_team_id', awayTeamId: 'away_team_id',
+  stage: 'stage', leg: 'leg', slot: 'slot', matchday: 'matchday', homeTeamId: 'home_team_id', awayTeamId: 'away_team_id',
   homeScore: 'home_score', awayScore: 'away_score', homePens: 'home_pens', awayPens: 'away_pens',
   homeControllerId: 'home_controller_id', awayControllerId: 'away_controller_id',
 };
@@ -36,10 +36,10 @@ export function getMatch(db, id) {
 }
 
 export function insertMatch(db, championshipId, m) {
-  return Number(run(db, `INSERT INTO matches (championship_id, stage, group_letter, matchday, leg, home_team_id, away_team_id,
+  return Number(run(db, `INSERT INTO matches (championship_id, stage, group_letter, matchday, leg, slot, home_team_id, away_team_id,
       home_score, away_score, home_pens, away_pens, home_controller_id, away_controller_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    championshipId, m.stage, m.groupLetter ?? null, m.matchday ?? null, m.leg ?? null, m.homeTeamId, m.awayTeamId,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    championshipId, m.stage, m.groupLetter ?? null, m.matchday ?? null, m.leg ?? null, m.slot ?? null, m.homeTeamId, m.awayTeamId,
     m.homeScore ?? null, m.awayScore ?? null, m.homePens ?? null, m.awayPens ?? null,
     m.homeControllerId ?? null, m.awayControllerId ?? null).lastInsertRowid);
 }
@@ -85,11 +85,30 @@ export function drawControllers(db, championshipId, matches, rng, { excludeId = 
   });
 }
 
-export function createPlayoffMatch(db, championshipId, { stage, leg = null, homeTeamId, awayTeamId }, rng) {
+/** Gives every playoff tie a stored bracket slot (older matches have none), so slots stop shifting as others are filled. */
+export function backfillSlots(db, championshipId) {
+  const matches = listMatches(db, championshipId);
+  for (const stage of PLAYOFF_STAGES) {
+    const { slots } = assignSlots(groupTies(matches.filter(m => m.stage === stage)), STAGE_SLOTS[stage]);
+    slots.forEach((tie, slot) => { for (const m of tie?.matches ?? []) if (m.slot !== slot) updateMatch(db, m.id, { slot }); });
+  }
+}
+
+/** slot: bracket position in the stage; left out, the tie's existing slot (a second leg) or the first free one. */
+export function createPlayoffMatch(db, championshipId, { stage, leg = null, slot, homeTeamId, awayTeamId }, rng) {
   if (!PLAYOFF_STAGES.includes(stage)) throw new UserError(`Unknown playoff stage "${stage}"`);
   if (homeTeamId === awayTeamId) throw new UserError('A team cannot play itself');
-  const [match] = drawControllers(db, championshipId, [{ stage, leg, homeTeamId, awayTeamId }], rng);
-  return insertMatch(db, championshipId, match);
+  return transaction(db, () => {
+    backfillSlots(db, championshipId);
+    if (slot === undefined) {
+      const ties = groupTies(listMatches(db, championshipId).filter(m => m.stage === stage));
+      const same = ties.find(t => t.key === [homeTeamId, awayTeamId].sort((a, b) => a - b).join('-'));
+      slot = same ? same.matches[0].slot : assignSlots(ties, STAGE_SLOTS[stage]).slots.indexOf(null);
+      if (slot === -1) slot = null;
+    }
+    const [match] = drawControllers(db, championshipId, [{ stage, leg, slot, homeTeamId, awayTeamId }], rng);
+    return insertMatch(db, championshipId, match);
+  });
 }
 
 /** Human-vs-CPU matches whose CPU side has no controller yet. */

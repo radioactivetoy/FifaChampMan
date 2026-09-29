@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS matches (
   group_letter TEXT,
   matchday INTEGER,
   leg INTEGER,
+  slot INTEGER,
   home_team_id INTEGER NOT NULL REFERENCES teams(id),
   away_team_id INTEGER NOT NULL REFERENCES teams(id),
   home_score INTEGER,

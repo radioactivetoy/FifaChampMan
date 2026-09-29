@@ -40,22 +40,27 @@ export function tieAggregate(tie) {
   return { goals, winnerId };
 }
 
+/** How many ties each playoff round has in the (always fully drawn) bracket. */
+export const STAGE_SLOTS = { r16: 8, qf: 4, sf: 2, final: 1 };
+
 /**
- * Splits a round's ties into two halves for a two-sided bracket (draw feeds in from both sides
- * toward the final). This app never assigns a tie to a bracket "side" — there's no seeding, matches
- * are added by hand — so the split is purely positional, by the order ties were first added. Returns
- * [left, right]; an odd tie count puts the extra one on the left.
- *
- * Ties alternate left/right *individually* (0 left, 1 right, 2 left, ...), not in pairs of two —
- * pairing them (0&1 together, 2&3 together) was tried and reverted: it keeps two ties a user entered
- * back-to-back visually adjacent within their side, which sounds nicer, but it's wrong for the most
- * common shape of all — a round with exactly two ties, one per side (e.g. the two semi-finals feeding
- * one final) — pairing would dump both of them on the left and leave the right side's column empty.
- * Individual alternation gets that universally-important case right, at the cost of a round with,
- * say, 8 ties not visually pairing "as entered" (tie 0 pairs with 2, not 1) — there's no seeding data
- * to do better than a positional guess either way, so this picks the version that's never outright
- * broken over the version that merely isn't the guess a particular user expected.
+ * Places a round's ties (from groupTies) into its fixed bracket slots. A tie keeps the slot stored on
+ * its matches (`match.slot`); ties without one (older data) take the lowest free slot in first-seen
+ * order. Slot 2j and 2j+1 of a round feed slot j of the next, the first half of a round's slots is the
+ * left side of the bracket and the second half the right. Returns { slots, extra }: `slots` has
+ * `capacity` entries (a tie, or null for an empty slot); `extra` is any tie that did not fit.
  */
-export function splitTies(ties) {
-  return [ties.filter((_, i) => i % 2 === 0), ties.filter((_, i) => i % 2 === 1)];
+export function assignSlots(ties, capacity) {
+  const slots = Array(capacity).fill(null);
+  const rest = [];
+  for (const tie of ties) {
+    const s = tie.matches.find(m => m.slot != null)?.slot;
+    if (s != null && s >= 0 && s < capacity && slots[s] === null) slots[s] = tie; else rest.push(tie);
+  }
+  const extra = [];
+  for (const tie of rest) {
+    const free = slots.indexOf(null);
+    if (free === -1) extra.push(tie); else slots[free] = tie;
+  }
+  return { slots, extra };
 }

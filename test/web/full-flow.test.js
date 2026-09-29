@@ -30,7 +30,7 @@ test('two championships end to end through the UI', async () => {
     await app.post(`/championships/${c1}/teams/${anaTeam}/reached`, { reached: 'r16', back: 'groups' });
     const anaGroup = champ.teams.find(x => x.teamId === anaTeam).groupLetter;
     const cpu = champ.teams.find(t => !t.owner && t.groupLetter !== anaGroup);
-    await app.post(`/championships/${c1}/playoff`, { stage: 'final', homeTeamId: anaTeam, awayTeamId: cpu.teamId });
+    await app.post(`/championships/${c1}/playoff/save`, { new_final_0_homeTeamId: anaTeam, new_final_0_awayTeamId: cpu.teamId });
     const finalId = listMatches(app.db, c1).find(m => m.stage === 'final').id;
     await app.post(`/championships/${c1}/matches/${finalId}/reroll`);
     const final = listMatches(app.db, c1).find(m => m.id === finalId);

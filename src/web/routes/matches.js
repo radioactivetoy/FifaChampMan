@@ -1,5 +1,5 @@
 import { intOrNull } from '../form.js';
-import { getMatch, listMatches, updateMatch, updateMatches, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
+import { getMatch, updateMatch, updateMatches, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
 import { PLAYOFF_STAGES } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
 import { groupUrl } from '../components.js';
@@ -60,16 +60,6 @@ export function registerMatchRoutes(app, { db, rng }) {
     const fields = parseMatchFields(req.body);
     updateMatch(db, m.id, fields);
     res.redirect(backTo({ ...m, ...fields }));
-  });
-
-  // Every playoff match of one stage, saved together (so unsaved edits in sibling rows aren't lost).
-  app.post('/championships/:id/playoff/:stage/matches', (req, res) => {
-    const championshipId = Number(req.params.id);
-    const stage = req.params.stage;
-    if (!PLAYOFF_STAGES.includes(stage)) throw new UserError(`Unknown playoff stage "${stage}"`);
-    const ids = listMatches(db, championshipId).filter(m => m.stage === stage).map(m => m.id);
-    saveMatchesFromBody(db, ids, req.body);
-    res.redirect(`/championships/${championshipId}/playoff`);
   });
 
   app.post('/championships/:id/matches/:matchId/reroll', (req, res) => {

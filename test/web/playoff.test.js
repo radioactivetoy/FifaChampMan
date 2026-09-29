@@ -3,199 +3,157 @@ import assert from 'node:assert/strict';
 import { startTestApp } from '../helpers.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import { createChampionship, getChampionship, fillFieldRandom } from '../../src/repo/championships.js';
-import { listMatches, getMatch } from '../../src/repo/matches.js';
+import { listMatches, getMatch, createPlayoffMatch } from '../../src/repo/matches.js';
+import { groupTies } from '../../src/domain/stages.js';
 import { createRng } from '../../src/domain/rng.js';
 
-test('add, edit and list playoff matches; CPU controller drawn automatically', async () => {
+async function setup() {
   const app = await startTestApp();
-  try {
-    seedTeams(app.db);
-    const rng = createRng(1);
-    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
-    fillFieldRandom(app.db, id, rng);
-    const c = getChampionship(app.db, id);
-    const human = c.teams.find(t => t.owner);
-    const cpu = c.teams.find(t => !t.owner);
+  seedTeams(app.db);
+  const rng = createRng(1);
+  const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
+  fillFieldRandom(app.db, id, rng);
+  return { app, id, rng, teams: getChampionship(app.db, id).teams };
+}
 
-    const r = await app.post(`/championships/${id}/playoff`, { stage: 'r16', leg: '1', homeTeamId: human.teamId, awayTeamId: cpu.teamId });
+const count = (text, re) => (text.match(re) ?? []).length;
+
+test('the playoff page always draws the whole tree with dropdowns and exactly one save button', async () => {
+  const { app, id } = await setup();
+  try {
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    // 8 + 4 + 2 + 1 ties, each with a home and an away team dropdown, all inside one bracket.
+    assert.equal(count(text, /class="bracket-tie/g), 15);
+    assert.equal(count(text, /name="new_[a-z0-9]+_\d+_homeTeamId"/g), 15);
+    assert.equal(count(text, /name="new_[a-z0-9]+_\d+_awayTeamId"/g), 15);
+    assert.equal(count(text, /<h3>Round of 16<\/h3>/g), 2); // one column per side
+    assert.equal(count(text, /<h3>Semi-final<\/h3>/g), 2);
+    assert.equal(count(text, /<h3>Final<\/h3>/g), 1);
+    // No "add match" form any more, and one save button.
+    assert.doesNotMatch(text, /Add a playoff match|Add match/);
+    assert.equal(count(text, /<button form="playoff-form"/g), 1);
+    assert.equal(count(text, /<form id="playoff-form" method="post" action="\/championships\/\d+\/playoff\/save">/g), 1);
+    // Elbows per side: 2 for the Round of 16 (4 ties -> 2) + 1 for the quarter-finals (2 ties -> 1).
+    assert.equal(count(text, /class="bracket-pair-connector side-right"/g), 3);
+    assert.equal(count(text, /class="bracket-pair-connector side-left"/g), 3);
+  } finally {
+    await app.close();
+  }
+});
+
+test('one save creates matches for every filled slot, with controllers drawn for CPU teams facing a human', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const human = teams.find(t => t.owner);
+    const cpus = teams.filter(t => !t.owner);
+    const r = await app.post(`/championships/${id}/playoff/save`, {
+      new_r16_0_homeTeamId: human.teamId, new_r16_0_awayTeamId: cpus[0].teamId, new_r16_0_homeScore: '2', new_r16_0_awayScore: '1',
+      new_r16_5_homeTeamId: cpus[1].teamId, new_r16_5_awayTeamId: cpus[2].teamId,
+      new_final_0_homeTeamId: cpus[3].teamId, new_final_0_awayTeamId: cpus[4].teamId,
+      new_qf_3_homeTeamId: '', new_qf_3_awayTeamId: '', new_qf_3_homeScore: '', new_qf_3_awayScore: '', // untouched slot
+    });
     assert.equal(r.status, 302);
-    let [m] = listMatches(app.db, id);
-    assert.equal(m.homeControllerId, human.owner.playerId);
-    assert.ok(m.awayControllerId && m.awayControllerId !== human.owner.playerId); // drawn automatically
-    await app.post(`/championships/${id}/matches/${m.id}/reroll`);
-    m = getMatch(app.db, m.id);
-    assert.ok(m.awayControllerId && m.awayControllerId !== human.owner.playerId);
-
-    await app.post(`/championships/${id}/matches/${m.id}`, {
-      stage: 'qf', leg: '', homeTeamId: human.teamId, awayTeamId: cpu.teamId,
-      homeScore: '1', awayScore: '1', homePens: '4', awayPens: '3',
-      homeControllerId: String(human.owner.playerId), awayControllerId: String(m.awayControllerId),
-    });
-    const saved = getMatch(app.db, m.id);
-    assert.deepEqual([saved.stage, saved.leg, saved.homePens, saved.awayPens], ['qf', null, 4, 3]);
-
-    const text = (await app.get(`/championships/${id}/playoff`)).text;
-    assert.match(text, /Quarter-final/);
-    assert.equal((await app.post(`/championships/${id}/playoff`, { stage: 'sf', homeTeamId: cpu.teamId, awayTeamId: cpu.teamId })).status, 400);
-  } finally {
-    await app.close();
-  }
-});
-
-test('playoff page renders a bracket tree; a two-legged tie shows its aggregate winner', async () => {
-  const app = await startTestApp();
-  try {
-    seedTeams(app.db);
-    const rng = createRng(1);
-    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
-    fillFieldRandom(app.db, id, rng);
-    const [teamA, teamB] = getChampionship(app.db, id).teams;
-
-    await app.post(`/championships/${id}/playoff`, { stage: 'qf', leg: '1', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
-    const [leg1] = listMatches(app.db, id);
-    await app.post(`/championships/${id}/playoff`, { stage: 'qf', leg: '2', homeTeamId: teamB.teamId, awayTeamId: teamA.teamId });
-    const leg2 = listMatches(app.db, id).find(m => m.id !== leg1.id);
-
-    let text = (await app.get(`/championships/${id}/playoff`)).text;
-    assert.match(text, /class="bracket scroll-x"/);
-    assert.equal((text.match(/class="bracket-tie(?:\s|")/g) ?? []).length, 1); // one tie box for both legs
-
-    const r = await app.post(`/championships/${id}/playoff/qf/matches`, {
-      [`homeScore_${leg1.id}`]: '3', [`awayScore_${leg1.id}`]: '1',
-      [`homeScore_${leg2.id}`]: '0', [`awayScore_${leg2.id}`]: '1', // teamA wins 4-1 on aggregate
-    });
     assert.equal(r.location, `/championships/${id}/playoff`);
+    const ms = listMatches(app.db, id);
+    assert.equal(ms.length, 3);
+    const first = ms.find(m => m.stage === 'r16' && m.slot === 0);
+    assert.deepEqual([first.homeScore, first.awayScore, first.homeControllerId], [2, 1, human.owner.playerId]);
+    assert.ok(first.awayControllerId && first.awayControllerId !== human.owner.playerId);
+    assert.ok(ms.find(m => m.stage === 'r16' && m.slot === 5));
+    assert.ok(ms.find(m => m.stage === 'final' && m.slot === 0));
 
-    text = (await app.get(`/championships/${id}/playoff`)).text;
+    // The match shows up in the slot it was saved in: a filled slot has match-id fields, the others stay "new_".
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(text, new RegExp(`name="homeTeamId_${first.id}"`));
+    assert.doesNotMatch(text, /name="new_r16_0_homeTeamId"/);
+    assert.match(text, /name="new_r16_1_homeTeamId"/);
+  } finally {
+    await app.close();
+  }
+});
+
+test('one save edits existing matches, removes a match whose teams are cleared and rejects a half-filled slot', async () => {
+  const { app, id, rng, teams } = await setup();
+  try {
+    const [a, b, c, d] = teams;
+    const m1 = createPlayoffMatch(app.db, id, { stage: 'qf', slot: 2, homeTeamId: a.teamId, awayTeamId: b.teamId }, rng);
+    const m2 = createPlayoffMatch(app.db, id, { stage: 'sf', slot: 1, homeTeamId: c.teamId, awayTeamId: d.teamId }, rng);
+
+    const r = await app.post(`/championships/${id}/playoff/save`, {
+      [`stage_${m1}`]: 'qf', [`homeTeamId_${m1}`]: b.teamId, [`awayTeamId_${m1}`]: a.teamId, [`homeScore_${m1}`]: '3', [`awayScore_${m1}`]: '3',
+      [`homePens_${m1}`]: '5', [`awayPens_${m1}`]: '4',
+      [`stage_${m2}`]: 'sf', [`homeTeamId_${m2}`]: '', [`awayTeamId_${m2}`]: '',
+    });
+    assert.equal(r.status, 302);
+    const saved = getMatch(app.db, m1);
+    assert.deepEqual([saved.homeTeamId, saved.awayTeamId, saved.homeScore, saved.homePens, saved.slot], [b.teamId, a.teamId, 3, 5, 2]);
+    assert.equal(listMatches(app.db, id).some(m => m.id === m2), false);
+
+    // A slot with only one team filled is an error and nothing else from that submit is applied.
+    const bad = await app.post(`/championships/${id}/playoff/save`, {
+      [`stage_${m1}`]: 'qf', [`homeTeamId_${m1}`]: b.teamId, [`awayTeamId_${m1}`]: a.teamId, [`homeScore_${m1}`]: '9', [`awayScore_${m1}`]: '9',
+      new_r16_0_homeTeamId: c.teamId, new_r16_0_awayTeamId: '',
+    });
+    assert.equal(bad.status, 400);
+    assert.equal(getMatch(app.db, m1).homeScore, 3);
+  } finally {
+    await app.close();
+  }
+});
+
+test('existing two-legged ties keep their slot and show an aggregate winner', async () => {
+  const { app, id, rng, teams } = await setup();
+  try {
+    const [teamA, teamB] = teams;
+    const leg1 = createPlayoffMatch(app.db, id, { stage: 'qf', leg: 1, homeTeamId: teamA.teamId, awayTeamId: teamB.teamId }, rng);
+    const leg2 = createPlayoffMatch(app.db, id, { stage: 'qf', leg: 2, homeTeamId: teamB.teamId, awayTeamId: teamA.teamId }, rng);
+    assert.equal(getMatch(app.db, leg1).slot, getMatch(app.db, leg2).slot); // one tie, one slot
+    assert.equal(groupTies(listMatches(app.db, id)).length, 1);
+
+    await app.post(`/championships/${id}/playoff/save`, {
+      [`stage_${leg1}`]: 'qf', [`homeTeamId_${leg1}`]: teamA.teamId, [`awayTeamId_${leg1}`]: teamB.teamId, [`homeScore_${leg1}`]: '3', [`awayScore_${leg1}`]: '1',
+      [`stage_${leg2}`]: 'qf', [`homeTeamId_${leg2}`]: teamB.teamId, [`awayTeamId_${leg2}`]: teamA.teamId, [`homeScore_${leg2}`]: '0', [`awayScore_${leg2}`]: '1',
+    });
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
     assert.match(text, new RegExp(`Agg 4-1 · <strong>${teamA.name}</strong> through`));
+    assert.equal(count(text, /class="bracket-tie/g), 15); // still exactly one box for both legs
   } finally {
     await app.close();
   }
 });
 
-test('each playoff stage\'s Save results button names its own stage', async () => {
-  const app = await startTestApp();
+test('matches from before slots existed are given one on the next save, in their original order', async () => {
+  const { app, id, rng, teams } = await setup();
   try {
-    seedTeams(app.db);
-    const rng = createRng(1);
-    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
-    fillFieldRandom(app.db, id, rng);
-    const [teamA, teamB] = getChampionship(app.db, id).teams;
+    const ids = [];
+    for (let i = 0; i < 3; i++) ids.push(createPlayoffMatch(app.db, id, { stage: 'r16', homeTeamId: teams[2 * i].teamId, awayTeamId: teams[2 * i + 1].teamId }, rng));
+    app.db.exec('UPDATE matches SET slot = NULL'); // simulate an old database
 
-    await app.post(`/championships/${id}/playoff`, { stage: 'qf', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
-
-    const text = (await app.get(`/championships/${id}/playoff`)).text;
-    // The button must name its stage, not just read the generic "Save results" — with several
-    // stages' buttons all stacked at the bottom of the bracket, an unlabeled one is ambiguous
-    // about which stage's still-unsaved scores it submits.
-    assert.match(text, /Save Quarter-final results/);
+    await app.post(`/championships/${id}/playoff/save`, {});
+    assert.deepEqual(ids.map(mid => getMatch(app.db, mid).slot), [0, 1, 2]);
   } finally {
     await app.close();
   }
 });
 
-test('the playoff bracket splits each round into two sides converging on a shared Final column', async () => {
-  const app = await startTestApp();
+test('each bracket match keeps controllers, pens, swap, draw and delete behind "⋯ more"; the scoreboard stays plain markup', async () => {
+  const { app, id, rng, teams } = await setup();
   try {
-    seedTeams(app.db);
-    const rng = createRng(1);
-    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
-    fillFieldRandom(app.db, id, rng);
-    const teams = getChampionship(app.db, id).teams;
-
-    // 4 distinct R16 ties (8 teams), single leg each, to check the 2/2 split.
-    for (let i = 0; i < 4; i++) {
-      await app.post(`/championships/${id}/playoff`, { stage: 'r16', homeTeamId: teams[i * 2].teamId, awayTeamId: teams[i * 2 + 1].teamId });
-    }
+    const [teamA, teamB] = teams;
+    const m = createPlayoffMatch(app.db, id, { stage: 'qf', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId }, rng);
 
     const text = (await app.get(`/championships/${id}/playoff`)).text;
-    assert.equal((text.match(/class="bracket-tie connect-right"/g) ?? []).length, 2);
-    assert.equal((text.match(/class="bracket-tie connect-left"/g) ?? []).length, 2);
-    // Both halves render their own "Round of 16" column heading, either side of the (empty) middle.
-    assert.equal((text.match(/<h3>Round of 16<\/h3>/g) ?? []).length, 2);
-  } finally {
-    await app.close();
-  }
-});
-
-test('a Final tie sits in its own centred column with no connector line', async () => {
-  const app = await startTestApp();
-  try {
-    seedTeams(app.db);
-    const rng = createRng(1);
-    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
-    fillFieldRandom(app.db, id, rng);
-    const [teamA, teamB] = getChampionship(app.db, id).teams;
-    await app.post(`/championships/${id}/playoff`, { stage: 'final', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
-
-    const text = (await app.get(`/championships/${id}/playoff`)).text;
-    assert.match(text, /class="bracket-round bracket-final"/);
-    assert.match(text, /class="bracket-tie">/); // no connect- suffix on the final's own tie
-  } finally {
-    await app.close();
-  }
-});
-
-test('a bracket match shows a compact scoreboard by default; controller/pens/leg/actions are tucked behind a click to expand', async () => {
-  const app = await startTestApp();
-  try {
-    seedTeams(app.db);
-    const rng = createRng(1);
-    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
-    fillFieldRandom(app.db, id, rng);
-    const [teamA, teamB] = getChampionship(app.db, id).teams;
-    await app.post(`/championships/${id}/playoff`, { stage: 'qf', homeTeamId: teamA.teamId, awayTeamId: teamB.teamId });
-    const [m] = listMatches(app.db, id);
-
-    const text = (await app.get(`/championships/${id}/playoff`)).text;
-    // The compact scoreboard (team + score) is plain, always-visible markup -- not inside any <details>,
-    // so no summary/disclosure widget can swallow or hide these interactive controls from assistive tech.
-    const matchStart = text.indexOf(`class="bracket-match"`);
+    const matchStart = text.indexOf(`name="stage_${m}"`);
     const moreStart = text.indexOf('bracket-match-more', matchStart);
     const scoreboardHtml = text.slice(matchStart, moreStart);
-    for (const name of [`homeTeamId_${m.id}`, `homeScore_${m.id}`, `awayTeamId_${m.id}`, `awayScore_${m.id}`]) {
+    for (const name of [`homeTeamId_${m}`, `homeScore_${m}`, `awayTeamId_${m}`, `awayScore_${m}`]) {
       assert.ok(scoreboardHtml.includes(`name="${name}"`), `expected ${name} in the always-visible scoreboard`);
     }
-    // Closed by default: no `open` attribute on the "more" details.
     assert.doesNotMatch(text, /<details class="bracket-match-more"[^>]*\bopen\b/);
-    // The rest still exists, just inside the expandable body, and its own <summary> has no form controls.
     assert.match(text, /<summary>⋯ more<\/summary>/);
-    assert.match(text, new RegExp(`bracket-match-extra[\\s\\S]*?name="homeControllerId_${m.id}"[\\s\\S]*?name="awayControllerId_${m.id}"[\\s\\S]*?name="homePens_${m.id}"[\\s\\S]*?name="awayPens_${m.id}"`));
-    assert.match(text, new RegExp(`/championships/${id}/matches/${m.id}/swap`));
-    assert.match(text, new RegExp(`/championships/${id}/matches/${m.id}/delete`));
-  } finally {
-    await app.close();
-  }
-});
-
-test('a fully-paired round (2x the next round\'s ties) gets a real elbow connector at the exact midpoint of each pair', async () => {
-  const app = await startTestApp();
-  try {
-    seedTeams(app.db);
-    const rng = createRng(1);
-    const id = createChampionship(app.db, { name: 'Cup', playerIds: seedPlayers(app.db), rng });
-    fillFieldRandom(app.db, id, rng);
-    const teams = getChampionship(app.db, id).teams;
-
-    // 4 R16 ties (splits 2/2) and 2 QF ties (splits 1/1) -- each side's R16 pair (2 ties) exactly
-    // doubles its side's QF count (1 tie), so both sides should get a real elbow, not just a stub.
-    for (let i = 0; i < 4; i++) {
-      await app.post(`/championships/${id}/playoff`, { stage: 'r16', homeTeamId: teams[i * 2].teamId, awayTeamId: teams[i * 2 + 1].teamId });
-    }
-    for (let i = 4; i < 6; i++) {
-      await app.post(`/championships/${id}/playoff`, { stage: 'qf', homeTeamId: teams[i * 2].teamId, awayTeamId: teams[i * 2 + 1].teamId });
-    }
-
-    const text = (await app.get(`/championships/${id}/playoff`)).text;
-    assert.equal((text.match(/class="bracket-tie connect-right paired"/g) ?? []).length, 2);
-    assert.equal((text.match(/class="bracket-tie connect-left paired"/g) ?? []).length, 2);
-    // One elbow per side: a pair of 2 R16 ties (count=2) -> exactly one pair, spanning the whole column.
-    const connectors = [...text.matchAll(/class="bracket-pair-connector side-(right|left)" data-pair-index="\d+" style="top:(\d+(?:\.\d+)?)%;height:(\d+(?:\.\d+)?)%"/g)];
-    assert.equal(connectors.length, 2);
-    for (const [, , top, height] of connectors) {
-      assert.equal(Number(top), 25); // (2*0+0.5)/2 * 100
-      assert.equal(Number(height), 50); // (1/2) * 100
-    }
+    assert.match(text, new RegExp(`bracket-match-extra[\\s\\S]*?name="homeControllerId_${m}"[\\s\\S]*?name="awayControllerId_${m}"[\\s\\S]*?name="homePens_${m}"[\\s\\S]*?name="awayPens_${m}"`));
+    assert.match(text, new RegExp(`/championships/${id}/matches/${m}/swap`));
+    assert.match(text, new RegExp(`/championships/${id}/matches/${m}/delete`));
   } finally {
     await app.close();
   }

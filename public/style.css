@@ -288,8 +288,11 @@ tbody tr:last-child > :last-child { border-bottom-right-radius: var(--radius); }
    text-only "⋯ more" toggle for bracket-match-more below. */
 .bracket-match { border-bottom: 1px solid var(--line); padding: 2px 0; }
 .bracket-match:last-child { border-bottom: 0; }
-.bracket-match[data-cpu-only] { display: none; }
-body.show-cpu .bracket-match[data-cpu-only] { display: block; background: var(--surface-2); }
+.bracket-tie-empty { background: var(--surface-2); border-style: dashed; }
+.bracket-extra { display: flex; flex-wrap: wrap; gap: 18px; }
+.bracket-extra > div { min-width: 260px; }
+/* The one Save button of the playoff page stays reachable however far down the tree you are. */
+.save-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 12px; padding: 10px 4px; background: var(--bg, var(--surface)); border-top: 1px solid var(--line); }
 .bracket-match-row { display: flex; align-items: center; gap: 6px; padding: 2px 6px; }
 .bracket-match-row select { flex: 1; min-width: 0; }
 .bracket-match-row input.num { width: 3em; flex: 0 0 auto; }
