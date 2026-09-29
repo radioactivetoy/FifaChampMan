@@ -332,3 +332,4 @@ details.bracket-match-more > summary::-webkit-details-marker { display: none; }
 }
 
 .champion-line { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 12px; padding: 8px 14px; background: #fff7dc; border: 1px solid #f0d27a; border-radius: var(--radius); font-weight: 600; }
+.cuchara-line { background: #f3ece2; border-color: #d3bb98; margin-left: 8px; }

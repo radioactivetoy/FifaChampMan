@@ -67,6 +67,7 @@ export function registerStatsRoutes(app, { db }) {
           ${highlight(stats, 'Best win rate (own team, 3+ games)', s => pct(s.own.won, s.own.played), s => `${pct(s.own.won, s.own.played)}% of ${s.own.played} games`, s => s.own.played >= 3)}
           ${highlight(stats, 'Most goals (own team)', s => s.own.goalsFor, s => `${s.own.goalsFor} goal${s.own.goalsFor === 1 ? "" : "s"}`)}
           ${highlight(stats, 'Best CPU controller (3+ games)', s => pct(s.cpu.won, s.cpu.played), s => `${pct(s.cpu.won, s.cpu.played)}% wins controlling CPU teams`, s => s.cpu.played >= 3)}
+          ${highlight(stats, '🥄 Cuchara de Madera (0 pts, 0 goals in the groups)', s => s.cucharas, s => `${s.cucharas} time${s.cucharas === 1 ? '' : 's'}`)}
           ${highlight(stats, 'Best average stars', s => s.avgStars, s => `${s.avgStars}★ per championship`)}
         </div>
 
@@ -74,12 +75,12 @@ export function registerStatsRoutes(app, { db }) {
         <p class="muted">Click a column header to sort. "Own team" is the team each player was assigned;
           "As CPU" is how they did when controlling CPU teams against other players.</p>
         <div class="scroll-x"><table data-sortable><thead><tr>
-          <th>Player</th><th>Champ.</th><th>Titles</th><th>Finals</th><th>Qualified</th><th>Best</th><th>Avg ★</th><th>Now ★</th>
+          <th>Player</th><th>Champ.</th><th>Titles</th><th title="Cuchara de Madera">🥄</th><th>Finals</th><th>Qualified</th><th>Best</th><th>Avg ★</th><th>Now ★</th>
           <th>P</th><th>W-D-L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts/game</th><th>Win %</th>
           <th>As CPU W-D-L</th><th>As CPU win %</th></tr></thead><tbody>
         ${stats.map(s => html`<tr>
           <td data-sort="${s.name.toLowerCase()}"><a href="#player-${s.playerId}"><strong>${s.name}</strong></a></td>
-          ${num(s.championships)}${num(s.titles)}${num(s.finals)}${num(s.qualified)}
+          ${num(s.championships)}${num(s.titles)}${num(s.cucharas)}${num(s.finals)}${num(s.qualified)}
           <td data-sort="${REACHED.indexOf(s.bestReached)}">${s.bestReached ? REACHED_LABELS[s.bestReached] : '—'}</td>
           ${num(s.avgStars, s.avgStars == null ? null : `${s.avgStars}★`)}${num(s.lastStars, s.lastStars == null ? null : `${s.lastStars}★`)}
           ${num(s.own.played)}<td data-sort="${points(s.own)}">${wdl(s.own)}</td>${num(s.own.goalsFor)}${num(s.own.goalsAgainst)}
@@ -101,7 +102,7 @@ export function registerStatsRoutes(app, { db }) {
             const e = entryFor(s.playerId, c.championshipId);
             if (!e) return html`<td class="muted">—</td>`;
             return html`<td class="reached-${e.reached}">${e.teamId ? teamLabel(e.teamId) : ''}<br>
-              <small>${REACHED_LABELS[e.reached]} · ${stars(e.stars)} → <strong>${stars(e.resultStars)}</strong></small></td>`;
+              <small>${REACHED_LABELS[e.reached]} · ${stars(e.stars)} → <strong>${stars(e.resultStars)}</strong></small>${e.cuchara ? html`<br><small title="Cuchara de Madera">🥄 Cuchara de Madera</small>` : ''}</td>`;
           })}
           <td>${c.team ? html`${badge(c.team)}${c.team.name}${c.playerName ? html`<br><small>🏆 <strong>${c.playerName}</strong></small>` : ''}` : html`<span class="muted">${c.status === 'finished' ? '—' : 'in progress'}</span>`}</td>
         </tr>`)}

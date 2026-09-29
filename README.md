@@ -44,6 +44,8 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
    a banner asks for the winner simulated by the console and closes the championship; if a player
    wins, it offers to close it. A decided Final sets the champion automatically. A closed championship
    shows its champion (and which player won it) on every tab; reopen it to change anything.
+   🥄 **Cuchara de Madera**: a player whose team gets 0 points and 0 goals in the group stage earns the
+   wooden spoon — shown on Results, Recap, the finished championship header and Stats.
 8. **Recap** – per championship: each player's result and stats (group position, points, goals,
    all matches, record as CPU controller), the groups with players and all their matches.
 9. **Stats** – all-time: highlight cards, sortable leaderboard (titles, finals, stars, own-team

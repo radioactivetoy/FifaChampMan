@@ -3,7 +3,7 @@ import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
 import { listMatches, insertMatch, drawControllers } from './matches.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
-import { teamRecord, computeStandings, hasResult } from '../domain/standings.js';
+import { teamRecord, computeStandings, hasResult, isCucharaDeMadera } from '../domain/standings.js';
 import { playerStats } from '../domain/stats.js';
 import { fillField, FIELD_SIZE, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
 import { makePots, drawGroups, GROUP_LETTERS } from '../domain/draw.js';
@@ -26,6 +26,7 @@ export function getChampionship(db, id) {
   if (!row) throw new UserError('Championship not found', 404);
   const c = { ...row, groupStageClosed: row.groupStageClosed === 1 };
   const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
+  const matches = listMatches(db, id);
   const players = all(db, `SELECT cp.player_id AS playerId, p.name AS playerName, cp.stars, cp.team_id AS teamId,
         cp.offered_team_ids AS offeredJson, cp.result_stars_override AS resultStarsOverride
       FROM championship_players cp JOIN players p ON p.id = cp.player_id
@@ -33,10 +34,11 @@ export function getChampionship(db, id) {
     .map(({ offeredJson, ...p }) => ({
       ...p,
       team: teamsById.get(p.teamId) ?? null,
+      cuchara: isCucharaDeMadera(p.teamId, matches),
       offered: JSON.parse(offeredJson).map(tid => teamsById.get(tid)).filter(Boolean),
     }));
   const ownerByTeam = new Map(players.filter(p => p.teamId).map(p => [p.teamId, p]));
-  const lostAt = new Map(playoffOutcomes(listMatches(db, id)).map(o => [o.loserId, o.stage]));
+  const lostAt = new Map(playoffOutcomes(matches).map(o => [o.loserId, o.stage]));
   const teams = all(db, 'SELECT team_id AS teamId, pot, group_letter AS groupLetter, reached, points_override AS pointsOverride FROM championship_teams WHERE championship_id = ?', id)
     .map(ct => ({
       ...teamsById.get(ct.teamId), ...ct, owner: ownerByTeam.get(ct.teamId) ?? null,
@@ -386,9 +388,10 @@ export function playerOutcome(db, championshipId, playerId) {
   if (!entry) return null;
   const reached = entry.teamId == null ? 'group'
     : get(db, 'SELECT reached FROM championship_teams WHERE championship_id = ? AND team_id = ?', championshipId, entry.teamId)?.reached ?? 'group';
-  const record = teamRecord(entry.teamId, listMatches(db, championshipId));
+  const matches = listMatches(db, championshipId);
+  const record = teamRecord(entry.teamId, matches);
   const computedStars = resultStars({ reached, record });
-  return { stars: entry.stars, teamId: entry.teamId, reached, record, computedStars, resultStars: entry.override ?? computedStars };
+  return { stars: entry.stars, teamId: entry.teamId, reached, record, cuchara: isCucharaDeMadera(entry.teamId, matches), computedStars, resultStars: entry.override ?? computedStars };
 }
 
 export function listOutcomes(db, championshipId) {

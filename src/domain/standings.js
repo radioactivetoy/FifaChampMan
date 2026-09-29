@@ -32,3 +32,13 @@ export function computeStandings(teamIds, matches, enteredPoints = new Map()) {
     })
     .sort((a, b) => b.points - a.points || b.goalDiff - a.goalDiff || b.goalsFor - a.goalsFor);
 }
+
+/**
+ * "Cuchara de Madera" (wooden spoon): the player's own team finished the group stage with 0 points and
+ * 0 goals scored, having played all 3 group games. matches: any matches of that championship.
+ */
+export function isCucharaDeMadera(teamId, matches) {
+  if (teamId == null) return false;
+  const r = teamRecord(teamId, matches.filter(m => m.stage === 'group'));
+  return r.played >= 3 && r.points === 0 && r.goalsFor === 0;
+}

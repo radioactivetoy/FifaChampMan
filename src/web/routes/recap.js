@@ -36,7 +36,7 @@ export function registerRecapRoutes(app, { db }) {
         <table><thead><tr><th>Player</th><th>Team</th><th>Played at</th><th>Group</th><th>Pos</th><th>Pts</th>
           <th>W-D-L</th><th>Goals</th><th>GD</th><th>Reached</th><th>All matches</th><th>As CPU controller</th><th>Stars earned</th></tr></thead><tbody>
         ${players.map(p => html`<tr>
-          <td><strong>${p.playerName}</strong></td>
+          <td><strong>${p.playerName}</strong>${p.cuchara ? html` <span title="Cuchara de Madera: 0 points and 0 goals in the group stage">🥄</span>` : ''}</td>
           <td>${p.team ? html`${badge(p.team)}${p.team.name}` : '—'}</td>
           <td>${stars(p.stars)}</td>
           <td>${p.groupLetter ?? '—'}</td>

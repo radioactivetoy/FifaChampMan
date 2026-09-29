@@ -41,7 +41,7 @@ export function teamFilterBar(teams) {
 export function champNav(c, active) {
   const tabs = [['', 'Players & teams'], ['draw', 'Field & draw'], ['groups', 'Group stage'], ['playoff', 'Playoff'], ['results', 'Results'], ['recap', 'Recap']];
   return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? 'Finished' : 'In progress'}</p>
-    ${finishBanner(c)}${championLine(c)}
+    ${finishBanner(c)}${championLine(c)}${cucharaLine(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;
 }
 
@@ -51,6 +51,14 @@ function championLine(c) {
   const champion = c.teams.find(t => t.reached === 'champion');
   if (!champion) return '';
   return html`<p class="champion-line">🏆 Champion: ${teamName(champion)}${champion.owner ? html` — <strong>${champion.owner.playerName}</strong> won it! 🎉` : ''}</p>`;
+}
+
+/** On a finished championship: the wooden spoon, if a player earned it (0 points and 0 goals in the groups). */
+function cucharaLine(c) {
+  if (c.status !== 'finished') return '';
+  const holders = c.players.filter(p => p.cuchara);
+  if (holders.length === 0) return '';
+  return html`<p class="champion-line cuchara-line">🥄 Cuchara de Madera: ${holders.map((p, i) => html`${i ? ', ' : ''}<strong>${p.playerName}</strong>${p.team ? html` (${p.team.name})` : ''}`)}</p>`;
 }
 
 /**

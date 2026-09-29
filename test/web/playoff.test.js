@@ -319,3 +319,31 @@ test('decided ties feed the next round: winners are preselected, and the next ma
     await app.close();
   }
 });
+
+test('Cuchara de Madera: 0 points and 0 goals in the group stage shows on results, recap, stats and the finished header', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const c = getChampionship(app.db, id);
+    const spoon = c.players.find(p => p.teamId);
+    const others = c.teams.filter(t => t.teamId !== spoon.teamId).slice(0, 3);
+    const { insertMatch } = await import('../../src/repo/matches.js');
+    others.forEach((o, i) => insertMatch(app.db, id, { stage: 'group', groupLetter: 'A', matchday: i + 1, homeTeamId: o.teamId, awayTeamId: spoon.teamId, homeScore: 1, awayScore: 0 }));
+    assert.equal(getChampionship(app.db, id).players.find(p => p.playerId === spoon.playerId).cuchara, true);
+
+    // A single group game is not enough: the team must have played all three.
+    const partial = c.players.find(p => p.teamId && p.playerId !== spoon.playerId);
+    insertMatch(app.db, id, { stage: 'group', groupLetter: 'B', matchday: 1, homeTeamId: others[0].teamId, awayTeamId: partial.teamId, homeScore: 2, awayScore: 0 });
+    assert.equal(getChampionship(app.db, id).players.find(p => p.playerId === partial.playerId).cuchara, false);
+
+    assert.match((await app.get(`/championships/${id}/results`)).text, /Cuchara de Madera/);
+    assert.match((await app.get(`/championships/${id}/recap`)).text, /Cuchara de Madera/);
+    let stats = (await app.get('/stats')).text;
+    assert.match(stats, /Cuchara de Madera/);
+    assert.doesNotMatch((await app.get(`/championships/${id}/results`)).text, /Cuchara de Madera: <strong>/); // not finished yet
+
+    await app.post(`/championships/${id}/status`, { status: 'finished' });
+    assert.match((await app.get(`/championships/${id}/results`)).text, new RegExp(`Cuchara de Madera: <strong>${spoon.playerName}</strong>`));
+  } finally {
+    await app.close();
+  }
+});

@@ -27,7 +27,7 @@ export function registerResultRoutes(app, { db }) {
         <h2>Players</h2>
         <table><thead><tr><th>Player</th><th>Team</th><th>Played at</th><th>W-D-L (GF:GA)</th><th>Reached</th><th>Earned</th><th>Override</th><th>Next championship</th></tr></thead><tbody>
         ${outcomes.map(o => html`<tr>
-          <td>${o.playerName}</td><td>${o.team ? html`${badge(o.team)}${o.team.name}` : '—'}</td><td>${stars(o.stars)}</td>
+          <td>${o.playerName}${o.cuchara ? html` <span title="Cuchara de Madera: 0 points and 0 goals in the group stage">🥄</span>` : ''}</td><td>${o.team ? html`${badge(o.team)}${o.team.name}` : '—'}</td><td>${stars(o.stars)}</td>
           <td>${o.record.won}-${o.record.drawn}-${o.record.lost} (${o.record.goalsFor}:${o.record.goalsAgainst})</td>
           <td>${REACHED_LABELS[o.reached]}</td><td>${stars(o.computedStars)}</td>
           <td><form method="post" action="${base}/players/${o.playerId}/result" class="inline">
