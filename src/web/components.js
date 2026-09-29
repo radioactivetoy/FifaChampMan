@@ -187,11 +187,11 @@ function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
   </div>`;
   const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: _('— CPU —') });
   const played = m.homeScore != null && m.awayScore != null;
-  // Who controls a CPU side (drawn when the match was created); the draw/edit controls are in "⋯ more".
+  // Who controls each side: the owner of a player's team, or the player drawn for a CPU side when the match was created; the draw/edit controls are in "⋯ more".
   const playerName = id => c.players.find(p => p.playerId === id)?.playerName;
   const controllers = ['home', 'away'].map(side => {
-    const team = byId.get(m[`${side}TeamId`]), who = playerName(m[`${side}ControllerId`]);
-    return team && !team.owner && who ? html`<small class="bracket-controller">🎮 ${_('{player} controls {team}', { player: who, team: team.name })}</small>` : '';
+    const team = byId.get(m[`${side}TeamId`]), who = playerName(m[`${side}ControllerId`]) ?? team?.owner?.playerName;
+    return team && who ? html`<small class="bracket-controller">🎮 ${_('{player} controls {team}', { player: who, team: team.name })}</small>` : '';
   });
   return html`<div class="bracket-match${played ? ' played' : ''}">
     <input type="hidden" form="${formId}" name="stage_${m.id}" value="${m.stage}">
