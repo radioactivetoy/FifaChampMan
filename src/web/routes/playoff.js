@@ -1,4 +1,4 @@
-import { html, page } from '../html.js';
+import { html, page, th, tn, _ } from '../html.js';
 import { intOrNull } from '../form.js';
 import { champNav, fillControllersButton, playoffBracket } from '../components.js';
 import { saveMatchesFromBody } from './matches.js';
@@ -25,18 +25,12 @@ export function registerPlayoffRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'playoff')}
-        <details class="help"><summary>How the playoff works</summary><p class="muted">The whole playoff tree: pick the two teams of each tie from the dropdowns and type the scores.
-          Once a tie has a result its winner moves into the next round by itself (the next match appears when both of its
-          ties are decided; a match already there is never changed, so fix it by hand if you correct an earlier result). When you add a match, the player
-          controlling a CPU team that faces a human is drawn automatically (rotating across the whole playoff); open
-          <strong>⋯ more</strong> on a match for controllers, penalties, 🎲 Draw, ⇄ swap or ✕ delete.
-          To remove a match, set both of its teams to “—”. Press <strong>Save playoff</strong> once to save everything.
-          When a round is done, set how far each team got on the <a href="/championships/${c.id}/results">Results</a> tab.</p></details>
+        <details class="help"><summary>${_('How the playoff works')}</summary><p class="muted">${th('The whole playoff tree: pick the two teams of each tie from the dropdowns and type the scores. Once a tie has a result its winner moves into the next round by itself (the next match appears when both of its ties are decided; a match already there is never changed, so fix it by hand if you correct an earlier result). When you add a match, the player controlling a CPU team that faces a human is drawn automatically (rotating across the whole playoff); open <strong>⋯ more</strong> on a match for controllers, penalties, 🎲 Draw, ⇄ swap or ✕ delete. To remove a match, set both of its teams to “—”. Press <strong>Save playoff</strong> once to save everything. When a round is done, set how far each team got on the <a href="{results}">Results</a> tab.', { results: `/championships/${c.id}/results` })}</p></details>
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'playoff')}
         <form id="${FORM_ID}" method="post" action="/championships/${c.id}/playoff/save"></form>
         ${playoffBracket(c, matches, { formId: FORM_ID, teamItems })}
-        <div class="save-bar"><button form="${FORM_ID}" class="primary">Save playoff</button>
-          <span class="muted">Saves every team and score in the tree in one go.</span></div>`,
+        <div class="save-bar"><button form="${FORM_ID}" class="primary">${_('Save playoff')}</button>
+          <span class="muted">${_('Saves every team and score in the tree in one go.')}</span></div>`,
     }));
   });
 
@@ -52,7 +46,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
       const existing = listMatches(db, id).filter(m => PLAYOFF_STAGES.includes(m.stage));
       const cleared = m => body[`homeTeamId_${m.id}`] === '' && body[`awayTeamId_${m.id}`] === '';
       const removed = existing.filter(cleared);
-      recordUndo(db, `Removed ${removed.length} playoff match${removed.length === 1 ? '' : 'es'}`, insertSteps('matches', rowsOf(db, 'matches', `id IN (${removed.map(() => '?').join(',') || 'NULL'})`, ...removed.map(m => m.id))));
+      recordUndo(db, tn('Removed {n} playoff match', 'Removed {n} playoff matches', removed.length), insertSteps('matches', rowsOf(db, 'matches', `id IN (${removed.map(() => '?').join(',') || 'NULL'})`, ...removed.map(m => m.id))));
       for (const m of removed) deleteMatch(db, m.id);
       const kept = existing.filter(m => !cleared(m));
       saveMatchesFromBody(db, kept.map(m => m.id), body);
@@ -65,8 +59,8 @@ export function registerPlayoffRoutes(app, { db, rng }) {
           const [homeScore, awayScore] = [intOrNull(field('homeScore')), intOrNull(field('awayScore'))];
           if ([homeTeamId, awayTeamId, homeScore, awayScore].every(v => v == null)) continue;
           if ((homeTeamId == null || awayTeamId == null) && homeScore == null && awayScore == null) continue; // just a prefilled winner
-          if (homeTeamId == null || awayTeamId == null) throw new UserError(`Pick both teams for the ${STAGE_LABELS[stage]} match ${slot + 1} you filled in`);
-          if (taken.has(`${stage}-${slot}`)) throw new UserError(`The ${STAGE_LABELS[stage]} match ${slot + 1} was filled in meanwhile — reload the page`);
+          if (homeTeamId == null || awayTeamId == null) throw new UserError(_('Pick both teams for the {stage} match {n} you filled in', { stage: STAGE_LABELS[stage], n: slot + 1 }));
+          if (taken.has(`${stage}-${slot}`)) throw new UserError(_('The {stage} match {n} was filled in meanwhile — reload the page', { stage: STAGE_LABELS[stage], n: slot + 1 }));
           const matchId = createPlayoffMatch(db, id, { stage, slot, homeTeamId, awayTeamId }, rng);
           updateMatch(db, matchId, { homeScore, awayScore });
           taken.add(`${stage}-${slot}`);

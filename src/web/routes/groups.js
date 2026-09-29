@@ -1,4 +1,4 @@
-import { html, page } from '../html.js';
+import { html, page, th, tn, _, confirmSubmit } from '../html.js';
 import { champNav, matchRow, teamName, badge, cpuToggle, isCpuOnly, fillControllersButton, saveResultsButton, groupUrl } from '../components.js';
 import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import * as C from '../../repo/championships.js';
@@ -27,24 +27,24 @@ export function registerGroupRoutes(app, { db, rng }) {
       const pointsCell = r => (r.team.owner
         ? html`<td><strong>${r.points}</strong></td>`
         : html`<td><input form="${formId}" name="points_${r.teamId}" type="number" min="0" class="num"
-            value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="Points from the FIFA table (empty = calculated)"></td>`);
+            value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="${_('Points from the FIFA table (empty = calculated)')}"></td>`);
       // Human groups start open so results are one click away; ?open=X (a redirect back to that
       // group) opens it too; the rest stay collapsed to cut down scrolling.
       const open = rows.some(r => r.team.owner) || letter === openLetter;
       return html`<details id="group-${letter}" class="group-details"${open ? ' open' : ''}>
         <summary>
-          <span class="group-letter">Group ${letter}</span>
+          <span class="group-letter">${_('Group {letter}', { letter })}</span>
           <span class="group-teams">${rows.map(r => html`<span class="group-team-chip${r.team.reached !== 'group' ? ' qualified' : ''}">${badge(r.team)}${r.team.name}${r.team.owner ? html` <span class="owner">${r.team.owner.playerName}</span>` : ''}</span>`)}</span>
         </summary>
         <form id="${formId}" method="post" action="${base}/groups/${letter}/save"></form>
-        <table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Qualified</th></tr></thead><tbody>
+        <table><thead><tr><th>#</th><th>${_('Team')}</th><th>${_('P')}</th><th>${_('W')}</th><th>${_('D')}</th><th>${_('L')}</th><th>${_('GF')}</th><th>${_('GA')}</th><th>${_('GD')}</th><th>${_('Pts')}</th><th>${_('Qualified')}</th></tr></thead><tbody>
         ${rows.map(r => { const t = r.team; const qualified = t.reached !== 'group'; return html`<tr>
           <td class="muted">${r.position}</td>
           <td>${teamName(t)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td>
           <td>${r.goalsFor}</td><td>${r.goalsAgainst}</td><td>${r.goalDiff}</td>${pointsCell(r)}
           <td><form method="post" action="${base}/teams/${t.teamId}/reached" class="inline">
             <input type="hidden" name="reached" value="${qualified ? 'group' : 'r16'}"><input type="hidden" name="back" value="groups">
-            <button class="${qualified ? 'primary' : ''}">${qualified ? `✓ ${REACHED_LABELS[t.reached]}` : 'No'}</button></form></td>
+            <button class="${qualified ? 'primary' : ''}">${qualified ? `✓ ${REACHED_LABELS[t.reached]}` : _('No')}</button></form></td>
         </tr>`; })}
         </tbody></table>
         <table class="matches"><tbody>${groupMatches.map(m => matchRow(c, m, { formId }))}</tbody></table>
@@ -53,36 +53,32 @@ export function registerGroupRoutes(app, { db, rng }) {
     };
     const closeControls = c.groupStageClosed
       ? html`<form method="post" action="${base}/groups/reopen" class="banner">
-          ✓ Group stage closed — see the <a href="${base}/groups/closed">qualified teams</a> or head to the <a href="${base}/playoff">Playoff</a>.
-          <button>Reopen group stage</button></form>`
+          ${th('✓ Group stage closed — see the <a href="{closed}">qualified teams</a> or head to the <a href="{playoff}">Playoff</a>.', { closed: `${base}/groups/closed`, playoff: `${base}/playoff` })}
+          <button>${_('Reopen group stage')}</button></form>`
       : standings.size === GROUP_LETTERS.length
         ? html`<form method="post" action="${base}/groups/close" class="row"
-            onsubmit="return confirm('Close the group stage? Groups with two teams marked as qualified keep them; in the others the top two by points go through. Everyone else is out.')">
-            <button class="primary">Close group stage</button>
-            <span class="muted">Qualifies two teams per group and leaves only them for the playoff.</span></form>`
+            ${confirmSubmit(_('Close the group stage? Groups with two teams marked as qualified keep them; in the others the top two by points go through. Everyone else is out.'))}>
+            <button class="primary">${_('Close group stage')}</button>
+            <span class="muted">${_('Qualifies two teams per group and leaves only them for the playoff.')}</span></form>`
         : '';
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'groups')}
         <div class="toolbar">
           <div class="toolbar-group">
-            ${standings.size ? html`<button type="button" data-groups-toggle="expand">Expand all</button>
-              <button type="button" data-groups-toggle="collapse">Collapse all</button>` : ''}
+            ${standings.size ? html`<button type="button" data-groups-toggle="expand">${_('Expand all')}</button>
+              <button type="button" data-groups-toggle="collapse">${_('Collapse all')}</button>` : ''}
             ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
           </div>
           <div class="toolbar-group">
-            <form method="post" action="${base}/groups/fixtures"><button class="primary">Generate fixtures</button></form>
-            <form method="post" action="${base}/groups/fixtures/clear" onsubmit="return confirm('Delete ALL group matches and their results?')"><button class="danger">Clear fixtures</button></form>
+            <form method="post" action="${base}/groups/fixtures"><button class="primary">${_('Generate fixtures')}</button></form>
+            <form method="post" action="${base}/groups/fixtures/clear" ${confirmSubmit(_('Delete ALL group matches and their results? You can undo it for 30 minutes.'))}><button class="danger">${_('Clear fixtures')}</button></form>
           </div>
         </div>
         ${closeControls}
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
-        <details class="help"><summary>How the group stage works</summary>
-          <p class="muted">Single round: each team plays the other three once. When fixtures are generated, the player controlling
-          each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn);
-          press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering
-          their result is optional. Fill in as many scores and CPU points as you like within a group, then press
-          <strong>Save results</strong> once for that whole group. Mark who qualified with the "Qualified" buttons.</p></details>
+        <details class="help"><summary>${_('How the group stage works')}</summary>
+          <p class="muted">${th('Single round: each team plays the other three once. When fixtures are generated, the player controlling each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn); press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering their result is optional. Fill in as many scores and CPU points as you like within a group, then press <strong>Save results</strong> once for that whole group. Mark who qualified with the "Qualified" buttons.')}</p></details>
         ${GROUP_LETTERS.map(groupSection)}`,
     }));
   });
@@ -95,7 +91,7 @@ export function registerGroupRoutes(app, { db, rng }) {
   app.post('/championships/:id/groups/fixtures/clear', (req, res) => {
     const id = Number(req.params.id);
     const rows = rowsOf(db, 'matches', "championship_id = ? AND stage = 'group'", id);
-    recordUndo(db, `Cleared ${rows.length} group fixtures`, insertSteps('matches', rows));
+    recordUndo(db, _('Cleared {count} group fixtures', { count: rows.length }), insertSteps('matches', rows));
     C.clearGroupFixtures(db, id);
     res.redirect(`/championships/${req.params.id}/groups`);
   });
@@ -105,7 +101,7 @@ export function registerGroupRoutes(app, { db, rng }) {
   app.post('/championships/:id/groups/:letter/save', (req, res) => {
     const id = Number(req.params.id);
     const letter = req.params.letter;
-    if (!GROUP_LETTERS.includes(letter)) throw new UserError(`Unknown group "${letter}"`);
+    if (!GROUP_LETTERS.includes(letter)) throw new UserError(_('Unknown group "{letter}"', { letter }));
     for (const t of C.getChampionship(db, id).teams.filter(x => x.groupLetter === letter && !x.owner)) {
       const key = `points_${t.teamId}`;
       if (key in req.body) C.setGroupPoints(db, id, t.teamId, intOrNull(req.body[key]));
@@ -129,20 +125,20 @@ export function registerGroupRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'groups')}
-        <h2>Group stage closed — qualified teams</h2>
+        <h2>${_('Group stage closed — qualified teams')}</h2>
         <p class="muted">${missingCount
-          ? `⚠ ${missingCount} qualified team${missingCount === 1 ? '' : 's'} ${missingCount === 1 ? 'has' : 'have'} at least one group match with no score entered — fix those before trusting these standings.`
-          : 'Every qualified team has all its group results entered.'}</p>
-        <table><thead><tr><th>Group</th><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th></th></tr></thead><tbody>
+          ? tn('⚠ {n} qualified team has at least one group match with no score entered — fix those before trusting these standings.', '⚠ {n} qualified teams have at least one group match with no score entered — fix those before trusting these standings.', missingCount)
+          : _('Every qualified team has all its group results entered.')}</p>
+        <table><thead><tr><th>${_('Group')}</th><th>#</th><th>${_('Team')}</th><th>${_('P')}</th><th>${_('W')}</th><th>${_('D')}</th><th>${_('L')}</th><th>${_('GF')}</th><th>${_('GA')}</th><th>${_('GD')}</th><th>${_('Pts')}</th><th></th></tr></thead><tbody>
         ${summary.flatMap(g => g.rows.map(r => html`<tr>
           <td>${g.letter}</td><td class="muted">${r.position}</td><td>${teamName(r.team)}</td>
           <td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td>
           <td>${r.goalsFor}</td><td>${r.goalsAgainst}</td><td>${r.goalDiff}</td><td><strong>${r.points}</strong></td>
-          <td>${r.missingResults ? html`<a class="error" href="${groupUrl(c.id, g.letter)}">⚠ Missing results</a>` : html`<span class="muted">✓ complete</span>`}</td>
+          <td>${r.missingResults ? html`<a class="error" href="${groupUrl(c.id, g.letter)}">${_('⚠ Missing results')}</a>` : html`<span class="muted">${_('✓ complete')}</span>`}</td>
         </tr>`))}
         </tbody></table>
-        <div class="row"><a href="${base}/playoff"><button class="primary">Go to Playoff</button></a>
-          <form method="post" action="${base}/groups/reopen" class="inline"><button>Reopen group stage</button></form></div>`,
+        <div class="row"><a href="${base}/playoff"><button class="primary">${_('Go to Playoff')}</button></a>
+          <form method="post" action="${base}/groups/reopen" class="inline"><button>${_('Reopen group stage')}</button></form></div>`,
     }));
   });
 

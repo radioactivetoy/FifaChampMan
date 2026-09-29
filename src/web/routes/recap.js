@@ -1,11 +1,11 @@
-import { html, page } from '../html.js';
+import { html, page, _ } from '../html.js';
 import { champNav, stars, teamName, badge, avatar } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches } from '../../repo/matches.js';
 import { championshipStory } from '../../domain/fun.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS } from '../../domain/stages.js';
 
-const wdl = r => `${r.won}-${r.drawn}-${r.lost}`;
+const wdl = r => `${r.won}-${r.drawn}-${r.lost}`; // shown under the "W-D-L" heading (G-E-P in Spanish)
 const goals = r => `${r.goalsFor}:${r.goalsAgainst}`;
 const signed = n => (n > 0 ? `+${n}` : String(n));
 
@@ -16,14 +16,14 @@ function matchLine(c, m) {
   const side = (teamId, fallbackName, controllerId) => {
     const t = teamById.get(teamId);
     return html`${t ? teamName(t) : fallbackName}${t && !t.owner && controllerId != null
-      ? html`<br><small class="muted">played by ${playerName.get(controllerId) ?? '?'}</small>` : ''}`;
+      ? html`<br><small class="muted">${_('played by {player}', { player: playerName.get(controllerId) ?? '?' })}</small>` : ''}`;
   };
   const played = m.homeScore != null && m.awayScore != null;
-  const pens = m.homePens != null && m.awayPens != null ? html` <small class="muted">(${m.homePens}–${m.awayPens} pens)</small>` : '';
-  const when = m.stage === 'group' ? `MD${m.matchday}` : `${STAGE_LABELS[m.stage]}${m.leg ? ` · leg ${m.leg}` : ''}`;
+  const pens = m.homePens != null && m.awayPens != null ? html` <small class="muted">${_('({home}–{away} pens)', { home: m.homePens, away: m.awayPens })}</small>` : '';
+  const when = m.stage === 'group' ? _('MD{n}', { n: m.matchday }) : `${STAGE_LABELS[m.stage]}${m.leg ? _(' · leg {n}', { n: m.leg }) : ''}`;
   return html`<tr><td class="muted">${when}</td>
     <td class="right">${side(m.homeTeamId, m.homeTeamName, m.homeControllerId)}</td>
-    <td class="score"><strong>${played ? `${m.homeScore} – ${m.awayScore}` : 'not played'}</strong>${pens}</td>
+    <td class="score"><strong>${played ? `${m.homeScore} – ${m.awayScore}` : _('not played')}</strong>${pens}</td>
     <td>${side(m.awayTeamId, m.awayTeamName, m.awayControllerId)}</td></tr>`;
 }
 
@@ -35,13 +35,13 @@ export function registerRecapRoutes(app, { db }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'recap')}
-        ${story.lines.length ? html`<h2>The story</h2><ul class="story">${story.lines.map(l => html`<li>${l}</li>`)}</ul>
-          <button type="button" data-copy="${`${c.name} (${c.edition})\n${story.lines.map(l => `• ${l}`).join('\n')}`}">📋 Copy summary</button> <span class="muted" data-copy-status></span>` : ''}
-        <h2>Players</h2>
-        <table><thead><tr><th>Player</th><th>Team</th><th>Played at</th><th>Group</th><th>Pos</th><th>Pts</th>
-          <th>W-D-L</th><th>Goals</th><th>GD</th><th>Reached</th><th>All matches</th><th>As CPU controller</th><th>Stars earned</th></tr></thead><tbody>
+        ${story.lines.length ? html`<h2>${_('The story')}</h2><ul class="story">${story.lines.map(l => html`<li>${l}</li>`)}</ul>
+          <button type="button" data-copy="${`${c.name} (${c.edition})\n${story.lines.map(l => `• ${l}`).join('\n')}`}">${_('📋 Copy summary')}</button> <span class="muted" data-copy-status></span>` : ''}
+        <h2>${_('Players')}</h2>
+        <table><thead><tr><th>${_('Player')}</th><th>${_('Team')}</th><th>${_('Played at')}</th><th>${_('Group')}</th><th>${_('Pos')}</th><th>${_('Pts')}</th>
+          <th>${_('W-D-L')}</th><th>${_('Goals')}</th><th>${_('GD')}</th><th>${_('Reached')}</th><th>${_('All matches')}</th><th>${_('As CPU controller')}</th><th>${_('Stars earned')}</th></tr></thead><tbody>
         ${players.map(p => html`<tr>
-          <td>${avatar(p, { size: 24 })}<strong>${p.playerName}</strong>${p.cuchara ? html` <span title="Cuchara de Madera: 0 points and 0 goals in the group stage">🥄</span>` : ''}</td>
+          <td>${avatar(p, { size: 24 })}<strong>${p.playerName}</strong>${p.cuchara ? html` <span title="${_('Cuchara de Madera: 0 points and 0 goals in the group stage')}">🥄</span>` : ''}</td>
           <td>${p.team ? html`${badge(p.team)}${p.team.name}` : '—'}</td>
           <td>${stars(p.stars)}</td>
           <td>${p.groupLetter ?? '—'}</td>
@@ -56,13 +56,12 @@ export function registerRecapRoutes(app, { db }) {
           <td><strong>${stars(p.resultStars)}</strong></td>
         </tr>`)}
         </tbody></table>
-        <p class="muted">Group columns are the group stage only; "All matches" includes the playoff.
-          "As CPU controller" is how the player did when controlling CPU teams against others.</p>
+        <p class="muted">${_('Group columns are the group stage only; "All matches" includes the playoff. "As CPU controller" is how the player did when controlling CPU teams against others.')}</p>
 
-        <h2>Groups with players</h2>
-        ${groups.length === 0 ? html`<p class="muted">No groups drawn yet.</p>` : ''}
-        ${groups.map(g => html`<section class="card" id="recap-group-${g.letter}"><h3>Group ${g.letter}</h3>
-          <table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th><th>Reached</th></tr></thead><tbody>
+        <h2>${_('Groups with players')}</h2>
+        ${groups.length === 0 ? html`<p class="muted">${_('No groups drawn yet.')}</p>` : ''}
+        ${groups.map(g => html`<section class="card" id="recap-group-${g.letter}"><h3>${_('Group {letter}', { letter: g.letter })}</h3>
+          <table><thead><tr><th>#</th><th>${_('Team')}</th><th>${_('P')}</th><th>${_('W')}</th><th>${_('D')}</th><th>${_('L')}</th><th>${_('GF')}</th><th>${_('GA')}</th><th>${_('GD')}</th><th>${_('Pts')}</th><th>${_('Reached')}</th></tr></thead><tbody>
           ${g.standings.map(r => html`<tr>
             <td>${r.position}</td><td>${teamName(r.team)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td>
             <td>${r.goalsFor}</td><td>${r.goalsAgainst}</td><td>${signed(r.goalDiff)}</td><td><strong>${r.points}</strong></td>
@@ -71,8 +70,8 @@ export function registerRecapRoutes(app, { db }) {
           <table><tbody>${g.matches.map(m => matchLine(c, m))}</tbody></table>
         </section>`)}
 
-        <h2>Playoff</h2>
-        ${playoff.length === 0 ? html`<p class="muted">No playoff matches for the players.</p>` : ''}
+        <h2>${_('Playoff')}</h2>
+        ${playoff.length === 0 ? html`<p class="muted">${_('No playoff matches for the players.')}</p>` : ''}
         ${PLAYOFF_STAGES.map(stage => {
           const inStage = playoff.filter(m => m.stage === stage);
           return inStage.length ? html`<h3>${STAGE_LABELS[stage]}</h3><table><tbody>${inStage.map(m => matchLine(c, m))}</tbody></table>` : '';

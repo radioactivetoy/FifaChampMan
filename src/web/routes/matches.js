@@ -1,4 +1,5 @@
 import { intOrNull } from '../form.js';
+import { _ } from '../../i18n/index.js';
 import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { getMatch, updateMatch, updateMatches, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
 import { PLAYOFF_STAGES } from '../../domain/stages.js';
@@ -11,7 +12,7 @@ const backTo = m => (m.stage === 'group'
 
 function matchInChampionship(db, req) {
   const m = getMatch(db, Number(req.params.matchId));
-  if (m.championshipId !== Number(req.params.id)) throw new UserError('Match not found', 404);
+  if (m.championshipId !== Number(req.params.id)) throw new UserError(_('Match not found'), 404);
   return m;
 }
 
@@ -23,14 +24,14 @@ function parseMatchFields(b) {
   };
   if (b.matchday !== undefined) {
     const matchday = intOrNull(b.matchday);
-    if (matchday == null || matchday < 1) throw new UserError('Pick a matchday');
+    if (matchday == null || matchday < 1) throw new UserError(_('Pick a matchday'));
     fields.matchday = matchday;
   }
   if (b.stage !== undefined) {
-    if (!PLAYOFF_STAGES.includes(b.stage)) throw new UserError(`Unknown playoff stage "${b.stage}"`);
+    if (!PLAYOFF_STAGES.includes(b.stage)) throw new UserError(_('Unknown playoff stage "{stage}"', { stage: b.stage }));
     const homeTeamId = intOrNull(b.homeTeamId), awayTeamId = intOrNull(b.awayTeamId);
-    if (homeTeamId == null || awayTeamId == null) throw new UserError('Pick both teams');
-    if (homeTeamId === awayTeamId) throw new UserError('A team cannot play itself');
+    if (homeTeamId == null || awayTeamId == null) throw new UserError(_('Pick both teams'));
+    if (homeTeamId === awayTeamId) throw new UserError(_('A team cannot play itself'));
     Object.assign(fields, { stage: b.stage, leg: intOrNull(b.leg), homeTeamId, awayTeamId, homePens: intOrNull(b.homePens), awayPens: intOrNull(b.awayPens) });
   }
   return fields;
@@ -77,7 +78,7 @@ export function registerMatchRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/matches/:matchId/delete', (req, res) => {
     const m = matchInChampionship(db, req);
-    recordUndo(db, `Deleted match ${m.homeTeamName} v ${m.awayTeamName}`, insertSteps('matches', rowsOf(db, 'matches', 'id = ?', m.id)));
+    recordUndo(db, _('Deleted match {home} v {away}', { home: m.homeTeamName, away: m.awayTeamName }), insertSteps('matches', rowsOf(db, 'matches', 'id = ?', m.id)));
     deleteMatch(db, m.id);
     res.redirect(backTo(m));
   });

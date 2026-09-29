@@ -1,4 +1,4 @@
-import { html, page, select } from '../html.js';
+import { html, page, select, th, _, confirmSubmit } from '../html.js';
 import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
 import { intOrNull } from '../form.js';
 import { champNav, stars, teamName } from '../components.js';
@@ -10,8 +10,8 @@ import { FIELD_SIZE } from '../../domain/field.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { UserError } from '../../errors.js';
 
-const potItems = [1, 2, 3, 4].map(n => ({ value: n, label: `Pot ${n}` }));
-const groupItems = GROUP_LETTERS.map(l => ({ value: l, label: `Group ${l}` }));
+const potItems = () => [1, 2, 3, 4].map(n => ({ value: n, label: _('Pot {n}', { n }) }));
+const groupItems = () => GROUP_LETTERS.map(l => ({ value: l, label: _('Group {letter}', { letter: l }) }));
 
 export function registerDrawRoutes(app, { db, rng }) {
   app.get('/championships/:id/draw', (req, res) => {
@@ -23,34 +23,34 @@ export function registerDrawRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'draw')}
-        <h2>Field (${c.teams.length}/${FIELD_SIZE})</h2>
-        <form method="post" action="${base}/field/fill" class="row" onsubmit="return confirm('Replace all CPU teams with a new random selection?')">
-          <span class="muted">Teams per star level (human teams count; edit the <a href="/config">Config page</a> defaults):</span>
+        <h2>${_('Field ({count}/{size})', { count: c.teams.length, size: FIELD_SIZE })}</h2>
+        <form method="post" action="${base}/field/fill" class="row" ${confirmSubmit(_('Replace all CPU teams with a new random selection?'))}>
+          <span class="muted">${th('Teams per star level (human teams count; edit the <a href="/config">Config page</a> defaults):')}</span>
           ${[...STAR_LEVELS].reverse().map(s => html`<label>${stars(s)} <input name="quota_${s}" type="number" min="0" class="num" value="${defaultQuotas[s] ?? 0}"></label>`)}
-          <button>Fill field randomly</button>
+          <button>${_('Fill field randomly')}</button>
         </form>
         <form method="post" action="${base}/field/add" class="row">
-          ${select({ name: 'teamId', items: available.map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` })) })}<button>Add team</button>
+          ${select({ name: 'teamId', items: available.map(t => ({ value: t.id, label: `${t.name} — ${t.ovr} (${t.stars}★)` })) })}<button>${_('Add team')}</button>
         </form>
-        <h2>Groups</h2>
-        <form method="post" action="${base}/draw" class="row" onsubmit="return confirm('Run the group draw now? Current groups will be replaced.')">
-          <button class="primary">Run group draw</button>
-          <span class="muted">Pots by OVR; no two teams from the same country in a group when possible.</span>
+        <h2>${_('Groups')}</h2>
+        <form method="post" action="${base}/draw" class="row" ${confirmSubmit(_('Run the group draw now? Current groups will be replaced.'))}>
+          <button class="primary">${_('Run group draw')}</button>
+          <span class="muted">${_('Pots by OVR; no two teams from the same country in a group when possible.')}</span>
         </form>
-        <div class="groups">${GROUP_LETTERS.map(letter => html`<div class="card"><h3>Group ${letter}</h3><ol>
+        <div class="groups">${GROUP_LETTERS.map(letter => html`<div class="card"><h3>${_('Group {letter}', { letter })}</h3><ol>
           ${c.teams.filter(t => t.groupLetter === letter).sort((a, b) => (a.pot ?? 9) - (b.pot ?? 9))
-            .map(t => html`<li>${teamName(t)} <span class="muted">P${t.pot ?? '?'} · ${t.country}</span></li>`)}
+            .map(t => html`<li>${teamName(t)} <span class="muted">${_('P{pot}', { pot: t.pot ?? '?' })} · ${t.country}</span></li>`)}
         </ol></div>`)}</div>
-        <h2>Edit pots & groups</h2>
-        <p class="muted">If you move teams after generating fixtures, clear and regenerate the group fixtures.</p>
-        <table><thead><tr><th>Team</th><th>Country</th><th>OVR</th><th>Stars</th><th>Pot</th><th>Group</th><th></th></tr></thead><tbody>
+        <h2>${_('Edit pots & groups')}</h2>
+        <p class="muted">${_('If you move teams after generating fixtures, clear and regenerate the group fixtures.')}</p>
+        <table><thead><tr><th>${_('Team')}</th><th>${_('Country')}</th><th>OVR</th><th>${_('Stars')}</th><th>${_('Pot')}</th><th>${_('Group')}</th><th></th></tr></thead><tbody>
         ${c.teams.map(t => { const f = `ft${t.teamId}`; return html`<tr>
           <td><form id="${f}" method="post" action="${base}/field/${t.teamId}"></form>${teamName(t)}</td>
           <td>${t.country}</td><td>${t.ovr}</td><td>${stars(t.stars)}</td>
-          <td>${select({ name: 'pot', form: f, items: potItems, selected: t.pot, blank: '—' })}</td>
-          <td>${select({ name: 'groupLetter', form: f, items: groupItems, selected: t.groupLetter, blank: '—' })}</td>
-          <td class="actions"><button form="${f}">Save</button>
-            <form method="post" action="${base}/field/${t.teamId}/remove" class="inline"><button class="danger">Remove</button></form></td>
+          <td>${select({ name: 'pot', form: f, items: potItems(), selected: t.pot, blank: '—' })}</td>
+          <td>${select({ name: 'groupLetter', form: f, items: groupItems(), selected: t.groupLetter, blank: '—' })}</td>
+          <td class="actions"><button form="${f}">${_('Save')}</button>
+            <form method="post" action="${base}/field/${t.teamId}/remove" class="inline"><button class="danger">${_('Remove')}</button></form></td>
         </tr>`; })}
         </tbody></table>`,
     }));
@@ -65,14 +65,14 @@ export function registerDrawRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/field/add', (req, res) => {
     const teamId = intOrNull(req.body.teamId);
-    if (teamId == null) throw new UserError('Pick a team');
+    if (teamId == null) throw new UserError(_('Pick a team'));
     C.addFieldTeam(db, Number(req.params.id), teamId);
     res.redirect(`/championships/${req.params.id}/draw`);
   });
 
   app.post('/championships/:id/field/:teamId', (req, res) => {
     const groupLetter = req.body.groupLetter || null;
-    if (groupLetter && !GROUP_LETTERS.includes(groupLetter)) throw new UserError(`Unknown group "${groupLetter}"`);
+    if (groupLetter && !GROUP_LETTERS.includes(groupLetter)) throw new UserError(_('Unknown group "{letter}"', { letter: groupLetter }));
     C.setPlacement(db, Number(req.params.id), Number(req.params.teamId), { pot: intOrNull(req.body.pot), groupLetter });
     res.redirect(`/championships/${req.params.id}/draw`);
   });
@@ -80,9 +80,9 @@ export function registerDrawRoutes(app, { db, rng }) {
   app.post('/championships/:id/field/:teamId/remove', (req, res) => {
     const [id, teamId] = [Number(req.params.id), Number(req.params.teamId)];
     const rows = rowsOf(db, 'championship_teams', 'championship_id = ? AND team_id = ?', id, teamId);
-    const name = C.getChampionship(db, id).teams.find(t => t.teamId === teamId)?.name ?? 'team';
+    const name = C.getChampionship(db, id).teams.find(t => t.teamId === teamId)?.name ?? _('team');
     C.removeFieldTeam(db, id, teamId); // refuses (and records nothing) for a player's team or one with matches
-    recordUndo(db, `Removed ${name} from the field`, insertSteps('championship_teams', rows));
+    recordUndo(db, _('Removed {name} from the field', { name }), insertSteps('championship_teams', rows));
     res.redirect(`/championships/${req.params.id}/draw`);
   });
 
