@@ -47,7 +47,7 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
 8. **Recap** – per championship: each player's result and stats (group position, points, goals,
    all matches, record as CPU controller), the groups with players and all their matches.
 9. **Stats** – all-time: highlight cards, sortable leaderboard (titles, finals, stars, own-team
-   and CPU-controller records, win %, points per game), championship history grid, head-to-head
+   and CPU-controller records, win %, points per game), championship history grid (one row per championship, one column per player, plus the champion), head-to-head
    grid, hall of champions and biggest wins.
 
 Everything (teams, controllers, scores, groups, stages, stars) can be edited at any time.

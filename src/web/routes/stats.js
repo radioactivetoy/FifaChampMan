@@ -93,15 +93,18 @@ export function registerStatsRoutes(app, { db }) {
 
         <h2>Championship history</h2>
         ${champions.length === 0 ? html`<p class="muted">No championships yet.</p>` : html`
-        <div class="scroll-x"><table class="grid"><thead><tr><th>Player</th>
-          ${champions.map(c => html`<th><a href="/championships/${c.championshipId}/recap">${c.championshipName}</a></th>`)}</tr></thead><tbody>
-        ${active.map(s => html`<tr><td><strong>${s.name}</strong></td>
-          ${champions.map(c => {
+        <div class="scroll-x"><table class="grid history-grid"><thead><tr><th>Championship</th>
+          ${active.map(s => html`<th>${s.name}</th>`)}<th>Champion</th></tr></thead><tbody>
+        ${[...champions].reverse().map(c => html`<tr>
+          <th><a href="/championships/${c.championshipId}/recap">${c.championshipName}</a></th>
+          ${active.map(s => {
             const e = entryFor(s.playerId, c.championshipId);
             if (!e) return html`<td class="muted">—</td>`;
             return html`<td class="reached-${e.reached}">${e.teamId ? teamLabel(e.teamId) : ''}<br>
               <small>${REACHED_LABELS[e.reached]} · ${stars(e.stars)} → <strong>${stars(e.resultStars)}</strong></small></td>`;
-          })}</tr>`)}
+          })}
+          <td>${c.team ? html`${badge(c.team)}${c.team.name}${c.playerName ? html`<br><small>🏆 <strong>${c.playerName}</strong></small>` : ''}` : html`<span class="muted">${c.status === 'finished' ? '—' : 'in progress'}</span>`}</td>
+        </tr>`)}
         </tbody></table></div>`}
 
         <h2>Head to head</h2>
