@@ -92,7 +92,7 @@ test('one save edits existing matches, removes a match whose teams are cleared a
     // A slot with only one team filled is an error and nothing else from that submit is applied.
     const bad = await app.post(`/championships/${id}/playoff/save`, {
       [`stage_${m1}`]: 'qf', [`homeTeamId_${m1}`]: b.teamId, [`awayTeamId_${m1}`]: a.teamId, [`homeScore_${m1}`]: '9', [`awayScore_${m1}`]: '9',
-      new_r16_0_homeTeamId: c.teamId, new_r16_0_awayTeamId: '',
+      new_r16_0_homeTeamId: c.teamId, new_r16_0_awayTeamId: '', new_r16_0_homeScore: '1',
     });
     assert.equal(bad.status, 400);
     assert.equal(getMatch(app.db, m1).homeScore, 3);
@@ -286,6 +286,35 @@ test('a decided Final makes its winner the champion, replacing a winner picked b
     await app.post(`/championships/${id}/finish`, { winnerTeamId: String(c.teamId) });
     await app.get(`/championships/${id}/playoff`);
     assert.deepEqual(getChampionship(app.db, id).teams.filter(t => t.reached === 'champion').map(t => t.teamId), [a.teamId]);
+  } finally {
+    await app.close();
+  }
+});
+
+test('decided ties feed the next round: winners are preselected, and the next match appears once both feeders are decided', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const [a, b, c, d] = teams;
+    await app.post(`/championships/${id}/playoff/save`, {
+      new_r16_0_homeTeamId: a.teamId, new_r16_0_awayTeamId: b.teamId, new_r16_0_homeScore: '1', new_r16_0_awayScore: '0', // a through
+    });
+    assert.equal(listMatches(app.db, id).filter(m => m.stage === 'qf').length, 0); // slot 1 undecided: no match yet
+    let text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(text, new RegExp(`name="new_qf_0_homeTeamId"[^>]*>[\\s\\S]*?<option value="${a.teamId}" selected>`)); // a prefilled
+
+    // A save that only carries the prefilled winner (no scores) creates nothing and is not an error.
+    const r = await app.post(`/championships/${id}/playoff/save`, { new_qf_0_homeTeamId: a.teamId, new_qf_0_awayTeamId: '' });
+    assert.equal(r.status, 302);
+    assert.equal(listMatches(app.db, id).filter(m => m.stage === 'qf').length, 0);
+
+    const m0 = listMatches(app.db, id)[0];
+    await app.post(`/championships/${id}/playoff/save`, {
+      [`stage_${m0.id}`]: 'r16', [`homeTeamId_${m0.id}`]: a.teamId, [`awayTeamId_${m0.id}`]: b.teamId, [`homeScore_${m0.id}`]: '1', [`awayScore_${m0.id}`]: '0',
+      new_r16_1_homeTeamId: c.teamId, new_r16_1_awayTeamId: d.teamId, new_r16_1_homeScore: '0', new_r16_1_awayScore: '2', // d through
+    });
+    const qf = listMatches(app.db, id).filter(m => m.stage === 'qf');
+    assert.equal(qf.length, 1);
+    assert.deepEqual([qf[0].slot, qf[0].homeTeamId, qf[0].awayTeamId], [0, a.teamId, d.teamId]);
   } finally {
     await app.close();
   }

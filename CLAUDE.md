@@ -141,7 +141,11 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   matches post `<field>_<matchId>` (parsed by `saveMatchesFromBody`; clearing both team dropdowns deletes the
   match), filled-in empty slots post `new_<stage>_<slot>_<field>` and become matches (controllers drawn as
   usual via `createPlayoffMatch`), all in one transaction. A tie's position is the stored `matches.slot`
-  (column added by migration): slots 2j and 2j+1 feed slot j of the next round — a real tree, but still nothing is seeded or auto-advanced.
+  (column added by migration): slots 2j and 2j+1 feed slot j of the next round — a real tree, nothing is seeded. **Winners advance automatically**: on
+  Save playoff, `advanceWinners` (`repo/matches.js`) creates the next-round match in an *empty* slot once both
+  feeding ties are decided (`tieOutcome`), and the page preselects a single known winner in the empty slot's
+  dropdown (a save carrying only that prefill and no scores is ignored). It never touches an existing match, so
+  hand-entered rounds are safe — correcting an earlier result means fixing the next round by hand.
   `assignSlots` places ties (from `groupTies`: up to two legs between the same two teams) into slots, giving
   older slot-less matches the lowest free one in first-seen order; `backfillSlots` persists that on the next
   save/creation so slots stop shifting. Ties beyond a round's capacity show under the tree ("Other playoff

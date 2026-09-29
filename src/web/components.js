@@ -1,5 +1,5 @@
 import { html, raw, select } from './html.js';
-import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, assignSlots, STAGE_SLOTS } from '../domain/stages.js';
+import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, tieOutcome, assignSlots, STAGE_SLOTS } from '../domain/stages.js';
 import { championshipProgress } from '../domain/progress.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
@@ -241,8 +241,11 @@ export function playoffBracket(c, matches, { formId, teamItems }) {
   // `new_<stage>_<slot>_<field>` names (the save route creates the match once both teams are picked).
   const emptyTie = (stage, slot, connect, paired) => {
     const field = f => `new_${stage}_${slot}_${f}`;
+    // The winners of the two ties feeding this slot (previous round, slots 2j and 2j+1) are preselected.
+    const prev = placed.get(PLAYOFF_STAGES[PLAYOFF_STAGES.indexOf(stage) - 1])?.slots ?? [];
+    const fed = { home: prev[2 * slot], away: prev[2 * slot + 1] };
     const row = side => html`<div class="bracket-match-row">
-      ${select({ name: field(`${side}TeamId`), form: formId, items: teamItems, blank: '—' })}
+      ${select({ name: field(`${side}TeamId`), form: formId, items: teamItems, blank: '—', selected: fed[side] ? tieOutcome(fed[side])?.winnerId : null })}
       <input form="${formId}" name="${field(`${side}Score`)}" type="number" min="0" class="num">
     </div>`;
     return html`<div class="bracket-tie bracket-tie-empty${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}">

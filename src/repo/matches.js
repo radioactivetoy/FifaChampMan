@@ -1,7 +1,7 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { assignControllers } from '../domain/controllers.js';
-import { scopeOf, PLAYOFF_STAGES, STAGE_SLOTS, groupTies, assignSlots } from '../domain/stages.js';
+import { scopeOf, PLAYOFF_STAGES, STAGE_SLOTS, groupTies, assignSlots, tieOutcome } from '../domain/stages.js';
 
 const COLS = `m.id, m.championship_id AS championshipId, m.stage, m.group_letter AS groupLetter, m.matchday, m.leg, m.slot,
   m.home_team_id AS homeTeamId, m.away_team_id AS awayTeamId, m.home_score AS homeScore, m.away_score AS awayScore,
@@ -92,6 +92,28 @@ export function backfillSlots(db, championshipId) {
     const { slots } = assignSlots(groupTies(matches.filter(m => m.stage === stage)), STAGE_SLOTS[stage]);
     slots.forEach((tie, slot) => { for (const m of tie?.matches ?? []) if (m.slot !== slot) updateMatch(db, m.id, { slot }); });
   }
+}
+
+/**
+ * Puts the winners of decided ties into the next round: when both ties feeding an empty slot (2j and 2j+1
+ * of the previous round) are decided, that slot's match is created (controllers drawn as usual). It only
+ * ever fills empty slots — a match already there is never touched, so hand-entered rounds are safe.
+ */
+export function advanceWinners(db, championshipId, rng) {
+  transaction(db, () => {
+    backfillSlots(db, championshipId);
+    for (let i = 0; i < PLAYOFF_STAGES.length - 1; i++) {
+      const [stage, next] = [PLAYOFF_STAGES[i], PLAYOFF_STAGES[i + 1]];
+      const matches = listMatches(db, championshipId);
+      const placed = st => assignSlots(groupTies(matches.filter(m => m.stage === st)), STAGE_SLOTS[st]).slots;
+      const [cur, nxt] = [placed(stage), placed(next)];
+      for (let j = 0; j < STAGE_SLOTS[next]; j++) {
+        if (nxt[j]) continue;
+        const [homeTeamId, awayTeamId] = [cur[2 * j], cur[2 * j + 1]].map(t => (t ? tieOutcome(t)?.winnerId ?? null : null));
+        if (homeTeamId != null && awayTeamId != null && homeTeamId !== awayTeamId) createPlayoffMatch(db, championshipId, { stage: next, slot: j, homeTeamId, awayTeamId }, rng);
+      }
+    }
+  });
 }
 
 /** slot: bracket position in the stage; left out, the tie's existing slot (a second leg) or the first free one. */

@@ -3,7 +3,7 @@ import { intOrNull } from '../form.js';
 import { champNav, fillControllersButton, playoffBracket } from '../components.js';
 import { saveMatchesFromBody } from './matches.js';
 import * as C from '../../repo/championships.js';
-import { listMatches, createPlayoffMatch, updateMatch, deleteMatch, backfillSlots, countMissingControllers } from '../../repo/matches.js';
+import { listMatches, createPlayoffMatch, updateMatch, deleteMatch, backfillSlots, advanceWinners, countMissingControllers } from '../../repo/matches.js';
 import { transaction } from '../../db/connection.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, STAGE_SLOTS, REACHED } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
@@ -25,7 +25,8 @@ export function registerPlayoffRoutes(app, { db, rng }) {
       title: c.name,
       body: html`${champNav(c, 'playoff')}
         <p class="muted">The whole playoff tree: pick the two teams of each tie from the dropdowns and type the scores.
-          Nothing advances by itself — put the winners into the next round yourself. When you add a match, the player
+          Once a tie has a result its winner moves into the next round by itself (the next match appears when both of its
+          ties are decided; a match already there is never changed, so fix it by hand if you correct an earlier result). When you add a match, the player
           controlling a CPU team that faces a human is drawn automatically (rotating across the whole playoff); open
           <strong>⋯ more</strong> on a match for controllers, penalties, 🎲 Draw, ⇄ swap or ✕ delete.
           To remove a match, set both of its teams to “—”. Press <strong>Save playoff</strong> once to save everything.
@@ -60,6 +61,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
           const [homeTeamId, awayTeamId] = [intOrNull(field('homeTeamId')), intOrNull(field('awayTeamId'))];
           const [homeScore, awayScore] = [intOrNull(field('homeScore')), intOrNull(field('awayScore'))];
           if ([homeTeamId, awayTeamId, homeScore, awayScore].every(v => v == null)) continue;
+          if ((homeTeamId == null || awayTeamId == null) && homeScore == null && awayScore == null) continue; // just a prefilled winner
           if (homeTeamId == null || awayTeamId == null) throw new UserError(`Pick both teams for the ${STAGE_LABELS[stage]} match ${slot + 1} you filled in`);
           if (taken.has(`${stage}-${slot}`)) throw new UserError(`The ${STAGE_LABELS[stage]} match ${slot + 1} was filled in meanwhile — reload the page`);
           const matchId = createPlayoffMatch(db, id, { stage, slot, homeTeamId, awayTeamId }, rng);
@@ -69,6 +71,7 @@ export function registerPlayoffRoutes(app, { db, rng }) {
       }
       // Editing the playoff invalidates a winner picked earlier (e.g. the console-simulated one): ask again.
       if (JSON.stringify(listMatches(db, id)) !== before) C.clearStaleChampion(db, id);
+      advanceWinners(db, id, rng);
       C.syncReachedFromPlayoff(db, id);
     });
     res.redirect(`/championships/${id}/playoff`);
