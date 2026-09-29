@@ -35,11 +35,15 @@ Options: `PORT=4000`, `DB_PATH=D:\backups\champman.db`.
    Type the CPU teams' points from the FIFA group table (player teams are calculated), then
    **Close group stage**: two teams per group qualify (the ones you marked, or the top two by points)
    and only they can be picked in the playoff. **Reopen group stage** undoes it.
-6. **Playoff** – add each match by hand (the CPU controller is drawn automatically), enter results.
-7. **Results** – set how far each team got (up to Champion) and check the stars earned.
-   When every player is out (nobody qualified from the groups, or all knocked out in the playoff),
+6. **Playoff** – the whole bracket is always shown (8 – 4 – 2 – Final, left to right). Pick the two teams
+   of each tie from the dropdowns and type the scores (the CPU controller is drawn automatically), then
+   press **Save playoff** once to save everything. Winners move into the next round by themselves, and
+   "reached" is updated from the results. ⋯ more on a match: controllers, penalties, swap, delete.
+7. **Results** – check how far each team got (set from the playoff, editable up to Champion) and the stars
+   earned. When every player is out (nobody qualified from the groups, or all knocked out in the playoff),
    a banner asks for the winner simulated by the console and closes the championship; if a player
-   wins, it offers to close it.
+   wins, it offers to close it. A decided Final sets the champion automatically. A closed championship
+   shows its champion (and which player won it) on every tab; reopen it to change anything.
 8. **Recap** – per championship: each player's result and stats (group position, points, goals,
    all matches, record as CPU controller), the groups with players and all their matches.
 9. **Stats** – all-time: highlight cards, sortable leaderboard (titles, finals, stars, own-team
