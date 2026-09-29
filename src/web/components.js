@@ -54,11 +54,14 @@ function finishBanner(c) {
   const progress = championshipProgress(c.teams);
   if (!progress.over) return '';
   const action = `/championships/${c.id}/finish`;
+  const items = progress.alive.map(t => ({ value: t.teamId, label: `${t.name} (${REACHED_LABELS[t.reached]})` }));
+  // A winner is already set (e.g. after reopening): it can still be changed before closing.
   if (progress.champion) {
     return html`<form method="post" action="${action}" class="banner" data-finish-banner>
-      🏆 ${teamName(progress.champion)} won the championship. <button class="primary">Close championship</button></form>`;
+      🏆 ${teamName(progress.champion)} won the championship. Winner:
+      ${select({ name: 'winnerTeamId', items, selected: progress.champion.teamId })}
+      <button class="primary">Close championship</button></form>`;
   }
-  const items = progress.alive.map(t => ({ value: t.teamId, label: `${t.name} (${REACHED_LABELS[t.reached]})` }));
   return html`<form method="post" action="${action}" class="banner" data-finish-banner>
     All players are out. Who won in the console simulation?
     ${select({ name: 'winnerTeamId', items })}

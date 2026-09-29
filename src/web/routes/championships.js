@@ -122,7 +122,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   app.post('/championships/:id/finish', (req, res) => {
     const id = Number(req.params.id);
     const winnerTeamId = intOrNull(req.body.winnerTeamId);
-    if (winnerTeamId != null) C.setReached(db, id, winnerTeamId, 'champion');
+    if (winnerTeamId != null) C.setChampion(db, id, winnerTeamId);
     C.updateChampionship(db, id, { status: 'finished' });
     res.redirect(`/championships/${id}/results`);
   });

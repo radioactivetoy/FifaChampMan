@@ -233,3 +233,24 @@ test('a team reaches every round it appears in, and editing the playoff clears a
     await app.close();
   }
 });
+
+test('a reopened championship lets you change the winner before closing again', async () => {
+  const { app, id, teams } = await setup();
+  try {
+    const [a, b] = teams;
+    await app.post(`/championships/${id}/finish`, { winnerTeamId: String(a.teamId) });
+    await app.post(`/championships/${id}/status`, { status: 'active' });
+    const text = (await app.get(`/championships/${id}/playoff`)).text;
+    assert.match(text, /won the championship\. Winner:/);
+    assert.match(text, new RegExp(`<option value="${a.teamId}" selected>`));
+
+    await app.post(`/championships/${id}/finish`, { winnerTeamId: String(b.teamId) });
+    const c = getChampionship(app.db, id);
+    assert.equal(c.teams.find(t => t.teamId === b.teamId).reached, 'champion');
+    assert.equal(c.teams.find(t => t.teamId === a.teamId).reached, 'final');
+    assert.equal(c.teams.filter(t => t.reached === 'champion').length, 1);
+    assert.equal(c.status, 'finished');
+  } finally {
+    await app.close();
+  }
+});

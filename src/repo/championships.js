@@ -359,6 +359,14 @@ export function clearStaleChampion(db, championshipId) {
   return stale.length > 0;
 }
 
+/** Makes teamId the one champion: any other team marked champion goes back to the final. */
+export function setChampion(db, championshipId, teamId) {
+  transaction(db, () => {
+    run(db, "UPDATE championship_teams SET reached = 'final' WHERE championship_id = ? AND reached = 'champion' AND team_id != ?", championshipId, teamId);
+    setReached(db, championshipId, teamId, 'champion');
+  });
+}
+
 export function setReached(db, championshipId, teamId, reached) {
   if (!REACHED.includes(reached)) throw new UserError(`Unknown stage "${reached}"`);
   run(db, 'UPDATE championship_teams SET reached = ? WHERE championship_id = ? AND team_id = ?', reached, championshipId, teamId);

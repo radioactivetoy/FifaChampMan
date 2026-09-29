@@ -182,7 +182,9 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   keeps exactly-two marked qualifiers per group or takes the top two by points; the playoff pickers then list
   only qualified teams. Playoff matches are entered by hand.
 - **Out / over**: a team is out once the next stage is full without it (16 at r16, 8 at qf, …). When all
-  players are out, a banner asks for the console-simulated winner and closes the championship.
+  players are out, a banner asks for the console-simulated winner and closes the championship. If a winner
+  is already set (e.g. after reopening) the banner shows it with a dropdown to change it before closing
+  (`setChampion` demotes the old one to the final).
 - Deleting a championship requires typing its exact name (checked server-side); FKs cascade.
 
 ## Team data
