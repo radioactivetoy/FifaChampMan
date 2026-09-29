@@ -183,7 +183,8 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   0 points and 0 goals scored, having played all 3 group games (`isCucharaDeMadera` in `domain/standings.js`,
   group matches only). Flagged as `cuchara` on `getChampionship` players and `playerOutcome`/`allEntries`;
   shown with a 🥄 on the Results and Recap player tables, a "Cuchara de Madera" line under the champion line
-  once a championship is finished (`champNav`), and on Stats (leaderboard 🥄 column, highlight card, history cells).
+  once a championship is finished (`champNav`), and on Stats (leaderboard 🥄 column, highlight card, history cells). The Stats highlight cards (`highlight()`) put the qualifier text in the detail line and a
+  gold disc icon (`.stat-icon`, `★` or the card's own emoji) in the corner.
 - **Controllers**: owners always play their own team. A CPU team facing a human gets a player drawn at
   fixture/match creation: never the opponent's owner, least-used first within the scope (each group; the whole
   playoff) — "nobody repeats until everyone played". CPU-vs-CPU matches are simulated by the console: no

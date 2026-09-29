@@ -27,10 +27,11 @@ function h2hCell(r, total = false) {
 const num = (value, shown = value) => html`<td data-sort="${value ?? -1}">${orDash(shown)}</td>`;
 
 /** One highlight card: the best player by `score`, among those passing `eligible`. */
-function highlight(stats, label, score, show, eligible = () => true) {
+function highlight(stats, label, score, show, eligible = () => true, icon = '★') {
   const best = stats.filter(s => eligible(s) && score(s) != null && score(s) > 0).sort((a, b) => score(b) - score(a))[0];
   return html`<div class="card stat-card"><div class="muted">${label}</div>
-    <div class="stat-value">${best ? best.name : '—'}</div><div class="muted">${best ? show(best) : ''}</div></div>`;
+    <div class="stat-value">${best ? best.name : '—'}</div><div class="muted">${best ? show(best) : ''}</div>
+    <span class="stat-icon" aria-hidden="true">${icon}</span></div>`;
 }
 
 export function registerStatsRoutes(app, { db }) {
@@ -64,11 +65,11 @@ export function registerStatsRoutes(app, { db }) {
 
         <div class="stat-cards">
           ${highlight(stats, 'Most titles', s => s.titles, s => `${s.titles} title${s.titles === 1 ? '' : 's'}`)}
-          ${highlight(stats, 'Best win rate (own team, 3+ games)', s => pct(s.own.won, s.own.played), s => `${pct(s.own.won, s.own.played)}% of ${s.own.played} games`, s => s.own.played >= 3)}
-          ${highlight(stats, 'Most goals (own team)', s => s.own.goalsFor, s => `${s.own.goalsFor} goal${s.own.goalsFor === 1 ? "" : "s"}`)}
-          ${highlight(stats, 'Best CPU controller (3+ games)', s => pct(s.cpu.won, s.cpu.played), s => `${pct(s.cpu.won, s.cpu.played)}% wins controlling CPU teams`, s => s.cpu.played >= 3)}
-          ${highlight(stats, '🥄 Cuchara de Madera (0 pts, 0 goals in the groups)', s => s.cucharas, s => `${s.cucharas} time${s.cucharas === 1 ? '' : 's'}`)}
-          ${highlight(stats, 'Best average stars', s => s.avgStars, s => `${s.avgStars}★ per championship`)}
+          ${highlight(stats, 'Best win rate', s => pct(s.own.won, s.own.played), s => `${pct(s.own.won, s.own.played)}% of ${s.own.played} games (own team, min 3)`, s => s.own.played >= 3)}
+          ${highlight(stats, 'Most goals', s => s.own.goalsFor, s => `${s.own.goalsFor} goal${s.own.goalsFor === 1 ? "" : "s"} with their own team`)}
+          ${highlight(stats, 'Best CPU controller', s => pct(s.cpu.won, s.cpu.played), s => `${pct(s.cpu.won, s.cpu.played)}% wins controlling CPU teams (min 3)`, s => s.cpu.played >= 3)}
+          ${highlight(stats, 'Cuchara de Madera', s => s.cucharas, s => `${s.cucharas} time${s.cucharas === 1 ? '' : 's'} · 0 pts and 0 goals in the groups`, () => true, '🥄')}
+          ${highlight(stats, 'Best avg stars', s => s.avgStars, s => `${s.avgStars}★ per championship`)}
         </div>
 
         <h2>Leaderboard</h2>
