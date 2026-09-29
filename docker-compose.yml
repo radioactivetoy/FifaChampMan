@@ -1,0 +1,46 @@
+# ChampMan + a Cloudflare Tunnel (Zero Trust), for a NAS.
+#
+#   cp .env.example .env      # then paste your tunnel token
+#   docker compose up -d --build
+#
+# The app has no login of its own: it is reachable ONLY through the tunnel, and you protect it with a
+# Cloudflare Access policy (see docs/DEPLOY.md). Nothing is published on the NAS's ports by default.
+services:
+  champman:
+    build: .
+    image: champman:latest
+    container_name: champman
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Europe/Madrid}
+      PORT: "3210"
+      DB_PATH: /data/champman.db
+    volumes:
+      - champman-data:/data          # champman.db + backups/ (or bind-mount a NAS folder, see below)
+      # - /volume1/docker/champman:/data   # <- Synology/QNAP style bind mount instead of the named volume above
+    # Uncomment to ALSO open it on your LAN (bypasses Cloudflare Access — LAN only, don't port-forward it):
+    # ports:
+    #   - "3210:3210"
+    read_only: true                  # the app only writes to /data
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: champman-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?Set TUNNEL_TOKEN in .env (Cloudflare Zero Trust > Networks > Tunnels)}
+    depends_on:
+      champman:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  champman-data:

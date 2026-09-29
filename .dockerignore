@@ -1,0 +1,12 @@
+.git
+.claude
+node_modules
+*.db
+*.db-*
+backups
+test
+docs
+Dockerfile
+docker-compose.yml
+.env
+.env.*
