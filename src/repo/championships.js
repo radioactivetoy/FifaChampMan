@@ -120,7 +120,7 @@ function previousChampionshipId(db, playerId, championshipId) {
  * Team offer for a player: from their level (targetStars, or the result of their previous
  * championship when not given). Going up versus the previous championship offers two teams.
  */
-function offerFor(db, championshipId, playerId, rng, { targetStars: level } = {}) {
+function offerFor(db, championshipId, playerId, rng, { targetStars: level, avoidTeamId = null } = {}) {
   const prevId = previousChampionshipId(db, playerId, championshipId);
   const prev = prevId ? playerOutcome(db, prevId, playerId) : null;
   const targetStars = level ?? prev?.resultStars ?? 0.5;
@@ -130,7 +130,11 @@ function offerFor(db, championshipId, playerId, rng, { targetStars: level } = {}
     all(db, 'SELECT team_id AS teamId, offered_team_ids AS offered FROM championship_players WHERE championship_id = ? AND player_id != ?', championshipId, playerId)
       .flatMap(r => [r.teamId, ...JSON.parse(r.offered)]),
   );
-  const candidates = nearestTier(teamPool(db, championshipId).filter(t => !taken.has(t.id)), targetStars);
+  const free = teamPool(db, championshipId).filter(t => !taken.has(t.id));
+  // A re-draw must change the team: leave the current one out first, so a tier whose only free team is the player's own
+  // is skipped for the next nearest one. Only a pool with nothing else left falls back to the current team.
+  const candidates = nearestTier(free.filter(t => t.id !== avoidTeamId), targetStars);
+  if (candidates.length === 0) candidates.push(...nearestTier(free, targetStars));
   return planTeamOffer({ previousStars: prev?.stars ?? null, targetStars, candidates, rng });
 }
 
@@ -158,9 +162,9 @@ export function removeChampionshipPlayer(db, championshipId, playerId) {
 /** New random team(s) at the player's current level (which may have been overridden). */
 export function rerollOffer(db, championshipId, playerId, rng) {
   transaction(db, () => {
-    const entry = get(db, 'SELECT stars FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
+    const entry = get(db, 'SELECT stars, team_id AS teamId FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
     if (!entry) throw new UserError(_('That player is not in this championship'));
-    applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: entry.stars }));
+    applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: entry.stars, avoidTeamId: entry.teamId }));
   });
 }
 
@@ -168,10 +172,9 @@ export function rerollOffer(db, championshipId, playerId, rng) {
 export function setPlayerLevel(db, championshipId, playerId, stars, rng) {
   if (!STAR_LEVELS.includes(stars)) throw new UserError(_('{value} is not a star level', { value: stars }));
   transaction(db, () => {
-    if (!get(db, 'SELECT 1 AS x FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId)) {
-      throw new UserError(_('That player is not in this championship'));
-    }
-    applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: stars }));
+    const entry = get(db, 'SELECT team_id AS teamId FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
+    if (!entry) throw new UserError(_('That player is not in this championship'));
+    applyOffer(db, championshipId, playerId, offerFor(db, championshipId, playerId, rng, { targetStars: stars, avoidTeamId: entry.teamId }));
   });
 }
 

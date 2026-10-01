@@ -377,3 +377,31 @@ test('closedGroupSummary lists the 16 qualifiers and flags any missing a group r
   assert.ok(groupBRow, 'the pointsOverride team should have qualified with 9 points');
   assert.equal(groupBRow.missingResults, false);
 });
+
+test('re-draw always changes the team: a tier whose only free team is the player\'s own is skipped for the next nearest tier', () => {
+  const { db, players, rng } = setup();
+  const byStars = stars => listTeams(db).filter(t => t.stars === stars);
+  const [low1, low2] = byStars(3).slice(0, 2);          // the lowest tier of the pool has just two teams
+  const high = byStars(4).slice(0, 4);
+  const tid = saveTemplate(db, { name: 'Small' });
+  setTemplateTeams(db, tid, [low1, low2, ...high].map(t => t.id));
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players.slice(0, 2), templateId: tid, format: 'cup', teamCount: 6, rng });
+  const [a, b] = C.getChampionship(db, id).players;
+  assert.deepEqual(new Set([a.team.id, b.team.id]), new Set([low1.id, low2.id])); // both players start on the lowest tier
+  for (let i = 0; i < 5; i++) {
+    const before = C.getChampionship(db, id).players.find(p => p.playerId === a.playerId).teamId;
+    C.rerollOffer(db, id, a.playerId, rng);
+    const after = C.getChampionship(db, id).players.find(p => p.playerId === a.playerId).teamId;
+    assert.notEqual(after, before);
+  }
+});
+
+test('re-draw in a pool with a single team keeps that team instead of failing', () => {
+  const { db, players, rng } = setup();
+  const only = listTeams(db)[0];
+  const tid = saveTemplate(db, { name: 'One' });
+  setTemplateTeams(db, tid, [only.id]);
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: [players[0]], templateId: tid, format: 'cup', teamCount: 4, rng });
+  C.rerollOffer(db, id, players[0], rng);
+  assert.equal(C.getChampionship(db, id).players[0].teamId, only.id);
+});
