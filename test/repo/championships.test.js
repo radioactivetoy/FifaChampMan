@@ -364,8 +364,9 @@ test('the level is never moved: a pool without teams at the player level leaves 
   assert.equal(a.teamId, null); // 0.5★: nothing in the pool, so no team — and the level stays 0.5★
   assert.equal(a.stars, 0.5);
   assert.throws(() => C.rerollOffer(db, id, a.playerId, rng), /No other 0.5★ teams/);
-  assert.throws(() => C.setPlayerLevel(db, id, a.playerId, 2, rng), /No 2★ teams/);
-  assert.equal(C.getChampionship(db, id).players[0].stars, 0.5); // the failed change rolled back
+  C.setPlayerLevel(db, id, a.playerId, 2, rng); // the pool has no 2★ team either: the level is still saved, there is just nothing to draw
+  assert.equal(C.getChampionship(db, id).players[0].stars, 2);
+  assert.equal(C.getChampionship(db, id).players[0].teamId, null);
   // a level the pool has works, and from then on a re-draw only ever returns teams of that exact level
   C.setPlayerLevel(db, id, a.playerId, 3, rng);
   C.setPlayerLevel(db, id, b.playerId, 3, rng);
@@ -391,4 +392,22 @@ test('re-draw at a level with other free teams changes the team and keeps the le
     assert.equal(p.stars, 3);
     assert.equal(p.team.stars, 3);
   }
+});
+
+test('changing the level is always saved: a team already at that level is kept, one that cannot be replaced stays put', () => {
+  const { db, players, rng } = setup();
+  const [t25a, t25b] = listTeams(db).filter(t => t.stars === 2.5).slice(0, 2), t4 = listTeams(db).find(t => t.stars === 4);
+  const tid = saveTemplate(db, { name: 'Mixed' });
+  setTemplateTeams(db, tid, [t25a, t25b, t4].map(t => t.id));
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: [players[0]], templateId: tid, format: 'cup', teamCount: 4, rng });
+  C.setPlayerTeam(db, id, players[0], t25a.id);            // a team picked by hand while the level is still 0.5★
+  C.setPlayerLevel(db, id, players[0], 2.5, rng);          // same level as the team: just saved, the team stays
+  let p = C.getChampionship(db, id).players[0];
+  assert.deepEqual([p.stars, p.teamId], [2.5, t25a.id]);
+  C.rerollOffer(db, id, players[0], rng);                  // re-draw uses the saved level and changes the team
+  p = C.getChampionship(db, id).players[0];
+  assert.deepEqual([p.stars, p.teamId], [2.5, t25b.id]);
+  C.setPlayerLevel(db, id, players[0], 1, rng);            // no 1★ team in the pool: level saved, team kept, nothing drawn
+  p = C.getChampionship(db, id).players[0];
+  assert.deepEqual([p.stars, p.teamId], [1, t25b.id]);
 });

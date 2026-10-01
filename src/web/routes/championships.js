@@ -93,7 +93,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
           <td>${p.team ? badge(p.team) : ''}<form method="post" action="${base}/team" class="inline">${select({ name: 'teamId', items: teamItems, selected: p.teamId, blank: _('— pick a team —'), autosubmit: true })}<noscript><button>${_('Set')}</button></noscript></form></td>
           <td>${p.offered.length > 1
             ? p.offered.map(t => html`<form method="post" action="${base}/team" class="inline"><input type="hidden" name="teamId" value="${t.id}"><button class="${t.id === p.teamId ? 'primary' : ''}">${badge(t)}${t.name} (${t.ovr})</button></form> `)
-            : p.teamId == null && C.teamsAtLevel(db, c.id, p.playerId, p.stars).length === 0
+            : (p.teamId == null || p.team?.stars !== p.stars) && C.teamsAtLevel(db, c.id, p.playerId, p.stars).length === 0
               ? html`<span class="error">${_('⚠ No {stars}★ teams in this pool — change the level (Set) or add teams', { stars: p.stars })}</span>`
               : html`<span class="muted">${_('assigned')}</span>`}</td>
           <td class="actions">

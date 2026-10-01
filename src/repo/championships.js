@@ -174,15 +174,27 @@ export function rerollOffer(db, championshipId, playerId, rng) {
   });
 }
 
-/** Overrides the player's level for this championship and draws their team(s) from that tier. */
+/**
+ * Sets the player's level for this championship — always saved, it is the user's decision. Then the team follows the level:
+ * a team already at that level stays; otherwise one is drawn at exactly that level; if the pool has none, the team (if any)
+ * is left as it was and the overview warns that no team of that level is available. Returns { drawn }.
+ */
 export function setPlayerLevel(db, championshipId, playerId, stars, rng) {
   if (!STAR_LEVELS.includes(stars)) throw new UserError(_('{value} is not a star level', { value: stars }));
-  transaction(db, () => {
-    const entry = get(db, 'SELECT team_id AS teamId FROM championship_players WHERE championship_id = ? AND player_id = ?', championshipId, playerId);
-    if (!entry) throw new UserError(_('That player is not in this championship'));
-    const offer = offerFor(db, championshipId, playerId, rng, { targetStars: stars, avoidTeamId: entry.teamId });
-    if (offer.options.length === 0) throw new UserError(_('No {stars}★ teams available in this pool', { stars }));
+  return transaction(db, () => {
+    const player = getChampionship(db, championshipId).players.find(p => p.playerId === playerId);
+    if (!player) throw new UserError(_('That player is not in this championship'));
+    if (player.team?.stars === stars) {
+      run(db, 'UPDATE championship_players SET stars = ?, offered_team_ids = ? WHERE championship_id = ? AND player_id = ?', stars, '[]', championshipId, playerId);
+      return { drawn: false };
+    }
+    const offer = offerFor(db, championshipId, playerId, rng, { targetStars: stars });
+    if (offer.options.length === 0) {
+      run(db, 'UPDATE championship_players SET stars = ?, offered_team_ids = ? WHERE championship_id = ? AND player_id = ?', stars, '[]', championshipId, playerId);
+      return { drawn: false };
+    }
     applyOffer(db, championshipId, playerId, offer);
+    return { drawn: true };
   });
 }
 

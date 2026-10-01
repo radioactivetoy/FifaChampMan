@@ -434,3 +434,7 @@ tr.match-row.played td.own-cell { background: hsl(var(--ph), 70%, 92%); }
 /* overview: settings and danger zone are folded away under the player table */
 details.settings > summary, details.help > summary { margin-top: 4px; }
 details.settings[open] > form.row { margin: 8px 0; }
+/* message box for a refused action (flash cookie, see app.js) */
+.flash-box { position: sticky; top: 0; z-index: 21; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 16px;
+  background: #fff1f0; border-bottom: 1px solid #f1b5ae; color: #8a1f17; font-weight: 600; }
+.flash-box button { border: 0; background: transparent; color: inherit; cursor: pointer; font-size: 16px; box-shadow: none; }

@@ -41,17 +41,24 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
     res.redirect(back);
   });
 
-  // Right after a destructive action (and for 30 minutes) every page carries an "Undo" bar under the header.
+  // Under the header of every page: a message box with the error of the action that just failed (see the error handler: a failed
+  // form POST redirects back with a one-shot `flash` cookie), and — right after a destructive action, for 30 minutes — an "Undo" bar.
   app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
+    let flash = null;
+    try { const raw = /(?:^|;\s*)flash=([^;]*)/.exec(req.headers.cookie ?? '')?.[1]; if (raw) flash = decodeURIComponent(raw).slice(0, 400); } catch { /* bad cookie */ }
     const send = res.send.bind(res);
     res.send = body => {
-      const undo = typeof body === 'string' && body.startsWith('<!doctype html>') ? latestUndo(db) : null;
-      if (!undo) return send(body);
-      const back = html`<input type="hidden" name="back" value="${req.originalUrl}">`;
-      return send(body.replace('</header>', `</header>${html`<div class="undo-bar"><span>↩ ${undo.label}</span>
+      const isPage = typeof body === 'string' && body.startsWith('<!doctype html>');
+      if (flash && isPage) res.clearCookie('flash', { path: '/' });
+      const undo = isPage ? latestUndo(db) : null;
+      if (!isPage || (!undo && !flash)) return send(body);
+      const back = undo ? html`<input type="hidden" name="back" value="${req.originalUrl}">` : '';
+      const flashBox = flash ? html`<div class="flash-box" role="alert"><span>⚠ ${flash}</span><button type="button" title="${_('Hide')}" onclick="this.parentElement.remove()">✕</button></div>` : '';
+      const undoBar = undo ? html`<div class="undo-bar"><span>↩ ${undo.label}</span>
         <form method="post" action="/undo/${undo.id}">${back}<button class="primary">${_('Undo')}</button></form>
-        <form method="post" action="/undo/${undo.id}/dismiss">${back}<button title="${_('Hide')}">✕</button></form></div>`}`));
+        <form method="post" action="/undo/${undo.id}/dismiss">${back}<button title="${_('Hide')}">✕</button></form></div>` : '';
+      return send(body.replace('</header>', `</header>${flashBox}${undoBar}`));
     };
     next();
   });
@@ -76,9 +83,20 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
   app.use((req, res) => {
     res.status(404).send(page({ title: _('Not found'), body: html`<p>${th('Nothing here. <a href="/">Home</a>')}</p>` }));
   });
+  // Forms that carry a lot of typed input keep the old error page, whose Back link restores what was typed.
+  const KEEPS_INPUT = /\/(save|import)$/;
   app.use((err, req, res, next) => {
     const status = err instanceof UserError ? err.status : 500;
     if (status === 500) console.error(err);
+    // A refused form action (a UserError after a POST) goes back to the page it came from with a message box, not an error page.
+    if (req.method === 'POST' && err instanceof UserError && status < 500 && !KEEPS_INPUT.test(req.path)) {
+      let back = null;
+      try { const ref = new URL(req.get('referer') ?? ''); if (ref.host === req.get('host')) back = ref.pathname + ref.search; } catch { /* no referer */ }
+      if (back) {
+        res.cookie('flash', err.message.slice(0, 400), { maxAge: 60 * 1000, sameSite: 'lax', path: '/', httpOnly: true });
+        return res.redirect(303, back);
+      }
+    }
     res.status(status).send(page({
       title: status === 500 ? _('Something went wrong') : _('Cannot do that'),
       body: html`<p class="error">${err.message}</p><p><a href="javascript:history.back()">${_('← Back')}</a></p>`,
