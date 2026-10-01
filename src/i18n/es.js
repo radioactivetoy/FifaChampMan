@@ -53,6 +53,7 @@ export const es = {
   'Pens': 'Penaltis',
   '{player} controls {team}': '{player} controla a {team}',
   'own team': 'su equipo',
+  '⚙ Championship settings': '⚙ Ajustes del campeonato',
   'No {stars}★ teams available in this pool': 'No hay equipos de {stars}★ disponibles en esta lista',
   'No other {stars}★ teams available in this pool to draw': 'No hay otros equipos de {stars}★ para sortear en esta lista',
   '⚠ No {stars}★ teams in this pool — change the level (Set) or add teams': '⚠ No hay equipos de {stars}★ en esta lista: cambia el nivel (Fijar) o añade equipos',
