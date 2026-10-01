@@ -26,12 +26,3 @@ export function planTeamOffer({ previousStars, targetStars, candidates, rng }) {
   const options = pickN(candidates, improving ? 2 : 1, rng).map(t => t.id);
   return { stars: targetStars, options, teamId: improving ? null : (options[0] ?? null) };
 }
-
-/**
- * The teams of the star tier closest to `target` that has any (the exact tier when it has teams; otherwise the nearest one,
- * the lower one on a tie), so a restricted pool — say only Spanish clubs — still yields a team for a level it has none at.
- */
-export function nearestTier(teams, target) {
-  const tiers = [...new Set(teams.map(t => t.stars))].sort((a, b) => Math.abs(a - target) - Math.abs(b - target) || a - b);
-  return tiers.length ? teams.filter(t => t.stars === tiers[0]) : [];
-}
