@@ -222,6 +222,18 @@ function setupBracketAdvance() {
   refresh();
 }
 
+// select[data-autosubmit]: choosing a value submits its form (no separate "Set" button). requestSubmit() fires the form's own
+// submit handlers, so an onsubmit confirm still asks; if it is cancelled the select goes back to the saved value, so the page
+// never shows something that was not stored. The empty placeholder option does nothing.
+document.addEventListener('change', event => {
+  const select = event.target.closest?.('select[data-autosubmit]');
+  if (!select?.form || select.value === '') return;
+  let cancelled = false;
+  select.form.addEventListener('submit', e => { cancelled = e.defaultPrevented; }, { once: true });
+  select.form.requestSubmit();
+  if (cancelled) select.selectedIndex = Math.max(0, [...select.options].findIndex(o => o.defaultSelected));
+});
+
 // Highlights the header link of the section being viewed.
 function markCurrentNav() {
   const path = location.pathname === '/' ? '/championships' : location.pathname;

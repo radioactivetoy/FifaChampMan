@@ -98,8 +98,8 @@ export function registerChampionshipRoutes(app, { db, rng }) {
           <td>${p.playerName}</td>
           <td><form method="post" action="${base}/level" class="inline"
               ${confirmSubmit(_('Change the level and draw a new team from that tier?'))}>
-            ${select({ name: 'stars', items: STAR_LEVELS.map(s => ({ value: s, label: stars(s) })), selected: p.stars })}<button>${_('Set')}</button></form></td>
-          <td>${p.team ? badge(p.team) : ''}<form method="post" action="${base}/team" class="inline">${select({ name: 'teamId', items: teamItems, selected: p.teamId, blank: _('— pick a team —') })}<button>${_('Set')}</button></form></td>
+            ${select({ name: 'stars', items: STAR_LEVELS.map(s => ({ value: s, label: stars(s) })), selected: p.stars, autosubmit: true })}<noscript><button>${_('Set')}</button></noscript></form></td>
+          <td>${p.team ? badge(p.team) : ''}<form method="post" action="${base}/team" class="inline">${select({ name: 'teamId', items: teamItems, selected: p.teamId, blank: _('— pick a team —'), autosubmit: true })}<noscript><button>${_('Set')}</button></noscript></form></td>
           <td>${p.offered.length > 1
             ? p.offered.map(t => html`<form method="post" action="${base}/team" class="inline"><input type="hidden" name="teamId" value="${t.id}"><button class="${t.id === p.teamId ? 'primary' : ''}">${badge(t)}${t.name} (${t.ovr})</button></form> `)
             : p.teamId == null && C.teamsAtLevel(db, c.id, p.playerId, p.stars).length === 0
