@@ -201,3 +201,23 @@ test('the overview shows the players first; settings and the danger zone are fol
     assert.doesNotMatch(page, /<details class="help settings" open/);
   } finally { await app.close(); }
 });
+
+test('a refused form action comes back to the page with a message box instead of an error page', async () => {
+  const { app, id } = await cup(8);
+  try {
+    const referer = `${app.baseUrl}/championships/${id}`;
+    const post = (path, form) => fetch(app.baseUrl + path, { method: 'POST', body: new URLSearchParams(form), redirect: 'manual', headers: { referer } });
+    const r = await post(`/championships/${id}/players/999/level`, { stars: '' });
+    assert.equal(r.status, 303);
+    assert.equal(new URL(r.headers.get('location'), app.baseUrl).pathname, `/championships/${id}`);
+    const cookie = r.headers.get('set-cookie').split(';')[0];
+    const page = await (await fetch(referer, { headers: { cookie } })).text();
+    assert.match(page, /<div class="flash-box" role="alert"><span>⚠ Pick a star level<\/span>/);
+    const again = await fetch(referer, { headers: { cookie: '' } });
+    assert.doesNotMatch(await again.text(), /flash-box/); // one-shot: without the cookie nothing is shown
+    // no referer (or a bulk-save form): the old error page, so Back keeps what was typed
+    const plain = await app.post(`/championships/${id}/players/999/level`, { stars: '' });
+    assert.equal(plain.status, 400);
+    assert.match(plain.text, /Pick a star level/);
+  } finally { await app.close(); }
+});
