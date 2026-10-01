@@ -102,7 +102,9 @@ export function registerChampionshipRoutes(app, { db, rng }) {
           <td>${p.team ? badge(p.team) : ''}<form method="post" action="${base}/team" class="inline">${select({ name: 'teamId', items: teamItems, selected: p.teamId, blank: _('— pick a team —') })}<button>${_('Set')}</button></form></td>
           <td>${p.offered.length > 1
             ? p.offered.map(t => html`<form method="post" action="${base}/team" class="inline"><input type="hidden" name="teamId" value="${t.id}"><button class="${t.id === p.teamId ? 'primary' : ''}">${badge(t)}${t.name} (${t.ovr})</button></form> `)
-            : html`<span class="muted">${_('assigned')}</span>`}</td>
+            : p.teamId == null && C.teamsAtLevel(db, c.id, p.playerId, p.stars).length === 0
+              ? html`<span class="error">${_('⚠ No {stars}★ teams in this pool — change the level (Set) or add teams', { stars: p.stars })}</span>`
+              : html`<span class="muted">${_('assigned')}</span>`}</td>
           <td class="actions">
             <form method="post" action="${base}/reroll" class="inline" ${confirmSubmit(_('Draw a new random team for this player?'))}><button>${_('🎲 Re-draw')}</button></form>
             <form method="post" action="${base}/remove" class="inline" ${confirmSubmit(_('Remove this player from the championship?'))}><button class="danger">${_('Remove')}</button></form></td>

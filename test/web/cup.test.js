@@ -163,3 +163,19 @@ test('the team picker on the overview lists only the pool (plus the current team
     assert.ok(page.includes(`value="${pool[0].id}"`));
   } finally { await app.close(); }
 });
+
+test('a player whose level has no team in the pool gets a warning in the players table, and the level stays', async () => {
+  const app = await startTestApp();
+  try {
+    seedTeams(app.db);
+    const { saveTemplate, setTemplateTeams } = await import('../../src/repo/templates.js');
+    const { listTeams } = await import('../../src/repo/teams.js');
+    const pool = listTeams(app.db).filter(t => t.stars >= 3).slice(0, 8);
+    const tid = saveTemplate(app.db, { name: 'High' });
+    setTemplateTeams(app.db, tid, pool.map(t => t.id));
+    const id = createChampionship(app.db, { name: 'Copa', playerIds: seedPlayers(app.db).slice(0, 2), templateId: tid, format: 'cup', teamCount: 8, rng: createRng(3) });
+    const page = (await app.get(`/championships/${id}`)).text;
+    assert.ok(page.includes('⚠ No 0.5★ teams in this pool'));
+    assert.ok(getChampionship(app.db, id).players.every(p => p.stars === 0.5 && p.teamId == null));
+  } finally { await app.close(); }
+});

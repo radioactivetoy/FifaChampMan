@@ -6,7 +6,6 @@ import { listMatches, updateMatch } from '../../src/repo/matches.js';
 import { listTeams, saveTeam } from '../../src/repo/teams.js';
 import { saveTemplate, setTemplateTeams } from '../../src/repo/templates.js';
 import { createRng } from '../../src/domain/rng.js';
-import { nearestTier } from '../../src/domain/rating.js';
 import { seedTeams, seedPlayers } from '../seed.js';
 import { UserError } from '../../src/errors.js';
 
@@ -163,31 +162,6 @@ test('taking a CPU team that is already in the field swaps the two: slot, group 
   assert.equal(after.teams.find(t => t.teamId === old).groupLetter, cpu.groupLetter);
   assert.equal(listMatches(db, id).filter(m => m.homeTeamId === cpu.teamId || m.awayTeamId === cpu.teamId).length, 3);
   assert.equal(listMatches(db, id).filter(m => m.homeTeamId === old || m.awayTeamId === old).length, 3);
-});
-
-test('a pool with no team at the player level still gives a team, from the nearest tier; re-draw works after filling the field from the pool', () => {
-  const { db, players, rng } = setup();
-  const pool = listTeams(db).filter(t => t.stars >= 3).slice(0, 12); // nothing at the 0.5★ everybody starts on
-  assert.ok(pool.length === 12);
-  const tid = saveTemplate(db, { name: 'High' });
-  setTemplateTeams(db, tid, pool.map(t => t.id));
-  const id = C.createChampionship(db, { name: 'Cup', playerIds: players.slice(0, 2), templateId: tid, format: 'cup', teamCount: 12, rng });
-  const c = C.getChampionship(db, id);
-  assert.ok(c.players.every(p => p.teamId != null && pool.some(t => t.id === p.teamId)));
-  C.fillFieldWholePool(db, id); // every pool team is now in the field
-  const [p] = C.getChampionship(db, id).players;
-  C.rerollOffer(db, id, p.playerId, rng);
-  const after = C.getChampionship(db, id);
-  assert.ok(after.players[0].teamId != null && pool.some(t => t.id === after.players[0].teamId));
-  assert.equal(after.teams.length, 12);
-});
-
-test('nearestTier: the exact tier when it has teams, else the closest (lower on a tie)', () => {
-  const teams = [{ id: 1, stars: 2 }, { id: 2, stars: 3 }, { id: 3, stars: 3 }];
-  assert.deepEqual(nearestTier(teams, 3).map(t => t.id), [2, 3]);
-  assert.deepEqual(nearestTier(teams, 0.5).map(t => t.id), [1]);
-  assert.deepEqual(nearestTier(teams, 2.5).map(t => t.id), [1]); // 2 and 3 are equally close: the lower
-  assert.deepEqual(nearestTier([], 3), []);
 });
 
 test('outcome uses team record and reached', () => {
@@ -376,4 +350,45 @@ test('closedGroupSummary lists the 16 qualifiers and flags any missing a group r
   const groupBRow = groupB.rows.find(r => r.teamId === groupBCpu.teamId);
   assert.ok(groupBRow, 'the pointsOverride team should have qualified with 9 points');
   assert.equal(groupBRow.missingResults, false);
+});
+
+test('the level is never moved: a pool without teams at the player level leaves them without a team, and re-draw / level changes say so', () => {
+  const { db, players, rng } = setup();
+  const byStars = stars => listTeams(db).filter(t => t.stars === stars);
+  const [low1, low2] = byStars(3).slice(0, 2);       // nothing at 0.5★; only two teams at 3★
+  const high = byStars(4).slice(0, 3);
+  const tid = saveTemplate(db, { name: 'Small' });
+  setTemplateTeams(db, tid, [low1, low2, ...high].map(t => t.id));
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: players.slice(0, 2), templateId: tid, format: 'cup', teamCount: 6, rng });
+  const [a, b] = C.getChampionship(db, id).players;
+  assert.equal(a.teamId, null); // 0.5★: nothing in the pool, so no team — and the level stays 0.5★
+  assert.equal(a.stars, 0.5);
+  assert.throws(() => C.rerollOffer(db, id, a.playerId, rng), /No other 0.5★ teams/);
+  assert.throws(() => C.setPlayerLevel(db, id, a.playerId, 2, rng), /No 2★ teams/);
+  assert.equal(C.getChampionship(db, id).players[0].stars, 0.5); // the failed change rolled back
+  // a level the pool has works, and from then on a re-draw only ever returns teams of that exact level
+  C.setPlayerLevel(db, id, a.playerId, 3, rng);
+  C.setPlayerLevel(db, id, b.playerId, 3, rng);
+  const held = () => C.getChampionship(db, id).players.map(p => p.teamId).sort();
+  assert.deepEqual(held(), [low1.id, low2.id].sort());
+  // both 3★ teams are taken by the two players: neither can re-draw (the only other 3★ team is the other player's)
+  assert.throws(() => C.rerollOffer(db, id, a.playerId, rng), /No other 3★ teams/);
+  assert.deepEqual(held(), [low1.id, low2.id].sort());
+});
+
+test('re-draw at a level with other free teams changes the team and keeps the level', () => {
+  const { db, players, rng } = setup();
+  const three = listTeams(db).filter(t => t.stars === 3).slice(0, 4);
+  const tid = saveTemplate(db, { name: 'Threes' });
+  setTemplateTeams(db, tid, three.map(t => t.id));
+  const id = C.createChampionship(db, { name: 'Cup', playerIds: [players[0]], templateId: tid, format: 'cup', teamCount: 4, rng });
+  C.setPlayerLevel(db, id, players[0], 3, rng);
+  for (let i = 0; i < 5; i++) {
+    const before = C.getChampionship(db, id).players[0].teamId;
+    C.rerollOffer(db, id, players[0], rng);
+    const p = C.getChampionship(db, id).players[0];
+    assert.notEqual(p.teamId, before);
+    assert.equal(p.stars, 3);
+    assert.equal(p.team.stars, 3);
+  }
 });
