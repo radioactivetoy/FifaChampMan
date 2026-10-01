@@ -24,8 +24,8 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
   // A full FC club database pasted as CSV is ~150 KB; the default limit is 100 KB.
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
   app.use((req, res, next) => { req.body ??= {}; next(); });
-  // maxAge 0: browsers revalidate style.css / filter.js on each load, so updates show up immediately.
-  app.use(express.static(fileURLToPath(new URL('../public', import.meta.url)), { maxAge: 0 }));
+  // no-cache: browsers revalidate style.css / filter.js on each load (and pages link them with ?v=<mtime>, see html.js).
+  app.use(express.static(fileURLToPath(new URL('../public', import.meta.url)), { maxAge: 0, setHeaders: res => res.setHeader('Cache-Control', 'no-cache') }));
 
   // The request's language: the `lang` cookie (set by the ES | EN switch), else the default. Everything below runs inside it.
   app.use((req, res, next) => {
