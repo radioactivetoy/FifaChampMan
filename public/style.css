@@ -431,3 +431,6 @@ details.rename-inline[open] { display: block; margin-top: 6px; }
 /* a player's own team stands out wherever it appears in a match row: tinted cell with a bar in the player's colour */
 td.own-cell { background: hsl(var(--ph), 70%, 94%); box-shadow: inset 4px 0 0 hsl(var(--ph), 55%, 42%); }
 tr.match-row.played td.own-cell { background: hsl(var(--ph), 70%, 92%); }
+/* overview: settings and danger zone are folded away under the player table */
+details.settings > summary, details.help > summary { margin-top: 4px; }
+details.settings[open] > form.row { margin: 8px 0; }

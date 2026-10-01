@@ -84,22 +84,13 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, '')}
-        <form method="post" action="/championships/${c.id}" class="row"><input name="name" value="${c.name}" required><button>${_('Rename')}</button></form>
-        <form method="post" action="/championships/${c.id}/template" class="row">${_('Team pool')} ${templateSelect(db, c.templateId)}<button>${_('Save')}</button>
-          <span class="muted">${_('Used by re-draws and the random field.')}</span></form>
-        <form method="post" action="/championships/${c.id}/edition" class="row">
-          <label>${_('Edition')} <input name="edition" list="editions" value="${c.edition}"></label><button>${_('Save')}</button>
-          <span class="muted">${_('Changing this does not update the field or existing matches; check them after a change.')}</span></form>
-        <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
-        <form method="post" action="/championships/${c.id}/size" class="row">${sizeControls(c.format, c.teamCount)}<button>${_('Save')}</button>
-          <span class="muted">${_('Can only be changed before the draw or any match exists.')}</span></form>
         <table><thead><tr><th>${_('Player')}</th><th>${_('Level')}</th><th>${_('Team')}</th><th>${_('Choose between')}</th><th></th></tr></thead><tbody>
         ${c.players.map(p => { const base = `/championships/${c.id}/players/${p.playerId}`; return html`<tr>
           <td>${p.playerName}</td>
           <td><form method="post" action="${base}/level" class="inline"
               ${confirmSubmit(_('Change the level and draw a new team from that tier?'))}>
-            ${select({ name: 'stars', items: STAR_LEVELS.map(s => ({ value: s, label: stars(s) })), selected: p.stars })}<button>${_('Set')}</button></form></td>
-          <td>${p.team ? badge(p.team) : ''}<form method="post" action="${base}/team" class="inline">${select({ name: 'teamId', items: teamItems, selected: p.teamId, blank: _('— pick a team —') })}<button>${_('Set')}</button></form></td>
+            ${select({ name: 'stars', items: STAR_LEVELS.map(s => ({ value: s, label: stars(s) })), selected: p.stars, autosubmit: true })}<noscript><button>${_('Set')}</button></noscript></form></td>
+          <td>${p.team ? badge(p.team) : ''}<form method="post" action="${base}/team" class="inline">${select({ name: 'teamId', items: teamItems, selected: p.teamId, blank: _('— pick a team —'), autosubmit: true })}<noscript><button>${_('Set')}</button></noscript></form></td>
           <td>${p.offered.length > 1
             ? p.offered.map(t => html`<form method="post" action="${base}/team" class="inline"><input type="hidden" name="teamId" value="${t.id}"><button class="${t.id === p.teamId ? 'primary' : ''}">${badge(t)}${t.name} (${t.ovr})</button></form> `)
             : p.teamId == null && C.teamsAtLevel(db, c.id, p.playerId, p.stars).length === 0
@@ -112,7 +103,18 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         </tbody></table>
         ${others.length ? html`<form method="post" action="/championships/${c.id}/players" class="row">
           ${select({ name: 'playerId', items: others.map(p => ({ value: p.id, label: p.name })) })}<button>${_('Add player')}</button></form>` : ''}
-        <h2>${_('Danger zone')}</h2>
+        <details class="help settings"><summary>${_('⚙ Championship settings')}</summary>
+        <form method="post" action="/championships/${c.id}" class="row"><input name="name" value="${c.name}" required><button>${_('Rename')}</button></form>
+        <form method="post" action="/championships/${c.id}/template" class="row">${_('Team pool')} ${templateSelect(db, c.templateId)}<button>${_('Save')}</button>
+          <span class="muted">${_('Used by re-draws and the random field.')}</span></form>
+        <form method="post" action="/championships/${c.id}/edition" class="row">
+          <label>${_('Edition')} <input name="edition" list="editions" value="${c.edition}"></label><button>${_('Save')}</button>
+          <span class="muted">${_('Changing this does not update the field or existing matches; check them after a change.')}</span></form>
+        <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
+        <form method="post" action="/championships/${c.id}/size" class="row">${sizeControls(c.format, c.teamCount)}<button>${_('Save')}</button>
+          <span class="muted">${_('Can only be changed before the draw or any match exists.')}</span></form>
+        </details>
+        <details class="help"><summary>${_('Danger zone')}</summary>
         <form method="post" action="/championships/${c.id}/delete" class="card danger-zone"
           ${confirmSubmit(_('Delete this championship and all its data? You can undo it for 30 minutes; after that it is gone for good.'))}>
           <p>${th('<strong>Delete this championship.</strong> Its players, teams, draw, matches and results are removed and it disappears from the stats. You can undo it for 30 minutes; after that it is gone for good — back up <code>champman.db</code> first if unsure.')}</p>
@@ -120,7 +122,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
             <input name="confirmName" autocomplete="off" required data-confirm-name="${c.name}"
               oninput="this.form.querySelector('button').disabled = this.value.trim() !== this.dataset.confirmName"></label>
             <button class="danger" disabled>${_('Delete championship')}</button></p>
-        </form>`,
+        </form></details>`,
     }));
   });
 

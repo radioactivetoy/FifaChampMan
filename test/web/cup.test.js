@@ -179,3 +179,25 @@ test('a player whose level has no team in the pool gets a warning in the players
     assert.ok(getChampionship(app.db, id).players.every(p => p.stars === 0.5 && p.teamId == null));
   } finally { await app.close(); }
 });
+
+test('the level and team selects of a player submit on change (no Set button without JavaScript)', async () => {
+  const { app, id } = await cup(8);
+  try {
+    const page = (await app.get(`/championships/${id}`)).text;
+    assert.ok(page.includes('<select name="stars" data-autosubmit>'));
+    assert.ok(page.includes('<select name="teamId" data-autosubmit>'));
+    assert.match(page, /<noscript><button>Set<\/button><\/noscript>/);
+    assert.doesNotMatch(page, /<\/select><button>Set<\/button>/);
+  } finally { await app.close(); }
+});
+
+test('the overview shows the players first; settings and the danger zone are folded away', async () => {
+  const { app, id } = await cup(8);
+  try {
+    const page = (await app.get(`/championships/${id}`)).text;
+    const at = s => page.indexOf(s);
+    assert.ok(at('<table>') < at('<details class="help settings">'));
+    assert.ok(at('<details class="help settings">') < at('class="card danger-zone"'));
+    assert.doesNotMatch(page, /<details class="help settings" open/);
+  } finally { await app.close(); }
+});
