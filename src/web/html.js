@@ -1,5 +1,11 @@
+import { statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { t, currentLang, LANGS } from '../i18n/index.js';
 export { _, N_, tn } from '../i18n/index.js';
+
+// style.css / filter.js are linked with ?v=<modified time>: a CDN or browser that cached an older copy (Cloudflare caches .css/.js by
+// default) can never serve stale assets for new markup, because every change gives them a new URL.
+const assetVersion = file => { try { return Math.round(statSync(fileURLToPath(new URL(`../../public/${file}`, import.meta.url))).mtimeMs).toString(36); } catch { return '0'; } };
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
@@ -32,7 +38,7 @@ export function html(strings, ...values) {
 
 export function select({ name, items, selected, blank, form, autosubmit = false }) {
   const isSelected = v => selected != null && String(v) === String(selected);
-  return html`<select name="${name}"${form ? raw(` form="${escape(form)}"`) : ''}${autosubmit ? raw(' data-autosubmit') : ''}>${blank != null ? html`<option value="">${blank}</option>` : ''}${items.map(i => html`<option value="${i.value}"${isSelected(i.value) ? raw(' selected') : ''}>${i.label}</option>`)}</select>`;
+  return html`<select name="${name}"${form ? raw(` form="${escape(form)}"`) : ''}${autosubmit ? raw(' data-autosubmit autocomplete="off"') : ''}>${blank != null ? html`<option value="">${blank}</option>` : ''}${items.map(i => html`<option value="${i.value}"${isSelected(i.value) ? raw(' selected') : ''}>${i.label}</option>`)}</select>`;
 }
 
 /**
@@ -55,7 +61,7 @@ export function page({ title, body }) {
   const lang = currentLang();
   return '<!doctype html>' + html`<html lang="${lang === 'es' ? 'es-ES' : 'en'}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} · ChampMan</title><link rel="stylesheet" href="/style.css">${raw(`<script>window.T=${JSON.stringify(clientStrings()).replace(/</g, '\\u003c')}</script>`)}<script src="/filter.js" defer></script></head>
+<title>${title} · ChampMan</title><link rel="stylesheet" href="/style.css?v=${assetVersion('style.css')}">${raw(`<script>window.T=${JSON.stringify(clientStrings()).replace(/</g, '\\u003c')}</script>`)}<script src="/filter.js?v=${assetVersion('filter.js')}" defer></script></head>
 <body><header><div class="bar">
 <a class="brand" href="/"><span class="brand-mark">★</span><span>ChampMan<small>${t('EA FC Champions League')}</small></span></a>
 <nav>

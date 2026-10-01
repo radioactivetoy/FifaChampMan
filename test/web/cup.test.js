@@ -184,8 +184,8 @@ test('the level and team selects of a player submit on change (no Set button wit
   const { app, id } = await cup(8);
   try {
     const page = (await app.get(`/championships/${id}`)).text;
-    assert.ok(page.includes('<select name="stars" data-autosubmit>'));
-    assert.ok(page.includes('<select name="teamId" data-autosubmit>'));
+    assert.ok(page.includes('<select name="stars" data-autosubmit autocomplete="off">')); // autocomplete off: no stale value restored after a redirect
+    assert.ok(page.includes('<select name="teamId" data-autosubmit autocomplete="off">'));
     assert.match(page, /<noscript><button>Set<\/button><\/noscript>/);
     assert.doesNotMatch(page, /<\/select><button>Set<\/button>/);
   } finally { await app.close(); }
@@ -219,5 +219,16 @@ test('a refused form action comes back to the page with a message box instead of
     const plain = await app.post(`/championships/${id}/players/999/level`, { stars: '' });
     assert.equal(plain.status, 400);
     assert.match(plain.text, /Pick a star level/);
+  } finally { await app.close(); }
+});
+
+test('style.css and filter.js are linked with a version and served no-cache, so a CDN cannot keep stale copies', async () => {
+  const { app, id } = await cup(8);
+  try {
+    const page = (await app.get(`/championships/${id}`)).text;
+    assert.match(page, /href="\/style\.css\?v=[0-9a-z]+"/);
+    assert.match(page, /src="\/filter\.js\?v=[0-9a-z]+"/);
+    const css = await fetch(`${app.baseUrl}/style.css?v=abc`);
+    assert.equal(css.headers.get('cache-control'), 'no-cache');
   } finally { await app.close(); }
 });
