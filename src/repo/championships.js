@@ -17,14 +17,14 @@ import { _ } from '../i18n/index.js';
 // ---------- championships ----------
 
 export function listChampionships(db) {
-  return all(db, `SELECT c.id, c.name, c.status, c.edition, c.created_at AS createdAt,
+  return all(db, `SELECT c.id, c.name, c.status, c.edition, c.created_at AS createdAt, c.finished_at AS finishedAt,
       (SELECT COUNT(*) FROM championship_players cp WHERE cp.championship_id = c.id) AS playerCount
     FROM championships c ORDER BY c.id DESC`);
 }
 
 export function getChampionship(db, id) {
   const row = get(db, `SELECT id, name, status, edition, template_id AS templateId, group_stage_closed AS groupStageClosed,
-      format, team_count AS teamCount, created_at AS createdAt
+      format, team_count AS teamCount, created_at AS createdAt, finished_at AS finishedAt
     FROM championships WHERE id = ?`, id);
   if (!row) throw new UserError(_('Championship not found'), 404);
   // groupCount: groups in the field (0 for a cup); bracketSize: places in the knockout (see domain/bracket.js).
@@ -83,8 +83,29 @@ export function updateChampionship(db, id, { name, status, templateId, edition }
   if (edition !== undefined) run(db, 'UPDATE championships SET edition = ? WHERE id = ?', edition, id);
   if (status !== undefined) {
     if (!['active', 'finished'].includes(status)) throw new UserError(_('Unknown status "{status}"', { status }));
-    run(db, 'UPDATE championships SET status = ? WHERE id = ?', status, id);
+    // the close date is stamped when it is marked finished (an edited one is kept) and cleared when reopened
+    run(db, `UPDATE championships SET status = ?, finished_at = ${status === 'finished' ? "COALESCE(finished_at, datetime('now'))" : 'NULL'} WHERE id = ?`, status, id);
   }
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * Sets the start (created_at) and close (finished_at) dates, as YYYY-MM-DD (the time of day already stored is kept when the
+ * day is unchanged, otherwise 12:00). A blank close date clears it. The close date cannot be before the start.
+ */
+export function setChampionshipDates(db, id, { startedAt, finishedAt }) {
+  const row = get(db, 'SELECT created_at AS createdAt, finished_at AS finishedAt FROM championships WHERE id = ?', id);
+  if (!row) throw new UserError(_('Championship not found'), 404);
+  const stamp = (day, old) => (old?.slice(0, 10) === day ? old : `${day} 12:00:00`);
+  if (!DAY.test(startedAt ?? '') || Number.isNaN(Date.parse(startedAt))) throw new UserError(_('The start date must be a valid date'));
+  const start = stamp(startedAt, row.createdAt);
+  let end = null;
+  if (finishedAt) {
+    if (!DAY.test(finishedAt) || Number.isNaN(Date.parse(finishedAt))) throw new UserError(_('The close date must be a valid date'));
+    end = stamp(finishedAt, row.finishedAt);
+    if (end.slice(0, 10) < start.slice(0, 10)) throw new UserError(_('The close date cannot be before the start date'));
+  }
+  run(db, 'UPDATE championships SET created_at = ?, finished_at = ? WHERE id = ?', start, end, id);
 }
 
 /**
@@ -474,7 +495,7 @@ export function clearStaleChampion(db, championshipId) {
   const stale = all(db, "SELECT team_id AS teamId FROM championship_teams WHERE championship_id = ? AND reached = 'champion'", championshipId)
     .filter(r => r.teamId !== finalWinner);
   for (const { teamId } of stale) setReached(db, championshipId, teamId, derived.get(teamId) === 'champion' ? 'final' : derived.get(teamId) ?? firstRound(size));
-  if (stale.length) run(db, "UPDATE championships SET status = 'active' WHERE id = ?", championshipId);
+  if (stale.length) run(db, "UPDATE championships SET status = 'active', finished_at = NULL WHERE id = ?", championshipId);
   return stale.length > 0;
 }
 

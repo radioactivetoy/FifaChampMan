@@ -10,7 +10,7 @@ const VERSION = 1;
 
 /** Everything about championship `id` as a plain object (JSON-serialisable). */
 export function exportChampionship(db, id) {
-  const c = get(db, `SELECT c.name, c.edition, c.status, c.format, c.team_count AS teamCount, c.group_stage_closed AS groupStageClosed, c.created_at AS createdAt,
+  const c = get(db, `SELECT c.name, c.edition, c.status, c.format, c.team_count AS teamCount, c.group_stage_closed AS groupStageClosed, c.created_at AS createdAt, c.finished_at AS finishedAt,
       t.name AS template FROM championships c LEFT JOIN team_templates t ON t.id = c.template_id WHERE c.id = ?`, id);
   if (!c) throw new UserError(_('Championship not found'), 404);
   const teams = new Map(all(db, 'SELECT * FROM teams').map(t => [t.id, t]));
@@ -27,7 +27,7 @@ export function exportChampionship(db, id) {
   const matches = all(db, 'SELECT * FROM matches WHERE championship_id = ? ORDER BY id', id).map(m => ({
     stage: m.stage, groupLetter: m.group_letter, matchday: m.matchday, leg: m.leg, slot: m.slot, home: use(m.home_team_id), away: use(m.away_team_id),
     homeScore: m.home_score, awayScore: m.away_score, homePens: m.home_pens, awayPens: m.away_pens,
-    homeController: players.get(m.home_controller_id) ?? null, awayController: players.get(m.away_controller_id) ?? null,
+    playedAt: m.played_at, homeController: players.get(m.home_controller_id) ?? null, awayController: players.get(m.away_controller_id) ?? null,
   }));
   const byes = all(db, 'SELECT * FROM bracket_byes WHERE championship_id = ?', id).map(b => ({ stage: b.stage, slot: b.slot, team: use(b.team_id) }));
   const teamData = [...used].map(tid => {
@@ -64,9 +64,9 @@ export function importChampionship(db, data) {
       return id;
     };
     const exists = get(db, 'SELECT 1 AS x FROM championships WHERE name = ?', c.name);
-    const id = Number(run(db, `INSERT INTO championships (name, edition, status, template_id, group_stage_closed, format, team_count, created_at)
-        VALUES (?, ?, ?, (SELECT id FROM team_templates WHERE name = ?), ?, ?, ?, ?)`,
-      exists ? `${c.name} (${_('imported')})` : c.name, c.edition, c.status, c.template ?? null, c.groupStageClosed ? 1 : 0, c.format, c.teamCount, c.createdAt).lastInsertRowid);
+    const id = Number(run(db, `INSERT INTO championships (name, edition, status, template_id, group_stage_closed, format, team_count, created_at, finished_at)
+        VALUES (?, ?, ?, (SELECT id FROM team_templates WHERE name = ?), ?, ?, ?, ?, ?)`,
+      exists ? `${c.name} (${_('imported')})` : c.name, c.edition, c.status, c.template ?? null, c.groupStageClosed ? 1 : 0, c.format, c.teamCount, c.createdAt, c.finishedAt ?? null).lastInsertRowid);
     for (const p of data.players) {
       run(db, 'INSERT INTO championship_players (championship_id, player_id, stars, team_id, offered_team_ids, result_stars_override) VALUES (?, ?, ?, ?, ?, ?)',
         id, playerId(p.player), p.stars, teamId(p.team), JSON.stringify((p.offered ?? []).map(teamId)), p.resultStarsOverride ?? null);
@@ -76,9 +76,9 @@ export function importChampionship(db, data) {
         id, teamId(t.team), t.pot ?? null, t.groupLetter ?? null, t.reached, t.pointsOverride ?? null);
     }
     for (const m of data.matches) {
-      run(db, `INSERT INTO matches (championship_id, stage, group_letter, matchday, leg, slot, home_team_id, away_team_id, home_score, away_score, home_pens, away_pens, home_controller_id, away_controller_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, m.stage, m.groupLetter ?? null, m.matchday ?? null, m.leg ?? null, m.slot ?? null, teamId(m.home), teamId(m.away),
-      m.homeScore ?? null, m.awayScore ?? null, m.homePens ?? null, m.awayPens ?? null, playerId(m.homeController), playerId(m.awayController));
+      run(db, `INSERT INTO matches (championship_id, stage, group_letter, matchday, leg, slot, home_team_id, away_team_id, home_score, away_score, home_pens, away_pens, home_controller_id, away_controller_id, played_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, m.stage, m.groupLetter ?? null, m.matchday ?? null, m.leg ?? null, m.slot ?? null, teamId(m.home), teamId(m.away),
+      m.homeScore ?? null, m.awayScore ?? null, m.homePens ?? null, m.awayPens ?? null, playerId(m.homeController), playerId(m.awayController), m.playedAt ?? null);
     }
     for (const b of data.byes ?? []) run(db, 'INSERT INTO bracket_byes (championship_id, stage, slot, team_id) VALUES (?, ?, ?, ?)', id, b.stage, b.slot, teamId(b.team));
     return id;

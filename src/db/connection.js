@@ -16,6 +16,8 @@ const MIGRATIONS = [
   ['players', 'active', 'INTEGER NOT NULL DEFAULT 1'], // 0 = hidden from new championships (history kept)
   ['players', 'photo', 'BLOB'], // the player's picture, already resized by the browser (see repo/players.js)
   ['players', 'photo_type', 'TEXT'],
+  ['championships', 'finished_at', 'TEXT'], // close date: set when finished, editable
+  ['matches', 'played_at', 'TEXT'], // when the result was last entered/changed (session summary)
   ['matches', 'slot', 'INTEGER'], // playoff bracket position within its stage (see domain/stages.js assignSlots)
 ];
 
