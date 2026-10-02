@@ -201,7 +201,7 @@ test('story tones: every tone, custom style, length, surprise-me and format hint
   const base = { championship: { name: 'L', edition: 'E', format: 'groups', createdAt: '2026-10-01 10:00:00' }, lines: ['x'], awards: [], knockout: [], played: [] };
   assert.ok(Object.keys(STORY_TONES).length >= 15);
   const ea = storyPrompt({ ...base, tone: 'ea' });
-  for (const gripe of ['furious and in tears at EA', 'DECIDES who wins', 'hidden handicap', 'lag, input delay', 'rebounds', 'players that do not react', 'refereeing errors', 'worse than last year', 'exactly the same game as last year', 'pay-to-win']) assert.ok(ea.includes(gripe), gripe);
+  for (const gripe of ['furious and in tears at EA', 'TYPICAL EXAMPLES', 'invent many more original', 'DECIDES who wins', 'hidden handicap', 'lag, input delay', 'rebounds', 'players that do not react', 'refereeing errors', 'worse than last year', 'exactly the same game as last year', 'pay-to-win']) assert.ok(ea.includes(gripe), gripe);
   for (const [key, [, description]] of Object.entries(STORY_TONES)) assert.ok(storyPrompt({ ...base, tone: key }).includes(description), key);
   // format hints: verse, headlines, ruling; plain paragraphs otherwise
   assert.match(storyPrompt({ ...base, tone: 'ballad' }), /rhymed verse/);
@@ -249,6 +249,7 @@ test('EA rage tone in Spanish', async () => {
   try {
     const t = (await app.get(`/championships/${id}/recap?tone=ea`)).text;
     assert.match(t, /furioso y llorando contra EA/);
+    assert.match(t, /EJEMPLOS TÍPICOS/);
     assert.match(t, /DECIDE quién gana/);
     assert.match(t, /rebotes/);
     assert.match(t, /Lloros contra EA/);
