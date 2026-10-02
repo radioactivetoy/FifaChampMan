@@ -195,3 +195,46 @@ test('model chosen on Config: saved, applied at once, used by generate (with the
     setSetting(app.db, 'llm.model', null);
   } finally { await app.close(); }
 });
+
+test('story tones: every tone, custom style, length, surprise-me and format hints', async () => {
+  const { STORY_TONES, resolveTone, cleanCustomTone, CUSTOM_TONE } = await import('../../src/domain/story.js');
+  const base = { championship: { name: 'L', edition: 'E', format: 'groups', createdAt: '2026-10-01 10:00:00' }, lines: ['x'], awards: [], knockout: [], played: [] };
+  assert.ok(Object.keys(STORY_TONES).length >= 14);
+  for (const [key, [, description]] of Object.entries(STORY_TONES)) assert.ok(storyPrompt({ ...base, tone: key }).includes(description), key);
+  // format hints: verse, headlines, ruling; plain paragraphs otherwise
+  assert.match(storyPrompt({ ...base, tone: 'ballad' }), /rhymed verse/);
+  assert.match(storyPrompt({ ...base, tone: 'news' }), /headline in capital letters/);
+  assert.match(storyPrompt({ ...base, tone: 'court' }), /FACTS PROVEN/);
+  assert.match(storyPrompt({ ...base, tone: 'nature' }), /Plain paragraphs/);
+  // custom style: one line, max 200 chars, blank falls back to the default tone
+  assert.equal(cleanCustomTone('  a   pirate\ncaptain  '), 'a pirate captain');
+  assert.equal(cleanCustomTone('x'.repeat(300)).length, 200);
+  assert.match(storyPrompt({ ...base, tone: CUSTOM_TONE, custom: 'a pirate captain who lost his ship' }), /in the style of a pirate captain who lost his ship/);
+  assert.match(storyPrompt({ ...base, tone: CUSTOM_TONE, custom: '   ' }), /sports chronicler/);
+  // length
+  assert.match(storyPrompt({ ...base, length: 'short' }), /about 200 words/);
+  assert.match(storyPrompt({ ...base, length: 'long' }), /about 600 words/);
+  assert.match(storyPrompt({ ...base, length: 'huge' }), /about 350 words/);
+  // surprise me picks a real tone, deterministically with an rng
+  assert.ok(resolveTone('random', () => 0.99) in STORY_TONES);
+  assert.equal(resolveTone('random', () => 0), Object.keys(STORY_TONES)[0]);
+  assert.equal(resolveTone('bar', () => 0.5), 'bar');
+});
+
+test('recap: tone, custom style and length reach the copied prompt and the generator', async () => {
+  const llm = fakeLlm();
+  const { app, id } = await setup({ llm });
+  try {
+    const t = (await app.get(`/championships/${id}/recap?tone=western&length=long`)).text;
+    assert.match(t, /spaghetti western/);
+    assert.match(t, /about 600 words/);
+    const custom = (await app.get(`/championships/${id}/recap?tone=custom&custom=${encodeURIComponent('a pirate captain')}`)).text;
+    assert.match(custom, /in the style of a pirate captain/);
+    assert.match(custom, /name="custom" value="a pirate captain"/);
+    assert.match((await app.get(`/championships/${id}/recap?tone=random`)).text, /Surprise me/);
+    await app.post(`/championships/${id}/story/generate`, { tone: 'custom', custom: 'a pirate captain', length: 'short' });
+    assert.match(llm.calls[0], /in the style of a pirate captain/);
+    assert.match(llm.calls[0], /about 200 words/);
+    assert.equal(getStory(app.db, id).tone, 'custom: a pirate captain');
+  } finally { await app.close(); }
+});
