@@ -24,7 +24,7 @@ import { registerUndoRoutes } from './web/routes/undo.js';
 import { latestUndo } from './repo/undo.js';
 import { runWithLang, LANGS } from './i18n/index.js';
 
-export function createApp({ db, rng, defaultLang = 'es', dbPath = null }) {
+export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = null }) {
   const app = express();
   // A full FC club database pasted as CSV is ~150 KB; the default limit is 100 KB.
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
@@ -95,7 +95,7 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null }) {
     next();
   });
 
-  const ctx = { db, rng, dbPath };
+  const ctx = { db, rng, dbPath, llm };
   registerHomeRoutes(app, ctx);
   registerPlayerRoutes(app, ctx);
   registerProfileRoutes(app, ctx);

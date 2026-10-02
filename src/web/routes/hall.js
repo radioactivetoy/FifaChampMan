@@ -23,7 +23,7 @@ export function registerHallRoutes(app, { db }) {
         ${titleRows.length ? html`<div class="title-strip">${titleRows.map(([id, n]) => html`<span class="badge-pill">${avatar(players.get(id), { size: 22 })} <strong>${players.get(id)?.name}</strong> ${tn('🏆 {n} title', '🏆 {n} titles', n)}</span>`)}</div>` : ''}
         <div class="podiums">${hall.map(h => html`<section class="card podium-card">
           <h3><a href="/championships/${h.id}/recap">${h.name}</a></h3>
-          <p class="muted">${h.edition} · ${dates(h)}</p>
+          <p class="muted">${h.edition} · ${dates(h)}${h.hasStory ? html` · <a href="/championships/${h.id}/recap#story">${_('📜 Read the tale')}</a>` : ''}</p>
           <div class="podium">
             ${step('silver', '🥈', _('Runner-up'), h.runnerUp ? [h.runnerUp] : [])}
             ${step('gold', '🥇', _('Champion'), h.champion ? [h.champion] : [])}
