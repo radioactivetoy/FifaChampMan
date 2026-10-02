@@ -456,23 +456,37 @@ details.settings[open] > form.row { margin: 8px 0; }
   input.num, select, button { min-height: 44px; }
 }
 
-/* ---------- dark mode (follows the device setting) ---------- */
+/* ---------- dark mode: follows the device unless the header toggle set data-theme on <html> (cookie `theme`, see app.js) ---------- */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d1226; --surface: #151c38; --surface-2: #1b2444; --fg: #e8ecfa; --muted: #98a2c3; --line: #2a355e;
-    --navy-800: #c9d6ff; --blue-dark: #8fb0ff; --blue: #a9c2ff; --danger: #ff7b68; --success: #4fd08a;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .3);
-  }
-  header { --navy-800: #0b1a55; }
-  header nav a.current { background: #fff; color: #0b1a55; }
-  h1, h2, h3 { color: var(--fg); }
-  .tabs a.active { background: var(--blue-dark); color: #06103a; }
-  input, select, textarea, button { background: var(--surface-2); border-color: var(--line); color: var(--fg); }
-  button:hover, tbody tr:hover { background: var(--surface-2); border-color: var(--line); }
-  button.primary { background: var(--blue-dark); color: #06103a; }
-  .group-team-chip.qualified, .h2h-up, .reached-sf, .reached-qf, .reached-r16, .tab-count.done, tr.match-row.played td, .bracket-match.played { background: #173a2a; }
-  .reached-champion, .reached-final, .cabinet span, .undo-bar { background: #3a3210; border-color: #7a6720; color: var(--fg); }
-  .h2h-down, .danger-zone { background: #3a1a1a; border-color: #7a3a33; }
-  .flash-box { background: #4a1f1c; border-color: #7a3a33; color: #ffd4cf; }
-  .lang-switch button.on { background: #fff; color: #0b1a55; }
+  :root:not([data-theme="light"]) { --bg: #0d1226; --surface: #151c38; --surface-2: #1b2444; --fg: #e8ecfa; --muted: #98a2c3; --line: #2a355e; --navy-800: #c9d6ff; --blue-dark: #8fb0ff; --blue: #a9c2ff; --danger: #ff7b68; --success: #4fd08a; --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .3); }
+  :root:not([data-theme="light"]) header { --navy-800: #0b1a55; }
+  :root:not([data-theme="light"]) header nav a.current { background: #fff; color: #0b1a55; }
+  :root:not([data-theme="light"]) h1, :root:not([data-theme="light"]) h2, :root:not([data-theme="light"]) h3 { color: var(--fg); }
+  :root:not([data-theme="light"]) .tabs a.active { background: var(--blue-dark); color: #06103a; }
+  :root:not([data-theme="light"]) input, :root:not([data-theme="light"]) select, :root:not([data-theme="light"]) textarea, :root:not([data-theme="light"]) button { background: var(--surface-2); border-color: var(--line); color: var(--fg); }
+  :root:not([data-theme="light"]) button:hover, :root:not([data-theme="light"]) tbody tr:hover { background: var(--surface-2); border-color: var(--line); }
+  :root:not([data-theme="light"]) button.primary { background: var(--blue-dark); color: #06103a; }
+  :root:not([data-theme="light"]) .group-team-chip.qualified, :root:not([data-theme="light"]) .h2h-up, :root:not([data-theme="light"]) .reached-sf, :root:not([data-theme="light"]) .reached-qf, :root:not([data-theme="light"]) .reached-r16, :root:not([data-theme="light"]) .tab-count.done, :root:not([data-theme="light"]) tr.match-row.played td, :root:not([data-theme="light"]) .bracket-match.played { background: #173a2a; }
+  :root:not([data-theme="light"]) .reached-champion, :root:not([data-theme="light"]) .reached-final, :root:not([data-theme="light"]) .cabinet span, :root:not([data-theme="light"]) .undo-bar { background: #3a3210; border-color: #7a6720; color: var(--fg); }
+  :root:not([data-theme="light"]) .h2h-down, :root:not([data-theme="light"]) .danger-zone { background: #3a1a1a; border-color: #7a3a33; }
+  :root:not([data-theme="light"]) .flash-box { background: #4a1f1c; border-color: #7a3a33; color: #ffd4cf; }
+  :root:not([data-theme="light"]) .lang-switch button, :root:not([data-theme="light"]) .theme-switch button { background: transparent; color: #fff; }
+  :root:not([data-theme="light"]) .lang-switch button.on, :root:not([data-theme="light"]) .theme-switch button.on { background: #fff; color: #0b1a55; }
 }
+:root[data-theme="dark"] { --bg: #0d1226; --surface: #151c38; --surface-2: #1b2444; --fg: #e8ecfa; --muted: #98a2c3; --line: #2a355e; --navy-800: #c9d6ff; --blue-dark: #8fb0ff; --blue: #a9c2ff; --danger: #ff7b68; --success: #4fd08a; --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 4px 16px rgba(0, 0, 0, .3); }
+:root[data-theme="dark"] header { --navy-800: #0b1a55; }
+:root[data-theme="dark"] header nav a.current { background: #fff; color: #0b1a55; }
+:root[data-theme="dark"] h1, :root[data-theme="dark"] h2, :root[data-theme="dark"] h3 { color: var(--fg); }
+:root[data-theme="dark"] .tabs a.active { background: var(--blue-dark); color: #06103a; }
+:root[data-theme="dark"] input, :root[data-theme="dark"] select, :root[data-theme="dark"] textarea, :root[data-theme="dark"] button { background: var(--surface-2); border-color: var(--line); color: var(--fg); }
+:root[data-theme="dark"] button:hover, :root[data-theme="dark"] tbody tr:hover { background: var(--surface-2); border-color: var(--line); }
+:root[data-theme="dark"] button.primary { background: var(--blue-dark); color: #06103a; }
+:root[data-theme="dark"] .group-team-chip.qualified, :root[data-theme="dark"] .h2h-up, :root[data-theme="dark"] .reached-sf, :root[data-theme="dark"] .reached-qf, :root[data-theme="dark"] .reached-r16, :root[data-theme="dark"] .tab-count.done, :root[data-theme="dark"] tr.match-row.played td, :root[data-theme="dark"] .bracket-match.played { background: #173a2a; }
+:root[data-theme="dark"] .reached-champion, :root[data-theme="dark"] .reached-final, :root[data-theme="dark"] .cabinet span, :root[data-theme="dark"] .undo-bar { background: #3a3210; border-color: #7a6720; color: var(--fg); }
+:root[data-theme="dark"] .h2h-down, :root[data-theme="dark"] .danger-zone { background: #3a1a1a; border-color: #7a3a33; }
+:root[data-theme="dark"] .flash-box { background: #4a1f1c; border-color: #7a3a33; color: #ffd4cf; }
+:root[data-theme="dark"] .lang-switch button, :root[data-theme="dark"] .theme-switch button { background: transparent; color: #fff; }
+:root[data-theme="dark"] .lang-switch button.on, :root[data-theme="dark"] .theme-switch button.on { background: #fff; color: #0b1a55; }
+.theme-switch { display: inline-flex; margin: 0 0 0 6px; border: 1px solid rgba(255, 255, 255, .35); border-radius: 999px; overflow: hidden; vertical-align: middle; }
+.theme-switch button { background: transparent; color: #fff; border: 0; padding: 3px 9px; font-size: 13px; cursor: pointer; box-shadow: none; min-height: 0; }
+.theme-switch button.on { background: #fff; color: #0b1a55; }

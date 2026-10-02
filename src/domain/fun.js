@@ -175,8 +175,11 @@ export function championshipStory({ championship, players, matches }) {
   const ordinal = n => (currentLang() === 'es' ? `${n}.º` : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]}`);
   const END = { group: N_('went out in the group stage'), r16: N_('went out in the Round of 16'), r32: N_('went out in the Round of 32'), r64: N_('went out in the Round of 64'), qf: N_('went out in the quarter-finals'), sf: N_('lost in the semi-finals'), final: N_('lost the final'), champion: N_('won it all') };
   const lines = players.filter(p => p.team).map(p => {
-    const end = _(END[p.reached] ?? N_('took part'));
+    // A cup has no group stage: nothing recorded yet reads "took part", and the line never mentions groups.
+    const cup = championship.format === 'cup';
+    const end = _(cup && p.reached === 'group' ? N_('took part') : END[p.reached] ?? N_('took part'));
     const [player, team] = [p.playerName, p.team.name];
+    if (cup) return _('{player} ({team}) {end}.', { player, team, end });
     return p.groupLetter
       ? _('{player} ({team}) finished {place} in Group {group} with {points} pts and {end}.', { player, team, place: ordinal(p.groupPosition), group: p.groupLetter, points: p.group.points, end })
       : _('{player} ({team}) played the group stage and {end}.', { player, team, end });

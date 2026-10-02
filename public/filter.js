@@ -298,3 +298,10 @@ document.addEventListener('input', event => {
   if (!input.matches?.('input.num[name*="homeScore"]') || !/^\d$/.test(input.value)) return;
   document.querySelector(`input[name="${CSS.escape(input.name.replace('homeScore', 'awayScore'))}"]`)?.focus();
 });
+
+// Light/dark toggle: marks the button of the theme in use (the cookie's data-theme, else the device's setting).
+function markTheme() {
+  const dark = (document.documentElement.dataset.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark';
+  for (const b of document.querySelectorAll('[data-theme-switch] button')) b.classList.toggle('on', (b.value === 'dark') === dark);
+}
+markTheme();

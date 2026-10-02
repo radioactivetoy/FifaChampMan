@@ -67,5 +67,6 @@ export function page({ title, body }) {
 <nav>
 <a href="/championships">${t('Championships')}</a><a href="/players">${t('Players')}</a><a href="/teams">${t('Teams')}</a><a href="/stats">${t('Stats')}</a><a href="/config">${t('Config')}</a>
 <form method="post" action="/lang" class="lang-switch">${LANGS.map(l => html`<button name="lang" value="${l}" class="${l === lang ? 'on' : ''}" aria-pressed="${l === lang}" title="${l === 'es' ? 'Español' : 'English'}">${l.toUpperCase()}</button>`)}</form>
+<form method="post" action="/theme" class="theme-switch" data-theme-switch>${[['light', '☀', t('Light mode')], ['dark', '☾', t('Dark mode')]].map(([v, icon, title]) => html`<button name="theme" value="${v}" title="${title}" aria-label="${title}">${icon}</button>`)}</form>
 </nav></div></header><main><h1>${title}</h1>${body}</main></body></html>`;
 }

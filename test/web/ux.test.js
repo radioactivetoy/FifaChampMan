@@ -70,3 +70,19 @@ test('results and field selects save on change; clearing selects submit the blan
     assert.match((await app.get(`/championships/${id}/groups`)).text, /inputmode="numeric"/);
   } finally { await app.close(); }
 });
+
+test('theme toggle: POST /theme stores the choice and pages carry it as data-theme', async () => {
+  const app = await startTestApp();
+  try {
+    const r = await fetch(`${app.baseUrl}/theme`, { method: 'POST', body: new URLSearchParams({ theme: 'dark' }), redirect: 'manual' });
+    assert.equal(r.status, 302);
+    assert.match(r.headers.get('set-cookie') ?? '', /theme=dark/);
+    assert.doesNotMatch(r.headers.get('set-cookie') ?? '', /ok=1/);
+    const dark = await (await fetch(`${app.baseUrl}/championships`, { headers: { cookie: 'theme=dark' } })).text();
+    assert.match(dark, /<html data-theme="dark" lang=/);
+    assert.match(dark, /action="\/theme"/);
+    assert.doesNotMatch((await app.get('/championships')).text, /data-theme="/);
+    const bad = await fetch(`${app.baseUrl}/theme`, { method: 'POST', body: new URLSearchParams({ theme: 'pink' }), redirect: 'manual' });
+    assert.equal(bad.headers.get('set-cookie'), null);
+  } finally { await app.close(); }
+});
