@@ -79,6 +79,18 @@ test('championshipStory: MVP among the players\' teams and auto-written lines', 
   assert.ok(lines.some(l => l.includes('Top scorer')));
 });
 
+test('championshipStory: a cup never talks about a group stage', () => {
+  const championship = { format: 'cup', teams: [{ teamId: 20, name: 'B1', reached: 'r16', owner: { playerName: 'Ben' } }, { teamId: 10, name: 'A1', reached: 'group', owner: { playerName: 'Ana' } }] };
+  const rows = [
+    { playerName: 'Ben', team: { name: 'B1' }, groupLetter: null, reached: 'r16', cuchara: false },
+    { playerName: 'Ana', team: { name: 'A1' }, groupLetter: null, reached: 'group', cuchara: false },
+  ];
+  const { lines } = championshipStory({ championship, players: rows, matches: [] });
+  assert.ok(lines.includes('Ben (B1) went out in the Round of 16.'));
+  assert.ok(lines.includes('Ana (A1) took part.'));
+  assert.ok(!lines.some(l => /group/i.test(l)));
+});
+
 test('trophyCabinet lists what a player holds', async () => {
   const { trophyCabinet } = await import('../../src/domain/fun.js');
   const f = funStats({ players, entries, matches, teams });

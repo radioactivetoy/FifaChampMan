@@ -226,7 +226,7 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   the Star journey sparklines; each is `null` (card hidden) until someone qualifies. "Own" = the player's own team;
   penalties are credited to whoever controlled each side; matches are ordered by championship id, stage, matchday.
   `championshipStory` writes the Recap page's "The story" lines (results per player, champion, Cuchara, top
-  scorer among the players' teams). New stats belong in these two functions, not in the routes.
+  scorer among the players' teams; in a cup there is no group wording — "went out in the Round of N" / "took part"). New stats belong in these two functions, not in the routes.
 - **Languages (i18n)**: Spanish (Spain) is the default, English the alternative; an ES | EN switch in the header sets a
   per-browser `lang` cookie (`POST /lang`, returns to the same-site referer). `src/i18n/index.js`: **`_('English text')`**
   (gettext idiom — the English text *is* the key; `t` is an alias, but files have local variables called `t`, so use

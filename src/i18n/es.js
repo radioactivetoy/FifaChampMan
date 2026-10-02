@@ -402,6 +402,7 @@ export const es = {
   '{championships} championships · {titles} titles · own team {own} ({goals}) · as CPU {cpu}': '{championships} campeonatos · {titles} títulos · con su equipo {own} ({goals}) · como CPU {cpu}',
   // ---- Profile and auto-written story (domain/fun.js) ----
   '{player} ({team}) finished {place} in Group {group} with {points} pts and {end}.': '{player} ({team}) quedó {place} del Grupo {group} con {points} pts y {end}.',
+  '{player} ({team}) {end}.': '{player} ({team}) {end}.',
   '{player} ({team}) played the group stage and {end}.': '{player} ({team}) jugó la fase de grupos y {end}.',
   'went out in the group stage': 'no pasó de la fase de grupos',
   'went out in the Round of 16': 'cayó en octavos de final',
