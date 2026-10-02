@@ -1,6 +1,6 @@
 import { intOrNull } from '../form.js';
 import { _ } from '../../i18n/index.js';
-import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
+import { recordUndo, rowsOf, insertSteps, trackUndo, fieldScopes } from '../../repo/undo.js';
 import { getMatch, updateMatch, updateMatches, deleteMatch, rerollControllers, fillMissingControllers, swapHomeAway } from '../../repo/matches.js';
 import { PLAYOFF_STAGES } from '../../domain/stages.js'; // any knockout stage name is valid here; the playoff route checks the bracket
 import { UserError } from '../../errors.js';
@@ -53,7 +53,8 @@ export function saveMatchesFromBody(db, matchIds, body) {
 
 export function registerMatchRoutes(app, { db, rng }) {
   app.post('/championships/:id/controllers/fill', (req, res) => {
-    fillMissingControllers(db, Number(req.params.id), rng);
+    const id = Number(req.params.id);
+    trackUndo(db, _('Drew the missing controllers'), fieldScopes(id), () => fillMissingControllers(db, id, rng));
     res.redirect(`/championships/${req.params.id}/${req.body.back === 'playoff' ? 'playoff' : 'groups'}`);
   });
 
@@ -66,7 +67,7 @@ export function registerMatchRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/matches/:matchId/reroll', (req, res) => {
     const m = matchInChampionship(db, req);
-    rerollControllers(db, m.id, rng);
+    trackUndo(db, _('Re-drew the controller of {home} v {away}', { home: m.homeTeamName, away: m.awayTeamName }), fieldScopes(m.championshipId), () => rerollControllers(db, m.id, rng));
     res.redirect(backTo(m));
   });
 

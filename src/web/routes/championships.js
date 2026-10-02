@@ -2,7 +2,7 @@ import { html, page, select, th, _, confirmSubmit, raw } from '../html.js';
 import { intOrNull, numOrNull, requiredText, toArray, textOrDefault } from '../form.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
-import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
+import { recordUndo, rowsOf, insertSteps, trackUndo, fieldScopes } from '../../repo/undo.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams, listEditions } from '../../repo/teams.js';
 import { listTemplates } from '../../repo/templates.js';
@@ -30,6 +30,7 @@ const templateSelect = (db, selected) => select({
 });
 
 export function registerChampionshipRoutes(app, { db, rng }) {
+  const playerName = (championshipId, playerId) => C.getChampionship(db, championshipId).players.find(p => p.playerId === playerId)?.playerName ?? _('player');
   app.get('/championships', (req, res) => {
     const list = C.listChampionships(db);
     res.send(page({
@@ -190,19 +191,22 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   app.post('/championships/:id/players/:playerId/team', (req, res) => {
     const teamId = intOrNull(req.body.teamId);
     if (teamId == null) throw new UserError(_('Pick a team'));
-    C.setPlayerTeam(db, Number(req.params.id), Number(req.params.playerId), teamId);
+    const [id, playerId] = [Number(req.params.id), Number(req.params.playerId)];
+    trackUndo(db, _('Changed the team of {who}', { who: playerName(id, playerId) }), fieldScopes(id), () => C.setPlayerTeam(db, id, playerId, teamId));
     res.redirect(`/championships/${req.params.id}`);
   });
 
   app.post('/championships/:id/players/:playerId/level', (req, res) => {
     const level = numOrNull(req.body.stars);
     if (level == null) throw new UserError(_('Pick a star level'));
-    C.setPlayerLevel(db, Number(req.params.id), Number(req.params.playerId), level, rng);
+    const [id, playerId] = [Number(req.params.id), Number(req.params.playerId)];
+    trackUndo(db, _('Changed the level of {who}', { who: playerName(id, playerId) }), fieldScopes(id), () => C.setPlayerLevel(db, id, playerId, level, rng));
     res.redirect(`/championships/${req.params.id}`);
   });
 
   app.post('/championships/:id/players/:playerId/reroll', (req, res) => {
-    C.rerollOffer(db, Number(req.params.id), Number(req.params.playerId), rng);
+    const [id, playerId] = [Number(req.params.id), Number(req.params.playerId)];
+    trackUndo(db, _('Re-drew the teams of {who}', { who: playerName(id, playerId) }), fieldScopes(id), () => C.rerollOffer(db, id, playerId, rng));
     res.redirect(`/championships/${req.params.id}`);
   });
 

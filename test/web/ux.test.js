@@ -102,3 +102,24 @@ test('records, head-to-head pages render; recap shows awards', async () => {
     assert.match((await app.get('/stats')).text, /href="\/records"/);
   } finally { await app.close(); }
 });
+
+test('random actions can be undone: group draw, fixtures, field fill', async () => {
+  const { latestUndo } = await import('../../src/repo/undo.js');
+  const { app, id } = await withGroups();
+  try {
+    const snap = () => JSON.stringify([getChampionship(app.db, id).teams.map(t => [t.teamId, t.pot, t.groupLetter]), app.db.prepare('SELECT COUNT(*) AS n FROM matches').get().n]);
+    const undoLast = async () => app.post(`/undo/${latestUndo(app.db).id}`, { back: '/' });
+    await app.post(`/championships/${id}/groups/fixtures/clear`); // the draw is refused while fixtures exist
+    const cleared = snap();
+    await app.post(`/championships/${id}/draw`);
+    assert.match(latestUndo(app.db).label, /group draw/);
+    assert.notEqual(snap(), cleared);
+    await undoLast();
+    assert.equal(snap(), cleared);
+    await app.post(`/championships/${id}/groups/fixtures`);
+    assert.notEqual(snap(), cleared);
+    assert.match(latestUndo(app.db).label, /Generated the group fixtures/);
+    await undoLast();
+    assert.equal(snap(), cleared);
+  } finally { await app.close(); }
+});
