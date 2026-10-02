@@ -5,6 +5,8 @@
 // A test (test/i18n/coverage.test.js) fails when code uses a string that has no entry here.
 export const es = {
   // ---- layout ----
+  'Home': 'Inicio',
+  'Session': 'Sesión',
   'Championships': 'Campeonatos',
   'Players': 'Jugadores',
   'Teams': 'Equipos',

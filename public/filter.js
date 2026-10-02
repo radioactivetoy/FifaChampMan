@@ -237,10 +237,10 @@ document.addEventListener('change', event => {
 
 // Highlights the header link of the section being viewed.
 function markCurrentNav() {
-  const path = location.pathname === '/' ? '/championships' : location.pathname;
+  const path = location.pathname;
   for (const a of document.querySelectorAll('header nav a')) {
     const href = a.getAttribute('href');
-    a.classList.toggle('current', path === href || path.startsWith(`${href}/`));
+    a.classList.toggle('current', href === '/' ? path === '/' : path === href || path.startsWith(`${href}/`));
   }
 }
 

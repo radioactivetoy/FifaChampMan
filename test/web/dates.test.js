@@ -97,3 +97,13 @@ test('sessionSummary: record per controller, highlights, shoot-outs', () => {
   assert.equal(s.upset.winner, 'A');
   assert.equal(s.shootouts.length, 1);
 });
+
+test('header has Home and Session links; Stats links to the session summary', async () => {
+  const app = await startTestApp();
+  try {
+    const t = (await app.get('/championships')).text;
+    assert.match(t, /<a href="\/" class="nav-home"/);
+    assert.match(t, /<a href="\/session">Session<\/a>/);
+    assert.match((await app.get('/stats')).text, /<a href="\/session">📰/);
+  } finally { await app.close(); }
+});
