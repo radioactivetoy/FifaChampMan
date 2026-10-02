@@ -23,6 +23,7 @@ export const STORY_TONES = {
   ballad: [N_('Ballad in verse'), N_('a travelling ballad singer telling the tale as a rhymed romance, in the style of a Spanish copla'),
     N_('Write it in rhymed verse (octosyllabic lines), no markdown, no title.')],
   standup: [N_('Stand-up monologue'), N_('a stand-up comedian roasting each player in turn, with callbacks to earlier jokes')],
+  ea: [N_('EA rage'), N_('a player furious and in tears at EA and the yearly FIFA re-release: the game is scripted, "momentum" and a hidden handicap, the CPU cheats, defenders turn into statues, packs and microtransactions, laggy servers, the same game sold again every year; every defeat is the fault of the game and never the player, every win is "the game finally let me". Blame EA for each real result below, but do not invent specific false claims about real people or legal cases')],
   conspiracy: [N_('Conspiracy theorist'), N_('a conspiracy-theory investigator in the style of The X-Files: the penalty was clearly rigged, classified documents, cover-ups')],
 };
 export const DEFAULT_TONE = 'bar';

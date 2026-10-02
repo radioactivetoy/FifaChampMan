@@ -120,6 +120,8 @@ export const es = {
   'Write it in rhymed verse (octosyllabic lines), no markdown, no title.': 'Escríbelo en verso rimado (versos octosílabos), sin markdown y sin título.',
   'Stand-up monologue': 'Monólogo de humor',
   'a stand-up comedian roasting each player in turn, with callbacks to earlier jokes': 'un humorista de monólogos que se mete con cada jugador por turnos, retomando chistes anteriores',
+  'EA rage': 'Lloros contra EA',
+  'a player furious and in tears at EA and the yearly FIFA re-release: the game is scripted, "momentum" and a hidden handicap, the CPU cheats, defenders turn into statues, packs and microtransactions, laggy servers, the same game sold again every year; every defeat is the fault of the game and never the player, every win is "the game finally let me". Blame EA for each real result below, but do not invent specific false claims about real people or legal cases': 'un jugador furioso y llorando contra EA y el FIFA que reeditan cada año: el juego está trucado, hay «momentum» y un hándicap oculto, la CPU hace trampas, los defensas se convierten en estatuas, sobres y microtransacciones, servidores con lag y el mismo juego vendido otra vez cada año; toda derrota es culpa del juego y nunca del jugador, y toda victoria es «por fin me ha dejado el juego». Échale la culpa a EA de cada resultado real de abajo, pero no inventes acusaciones falsas concretas sobre personas reales ni casos legales',
   'Conspiracy theorist': 'Conspiranoico',
   'a conspiracy-theory investigator in the style of The X-Files: the penalty was clearly rigged, classified documents, cover-ups': 'un investigador de conspiraciones al estilo de Expediente X: el penalti estaba claramente amañado, documentos clasificados y encubrimientos',
   'Short': 'Corto',
