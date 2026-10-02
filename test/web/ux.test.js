@@ -139,3 +139,30 @@ test('export download and import form', async () => {
     assert.match(bad.text, /not a ChampMan championship file/);
   } finally { await app.close(); }
 });
+
+test('new championship form shows start levels, select all and the teams per level of each pool', async () => {
+  const { app } = await withGroups();
+  try {
+    const t = (await app.get('/championships/new')).text;
+    assert.match(t, /data-check-all="playerIds"/);
+    assert.match(t, /starts at/);
+    assert.match(t, /Teams available per star level/);
+  } finally { await app.close(); }
+});
+
+test('next-step hint follows the championship through its stages', async () => {
+  const { nextStep } = await import('../../src/domain/progress.js');
+  const base = { status: 'active', format: 'groups', teamCount: 8, groupStageClosed: false, players: [1], teams: [], progress: { groups: { played: 0, total: 0 }, playoff: { played: 0, total: 0 } }, groupMatchCount: 0, playoffMatchCount: 0 };
+  const teams = Array.from({ length: 8 }, (_, i) => ({ teamId: i, groupLetter: 'A' }));
+  assert.equal(nextStep({ ...base, players: [] }).step, 'players');
+  assert.equal(nextStep(base).step, 'field');
+  assert.equal(nextStep({ ...base, teams: teams.map(t => ({ ...t, groupLetter: null })) }).step, 'draw');
+  assert.equal(nextStep({ ...base, teams }).step, 'fixtures');
+  const withFix = { ...base, teams, groupMatchCount: 12, progress: { groups: { played: 3, total: 12 }, playoff: { played: 0, total: 0 } } };
+  assert.deepEqual(nextStep(withFix), { step: 'groups', played: 3, total: 12 });
+  assert.equal(nextStep({ ...withFix, progress: { ...withFix.progress, groups: { played: 12, total: 12 } } }).step, 'close');
+  assert.equal(nextStep({ ...withFix, groupStageClosed: true }).step, 'bracket');
+  assert.equal(nextStep({ ...withFix, status: 'finished' }), null);
+  const { app, id } = await withGroups();
+  try { assert.match((await app.get(`/championships/${id}`)).text, /class="next-step">Next: <a href="\/championships\/\d+\/groups">Play the group stage/); } finally { await app.close(); }
+});

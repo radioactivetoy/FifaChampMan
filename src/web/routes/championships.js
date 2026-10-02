@@ -69,6 +69,15 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   app.get('/championships/new', (req, res) => {
     const players = listPlayers(db, { activeOnly: true });
     const editions = listEditions(db);
+    // The level each player starts at: what their latest championship earned (0.5★ for newcomers).
+    const levels = new Map();
+    for (const e of C.allEntries(db)) if (e.resultStars != null) levels.set(e.playerId, e.resultStars);
+    const poolOf = (name, templateId) => {
+      const counts = {};
+      for (const t of listTeams(db, { templateId, edition: DEFAULT_EDITION })) counts[t.stars] = (counts[t.stars] ?? 0) + 1;
+      return { name, counts };
+    };
+    const pools = [poolOf(_('All teams'), null), ...listTemplates(db).map(t => poolOf(t.name, t.id))];
     res.send(page({
       title: _('New championship'),
       body: html`<form method="post" action="/championships">
@@ -79,8 +88,13 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         <p class="row">${sizeControls('groups', 32)}</p>
         <p><label>${_('Team pool')} ${templateSelect(db, null)}</label> <a href="/config" class="muted">${_('manage templates')}</a></p>
         <p>${_('Who plays this time?')}</p>
-        ${players.map(p => html`<p><label><input type="checkbox" name="playerIds" value="${p.id}"> ${p.name}</label></p>`)}
+        <p class="row"><button type="button" data-check-all="playerIds">${_('Select all')}</button><button type="button" data-check-all="playerIds" data-check-none>${_('None')}</button></p>
+        ${players.map(p => html`<p><label><input type="checkbox" name="playerIds" value="${p.id}"> ${p.name}</label> <small class="muted">${_('starts at')} ${stars(levels.get(p.id) ?? 0.5)}</small></p>`)}
         <p class="muted">${_("Teams are drawn automatically from each player's star level (0.5★ for newcomers).")}</p>
+        <h3>${_('Teams available per star level ({edition})', { edition: DEFAULT_EDITION })}</h3>
+        <div class="scroll-x"><table><thead><tr><th>${_('Team pool')}</th>${[...STAR_LEVELS].reverse().map(l => html`<th>${stars(l)}</th>`)}</tr></thead><tbody>
+          ${pools.map(pool => html`<tr><td>${pool.name}</td>${[...STAR_LEVELS].reverse().map(l => html`<td class="${pool.counts[l] ? '' : 'error'}">${pool.counts[l] ?? 0}</td>`)}</tr>`)}
+        </tbody></table></div>
         <button class="primary">${_('Create')}</button></form>`,
     }));
   });

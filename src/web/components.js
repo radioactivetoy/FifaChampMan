@@ -1,7 +1,7 @@
 import { html, raw, select, escape, _, th, confirmSubmit } from './html.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS, groupTies, tieAggregate, tieOutcome, assignSlots } from '../domain/stages.js';
 import { bracketStages, slotsIn } from '../domain/bracket.js';
-import { championshipProgress } from '../domain/progress.js';
+import { championshipProgress, nextStep } from '../domain/progress.js';
 
 export const stars = s => (s == null ? '—' : `${s}★`);
 
@@ -45,6 +45,24 @@ function tabCount(c, path) {
   return p && p.total > 0 ? html` <span class="tab-count${p.played === p.total ? ' done' : ''}">${p.played}/${p.total}</span>` : '';
 }
 
+/** "Next: …" line under the championship header telling what the organiser does next (see nextStep in domain/progress.js). */
+function nextStepHint(c) {
+  const n = nextStep(c);
+  if (!n) return '';
+  const base = `/championships/${c.id}`;
+  const [text, path] = {
+    players: [_('Add the players'), ''],
+    field: [_('Fill the field: {have} of {need} teams', { have: n.have, need: n.need }), '/draw'],
+    draw: [_('Run the group draw'), '/draw'],
+    fixtures: [_('Generate the group fixtures'), '/groups'],
+    groups: [_('Play the group stage: {played} of {total} matches', { played: n.played, total: n.total }), '/groups'],
+    close: [_('Close the group stage'), '/groups'],
+    bracket: [_('Fill in the first round of the playoff'), '/playoff'],
+    playoff: [_('Play the playoff: {played} of {total} matches', { played: n.played, total: n.total }), '/playoff'],
+  }[n.step];
+  return html`<p class="next-step">${_('Next:')} <a href="${base}${path}">${text} →</a></p>`;
+}
+
 export function champNav(c, active) {
   const tabs = [['', _('Players & teams')], ['draw', _('Field & draw')], ['groups', _('Group stage')], ['playoff', _('Playoff')], ['results', _('Results')], ['recap', _('Recap')]]
     .filter(([path]) => !(c.format === 'cup' && path === 'groups')); // a cup has no group stage
@@ -52,6 +70,7 @@ export function champNav(c, active) {
       · <details class="rename-inline"><summary>${_('✏️ Rename')}</summary>
         <form method="post" action="/championships/${c.id}" class="row"><input name="name" value="${c.name}" required><button class="primary">${_('Save')}</button></form></details></p>
     ${finishBanner(c)}${awards(c)}
+    ${nextStepHint(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}${tabCount(c, path)}</a>`)}</nav>`;
 }
 
