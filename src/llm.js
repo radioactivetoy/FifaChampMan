@@ -21,8 +21,9 @@ export function createLlm(env = process.env, fetchFn = fetch, sleep = ms => new 
   if (!env.LLM_KEY) return null;
   const url = (env.LLM_URL || GEMINI_OPENAI).replace(/\/+$/, '');
   const model = env.LLM_MODEL || DEFAULT_MODEL;
-  return {
-    model,
+  const api = {
+    // Current choice (changeable from Config, see applyLlmSettings); the env/default values are what "back to the default" returns to.
+    model, fallbackModel: env.LLM_FALLBACK_MODEL || null, defaultModel: model, defaultFallbackModel: env.LLM_FALLBACK_MODEL || null,
     /** Ids of the models the service offers to this key (GET /models), to pick a valid LLM_MODEL. */
     async listModels() {
       let res;
@@ -39,13 +40,13 @@ export function createLlm(env = process.env, fetchFn = fetch, sleep = ms => new 
      * stays under about 90 s, because Cloudflare gives up on a request after 100 s.
      */
     async generate(prompt) {
-      const models = [model, ...(env.LLM_FALLBACK_MODEL && env.LLM_FALLBACK_MODEL !== model ? [env.LLM_FALLBACK_MODEL] : [])];
+      const models = [api.model, ...(api.fallbackModel && api.fallbackModel !== api.model ? [api.fallbackModel] : [])];
       let last;
       for (const [m, name] of models.entries()) {
         const attempts = m === 0 ? WAITS.length + 1 : 1;
         for (let i = 0; i < attempts; i++) {
           if (i > 0) await sleep(WAITS[i - 1]);
-          try { return await once(prompt, name); } catch (err) {
+          try { const text = await once(prompt, name); api.usedModel = name; return text; } catch (err) {
             last = err;
             if (!err.retryable) throw err;
           }
@@ -54,6 +55,7 @@ export function createLlm(env = process.env, fetchFn = fetch, sleep = ms => new 
       throw last;
     },
   };
+  return api;
 
   async function once(prompt, name) {
     let res;

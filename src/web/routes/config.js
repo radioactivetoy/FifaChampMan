@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { html, page, th, _, confirmSubmit } from '../html.js';
 import { UserError } from '../../errors.js';
+import { getSetting, setSetting, cleanModelName, applyLlmSettings } from '../../repo/settings.js';
 import { listBackups, snapshotBackup, stageRestore, backupDirOf } from '../../db/backup.js';
 import { intOrNull } from '../form.js';
 import { stars } from '../components.js';
@@ -30,8 +31,9 @@ export function registerConfigRoutes(app, { db, dbPath, llm }) {
           </tbody></table>` : ''}
 
         <h2>${_('Story generator')}</h2>
-        ${llm ? html`<p class="muted">${th('Model in use: <code>{model}</code> (change it with LLM_MODEL in .env).', { model: llm.model })}</p>
-          <p><a class="button-link" href="/config/llm-models">${_('List the models available to my key')}</a></p>`
+        ${llm ? html`<p>${th('Main model: <code>{model}</code> <span class="muted">({source})</span>', { model: llm.model, source: getSetting(db, 'llm.model') ? _('saved here') : _('from .env or the default') })}<br>
+          ${llm.fallbackModel ? th('Backup model: <code>{model}</code> <span class="muted">({source})</span>', { model: llm.fallbackModel, source: getSetting(db, 'llm.fallbackModel') ? _('saved here') : _('from .env') }) : html`<span class="muted">${_('No backup model.')}</span>`}</p>
+          <p><a class="button-link" href="/config/llm-models">${_('Choose the model')}</a></p>`
     : html`<p class="muted">${_('Not configured: set LLM_KEY in .env to write the championship stories from the Recap page (see docs/DEPLOY.md).')}</p>`}
 
         <h2>${_('Star tiers')}</h2>
@@ -71,17 +73,38 @@ export function registerConfigRoutes(app, { db, dbPath, llm }) {
   });
 
   // Which model names the story service offers to this key (they get retired now and then); asked on demand, never at page load.
+  // Pick one as the main or the backup model: the choice is saved in the database and applies at once (no restart).
   app.get('/config/llm-models', async (req, res, next) => {
     try {
       if (!llm) throw new UserError(_('No story generator is configured; copy the prompt instead'));
       const models = await llm.listModels();
+      const choose = (kind, model, label, cls = '') => html`<form method="post" action="/config/llm-model" class="inline"><input type="hidden" name="kind" value="${kind}"><input type="hidden" name="model" value="${model}"><button class="${cls}">${label}</button></form>`;
       res.send(page({
         title: _('Story generator'),
         body: html`<p><a href="/config">${_('← Config')}</a></p>
-          <p class="muted">${th('Put one of these names in <code>LLM_MODEL</code> in .env and restart. Currently: <code>{model}</code>.', { model: llm.model })}</p>
-          <ul>${models.map(m => html`<li><code>${m}</code>${m === llm.model ? html` <strong>← ${_('in use')}</strong>` : ''}</li>`)}</ul>`,
+          <p>${th('Main model: <code>{model}</code>', { model: llm.model })}<br>${llm.fallbackModel ? th('Backup model: <code>{model}</code>', { model: llm.fallbackModel }) : _('No backup model.')}</p>
+          <p class="muted">${_('The backup model is tried once when the main one stays overloaded. The choice is saved and applies immediately.')}</p>
+          <table><thead><tr><th>${_('Model')}</th><th></th></tr></thead><tbody>
+          ${models.map(m => html`<tr><td><code>${m}</code>${m === llm.model ? html` <strong>← ${_('main')}</strong>` : ''}${m === llm.fallbackModel ? html` <strong>← ${_('backup')}</strong>` : ''}</td>
+            <td class="actions">${choose('main', m, _('Use as main'), m === llm.model ? 'primary' : '')}${choose('backup', m, _('Use as backup'))}</td></tr>`)}
+          </tbody></table>
+          <form method="post" action="/config/llm-model" class="row"><input type="hidden" name="kind" value="main"><label>${_('Or type a name')} <input name="model" placeholder="gemini-…" required></label><button>${_('Use as main')}</button></form>
+          <form method="post" action="/config/llm-model" class="row" ${confirmSubmit(_('Forget the saved models and go back to .env or the defaults?'))}><input type="hidden" name="kind" value="reset"><button>${_('Back to the default')}</button>
+            ${llm.fallbackModel ? choose('nobackup', '', _('No backup model')) : ''}</form>`,
       }));
     } catch (err) { next(err); }
+  });
+
+  app.post('/config/llm-model', (req, res) => {
+    if (!llm) throw new UserError(_('No story generator is configured; copy the prompt instead'));
+    const { kind } = req.body;
+    if (kind === 'main') setSetting(db, 'llm.model', cleanModelName(req.body.model));
+    else if (kind === 'backup') setSetting(db, 'llm.fallbackModel', cleanModelName(req.body.model));
+    else if (kind === 'nobackup') setSetting(db, 'llm.fallbackModel', null);
+    else if (kind === 'reset') { setSetting(db, 'llm.model', null); setSetting(db, 'llm.fallbackModel', null); }
+    else throw new UserError(_('That is not a valid model name'));
+    applyLlmSettings(db, llm);
+    res.redirect('/config/llm-models');
   });
 
   app.post('/config/backups/now', (req, res) => {

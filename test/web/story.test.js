@@ -119,7 +119,7 @@ test('listModels asks GET /models; Config shows the generator and lists the mode
   const { app } = await setup({ llm });
   try {
     const cfg = (await app.get('/config')).text;
-    assert.match(cfg, /Model in use: <code>gemini-flash-latest<\/code>/);
+    assert.match(cfg, /Main model: <code>gemini-flash-latest<\/code>/);
     const list = (await app.get('/config/llm-models')).text;
     assert.match(list, /<code>gemini-a<\/code>/);
     assert.equal(seen.length, 2); // asked on demand only (the Config page itself made no call)
@@ -152,4 +152,46 @@ test('busy replies are retried, then the fallback model is tried; real errors ar
   const d = createLlm({ LLM_KEY: 'k' }, async () => { calls++; return busy; }, sleep);
   await assert.rejects(d.generate('p'), /503/);
   assert.equal(calls, 3);
+});
+
+test('model chosen on Config: saved, applied at once, used by generate (with the backup), persistent, resettable, validated', async () => {
+  const { getSetting, setSetting, applyLlmSettings } = await import('../../src/repo/settings.js');
+  const models = [];
+  const fakeFetch = async (url, opts) => {
+    if (url.endsWith('/models')) return { ok: true, json: async () => ({ data: [{ id: 'models/gemini-a' }, { id: 'models/gemini-b' }] }) };
+    const m = JSON.parse(opts.body).model; models.push(m);
+    return m === 'gemini-b' ? { ok: true, json: async () => ({ choices: [{ message: { content: 'ok' } }] }) } : { ok: false, status: 503, text: async () => 'busy' };
+  };
+  const llm = createLlm({ LLM_KEY: 'k', LLM_MODEL: 'from-env' }, fakeFetch, async () => {});
+  const { app, id } = await setup({ llm });
+  try {
+    assert.equal(llm.model, 'from-env');
+    const page = (await app.get('/config/llm-models')).text;
+    assert.match(page, /Use as main/);
+    assert.match(page, /name="model" value="gemini-a"/);
+    assert.equal((await app.post('/config/llm-model', { kind: 'main', model: 'models/gemini-a' })).status, 302);
+    assert.equal(llm.model, 'gemini-a');
+    assert.equal(getSetting(app.db, 'llm.model'), 'gemini-a');
+    await app.post('/config/llm-model', { kind: 'backup', model: 'gemini-b' });
+    assert.equal(llm.fallbackModel, 'gemini-b');
+    assert.match((await app.get('/config')).text, /Main model: <code>gemini-a<\/code> <span class="muted">\(saved here\)/);
+    // generate: the saved main model is busy three times, then the saved backup answers
+    await app.post(`/championships/${id}/story/generate`, { tone: 'bar' });
+    assert.deepEqual(models, ['gemini-a', 'gemini-a', 'gemini-a', 'gemini-b']);
+    assert.equal(getStory(app.db, id).model, 'gemini-b'); // the model that actually answered
+    // a new client over the same database picks the saved choice up
+    const again = createLlm({ LLM_KEY: 'k', LLM_MODEL: 'from-env' }, fakeFetch, async () => {});
+    applyLlmSettings(app.db, again);
+    assert.deepEqual([again.model, again.fallbackModel], ['gemini-a', 'gemini-b']);
+    // invalid names are refused and change nothing
+    for (const bad of ['', 'has space', 'x;rm -rf', 'a'.repeat(101)]) {
+      const r = await fetch(`${app.baseUrl}/config/llm-model`, { method: 'POST', body: new URLSearchParams({ kind: 'main', model: bad }), redirect: 'manual', headers: { referer: `${app.baseUrl}/config/llm-models` } });
+      assert.match(r.headers.get('set-cookie') ?? '', /flash=/);
+    }
+    assert.equal(llm.model, 'gemini-a');
+    // reset goes back to .env
+    await app.post('/config/llm-model', { kind: 'reset' });
+    assert.deepEqual([llm.model, llm.fallbackModel, getSetting(app.db, 'llm.model')], ['from-env', null, null]);
+    setSetting(app.db, 'llm.model', null);
+  } finally { await app.close(); }
 });

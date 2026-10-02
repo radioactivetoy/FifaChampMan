@@ -75,7 +75,7 @@ export function registerRecapRoutes(app, { db, llm }) {
       const tone = toneOf(req.body.tone);
       const prompt = promptFor(c, players, matches, championshipStory({ championship, players, matches }), championshipAwards({ championship, matches }), tone);
       const text = await llm.generate(prompt);
-      trackUndo(db, _('Wrote the story of {name}', { name: c.name }), storyScope(id), () => saveStory(db, id, { text, tone, source: 'llm', model: llm.model }));
+      trackUndo(db, _('Wrote the story of {name}', { name: c.name }), storyScope(id), () => saveStory(db, id, { text, tone, source: 'llm', model: llm.usedModel ?? llm.model }));
       res.redirect(`/championships/${id}/recap#story`);
     } catch (err) { next(err); }
   });

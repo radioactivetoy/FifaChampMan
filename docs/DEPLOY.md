@@ -43,7 +43,7 @@ The database migrates itself on start (and a backup is taken first).
 The Recap page can ask an LLM for a funny account of a finished championship. Without any setup it just offers the prompt to copy (paste it into Gemini or any chat, then paste the answer back). To generate it from the page:
 
 1. Create a free key at <https://aistudio.google.com> (API keys). **Do not enable billing** on that project: exceeding the free limits then only returns an error, it never charges.
-2. In `.env` set `LLM_KEY=...` (optionally `LLM_MODEL=` — default `gemini-flash-latest`, an alias that follows Google's current Flash model; if you get "model no longer available", open Config > Story generator > *List the models available to my key* and copy a name — and `LLM_URL=` for another OpenAI-compatible service such as Groq, OpenRouter or a local Ollama).
+2. In `.env` set `LLM_KEY=...` (optionally `LLM_MODEL=` — default `gemini-flash-latest`, an alias that follows Google's current Flash model; if you get "model no longer available", open Config > Story generator > *Choose the model*, which lists what your key can use and lets you pick the main and a backup model (saved in the database, applied at once; `LLM_MODEL` is then only the initial value) — and `LLM_URL=` for another OpenAI-compatible service such as Groq, OpenRouter or a local Ollama).
 3. `docker compose up -d` again. The stories are stored in the database (and its backups).
 
 The prompt contains player names and results only. On free tiers Google may use submitted content to improve its products.
