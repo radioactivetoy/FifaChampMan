@@ -199,7 +199,8 @@ test('model chosen on Config: saved, applied at once, used by generate (with the
 test('story tones: every tone, custom style, length, surprise-me and format hints', async () => {
   const { STORY_TONES, resolveTone, cleanCustomTone, CUSTOM_TONE } = await import('../../src/domain/story.js');
   const base = { championship: { name: 'L', edition: 'E', format: 'groups', createdAt: '2026-10-01 10:00:00' }, lines: ['x'], awards: [], knockout: [], played: [] };
-  assert.ok(Object.keys(STORY_TONES).length >= 14);
+  assert.ok(Object.keys(STORY_TONES).length >= 15);
+  assert.match(storyPrompt({ ...base, tone: 'ea' }), /furious and in tears at EA/);
   for (const [key, [, description]] of Object.entries(STORY_TONES)) assert.ok(storyPrompt({ ...base, tone: key }).includes(description), key);
   // format hints: verse, headlines, ruling; plain paragraphs otherwise
   assert.match(storyPrompt({ ...base, tone: 'ballad' }), /rhymed verse/);
@@ -236,5 +237,17 @@ test('recap: tone, custom style and length reach the copied prompt and the gener
     assert.match(llm.calls[0], /in the style of a pirate captain/);
     assert.match(llm.calls[0], /about 200 words/);
     assert.equal(getStory(app.db, id).tone, 'custom: a pirate captain');
+  } finally { await app.close(); }
+});
+
+test('EA rage tone in Spanish', async () => {
+  const app = await startTestApp({ lang: 'es' });
+  seedTeams(app.db);
+  const rng = createRng(3);
+  const id = createChampionship(app.db, { name: 'Liga', playerIds: seedPlayers(app.db), rng });
+  try {
+    const t = (await app.get(`/championships/${id}/recap?tone=ea`)).text;
+    assert.match(t, /furioso y llorando contra EA/);
+    assert.match(t, /Lloros contra EA/);
   } finally { await app.close(); }
 });
