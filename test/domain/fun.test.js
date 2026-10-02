@@ -99,3 +99,19 @@ test('trophyCabinet lists what a player holds', async () => {
   assert.ok(trophyCabinet(f, 2).map(t => t.title).includes('Bottler'));
   assert.deepEqual(trophyCabinet(f, 99), []);
 });
+
+test('ties share the card: both players hold the trophy', async () => {
+  const { trophyCabinet } = await import('../../src/domain/fun.js');
+  const ps = [{ id: 1, name: 'Ana' }, { id: 2, name: 'Ben' }, { id: 3, name: 'Cris' }];
+  const tm = new Map([[10, { name: 'A', ovr: 70 }], [20, { name: 'B', ovr: 70 }], [30, { name: 'C', ovr: 70 }]]);
+  const mk = (i, home, away, hc, ac, hp, ap) => ({ id: 100 + i, championshipId: 1, stage: 'final', matchday: 1, homeTeamId: home, awayTeamId: away, homeScore: 1, awayScore: 1, homePens: hp, awayPens: ap, homeControllerId: hc, awayControllerId: ac });
+  // Ana and Ben each win one shoot-out (against Cris), nobody else wins any
+  const ms = [mk(1, 10, 30, 1, 3, 4, 3), mk(2, 20, 30, 2, 3, 5, 4)];
+  const f = funStats({ players: ps, entries: [], matches: ms, teams: tm });
+  assert.equal(f.penaltyKing.player, 'Ana & Ben');
+  assert.deepEqual(f.penaltyKing.playerIds, [1, 2]);
+  assert.ok(trophyCabinet(f, 1).some(t => t.title === 'Penalty King'));
+  assert.ok(trophyCabinet(f, 2).some(t => t.title === 'Penalty King'));
+  assert.ok(!trophyCabinet(f, 3).some(t => t.title === 'Penalty King'));
+  assert.equal(f.penaltyCurse.player, 'Cris'); // a single holder keeps its plain name
+});
