@@ -21,7 +21,7 @@ docker compose logs -f
 Open `https://champman.example.com` — Cloudflare Access asks who you are first.
 
 ## Data and backups
-- Everything lives in the `champman-data` volume: `champman.db` and `backups/` (the app copies the database there on every start, newest 10 kept).
+- Everything lives in the `champman-data` volume: `champman.db` and `backups/` (the app copies the database there on every start and every `BACKUP_EVERY_HOURS` (default 24), newest 14 kept; Config lists them with download and restore).
   To keep it in a NAS folder, use the bind-mount line in `docker-compose.yml` instead (the folder must be writable by uid 1000, the `node` user).
 - *Config → Download backup* still works through the tunnel.
 - **Moving your existing data:** stop the app, then copy your local `champman.db` into the volume, e.g.

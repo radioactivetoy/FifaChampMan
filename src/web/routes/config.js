@@ -2,6 +2,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { html, page, th, _, confirmSubmit } from '../html.js';
+import { UserError } from '../../errors.js';
+import { listBackups, snapshotBackup, stageRestore, backupDirOf } from '../../db/backup.js';
 import { intOrNull } from '../form.js';
 import { stars } from '../components.js';
 import { listTiers, updateTier, resetTiers } from '../../repo/teams.js';
@@ -9,14 +11,23 @@ import { listFieldQuotas, updateFieldQuota } from '../../repo/settings.js';
 import { listTemplates } from '../../repo/templates.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 
-export function registerConfigRoutes(app, { db }) {
+export function registerConfigRoutes(app, { db, dbPath }) {
+  const backupsOn = dbPath && dbPath !== ':memory:';
+  const kb = n => `${Math.max(1, Math.round(n / 1024))} KB`;
   app.get('/config', (req, res) => {
     res.send(page({
       title: _('Config'),
       body: html`
         <h2>${_('Backup')}</h2>
-        <p class="muted">${th('A consistent copy of all the data (players, championships, results, teams). The app also keeps its own copy of the data file in <code>backups/</code> every time it starts (the newest 10).')}</p>
-        <p><a class="button-link" href="/config/backup" download>${_('⬇ Download backup')}</a></p>
+        <p class="muted">${th('A consistent copy of all the data (players, championships, results, teams). The app keeps its own copies in <code>backups/</code>: one every time it starts and one every day while it runs (the newest 14).')}</p>
+        ${req.query.restore ? html`<p class="notice">${_('Restore scheduled: restart ChampMan (Docker: docker compose restart champman) and the chosen backup becomes the data. The data being replaced is copied to backups/ first.')}</p>` : ''}
+        <p class="row"><a class="button-link" href="/config/backup" download>${_('⬇ Download backup')}</a>
+          ${backupsOn ? html`<form method="post" action="/config/backups/now" class="inline"><button>${_('Back up now')}</button></form>` : ''}</p>
+        ${backupsOn ? html`<table><thead><tr><th>${_('Backup')}</th><th>${_('Size')}</th><th></th></tr></thead><tbody>
+          ${listBackups(dbPath).map(b => html`<tr><td>${b.name}</td><td>${kb(b.size)}</td><td class="actions">
+            <a class="button-link" href="/config/backups/${b.name}" download>${_('Download')}</a>
+            <form method="post" action="/config/backups/${b.name}/restore" class="inline" ${confirmSubmit(_('Replace ALL current data with this backup the next time the app starts?'))}><button class="danger">${_('Restore')}</button></form></td></tr>`)}
+          </tbody></table>` : ''}
 
         <h2>${_('Star tiers')}</h2>
         <p class="muted">${_('A team gets the highest star level whose minimum OVR it reaches (unless its stars are set by hand on the Teams page).')}</p>
@@ -52,6 +63,21 @@ export function registerConfigRoutes(app, { db }) {
     db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
     res.download(file, `champman-${stamp}.db`, () => rmSync(dirname(file), { recursive: true, force: true }));
+  });
+
+  app.post('/config/backups/now', (req, res) => {
+    if (!backupsOn) throw new UserError(_('Backups need a data file (DB_PATH)'));
+    snapshotBackup(db, dbPath);
+    res.redirect('/config');
+  });
+  app.get('/config/backups/:name', (req, res) => {
+    const found = backupsOn && listBackups(dbPath).find(b => b.name === req.params.name);
+    if (!found) throw new UserError(_('Backup not found'), 404);
+    res.download(`${backupDirOf(dbPath)}/${found.name}`, found.name);
+  });
+  app.post('/config/backups/:name/restore', (req, res) => {
+    if (!backupsOn || !stageRestore(dbPath, req.params.name)) throw new UserError(_('Backup not found'), 404);
+    res.redirect('/config?restore=1');
   });
 
   app.post('/config/tiers/reset', (req, res) => {

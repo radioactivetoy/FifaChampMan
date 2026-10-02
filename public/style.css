@@ -490,3 +490,6 @@ details.settings[open] > form.row { margin: 8px 0; }
 .theme-switch { display: inline-flex; margin: 0 0 0 6px; border: 1px solid rgba(255, 255, 255, .35); border-radius: 999px; overflow: hidden; vertical-align: middle; }
 .theme-switch button { background: transparent; color: #fff; border: 0; padding: 3px 9px; font-size: 13px; cursor: pointer; box-shadow: none; min-height: 0; }
 .theme-switch button.on { background: #fff; color: #0b1a55; }
+.notice { padding: 10px 14px; border-radius: var(--radius-sm); background: #fff7dc; border: 1px solid #f0d27a; font-weight: 600; }
+:root[data-theme="dark"] .notice { background: #3a3210; border-color: #7a6720; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .notice { background: #3a3210; border-color: #7a6720; } }
