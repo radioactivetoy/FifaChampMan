@@ -524,6 +524,6 @@ details.settings[open] > form.row { margin: 8px 0; }
 .maracas-holder .scores { font-weight: 800; letter-spacing: .08em; font-size: 18px; }
 @media (max-width: 760px) { .vitrine { flex-direction: column; text-align: center; } }
 .podium-block small { font-size: 10px; letter-spacing: .02em; max-width: 100%; overflow-wrap: anywhere; padding: 0 2px; }
-.tale { max-width: 70ch; padding: 4px 18px; border-left: 4px solid var(--gold); background: var(--surface); border-radius: var(--radius-sm); }
+.tale { padding: 4px 18px; border-left: 4px solid var(--gold); background: var(--surface); border-radius: var(--radius-sm); }
 .tale p { margin: 12px 0; line-height: 1.6; }
 textarea.wide { width: 100%; font: inherit; }
