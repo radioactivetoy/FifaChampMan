@@ -207,3 +207,38 @@ export function trophyCabinet(fun, playerId) {
   if (fun.rivalry && (fun.rivalry.a === playerId || fun.rivalry.b === playerId)) out.push({ icon: '⚔️', title: _('Biggest rivalry') });
   return out;
 }
+
+/**
+ * Awards of one championship for the Recap page (each null when nobody qualifies): best attack / best defence among the
+ * players' own teams, the highest-scoring match, the biggest win and the biggest upset (a win over a team with a much
+ * higher OVR). championship: { teams } from getChampionship (name, ovr, owner); matches: that championship's matches.
+ */
+export function championshipAwards({ championship, matches }) {
+  const team = new Map(championship.teams.map(t => [t.teamId, t]));
+  const played = matches.filter(hasResult);
+  const own = new Map(); // owned teamId -> { games, gf, ga }
+  for (const m of played) {
+    for (const [id, gf, ga] of [[m.homeTeamId, m.homeScore, m.awayScore], [m.awayTeamId, m.awayScore, m.homeScore]]) {
+      if (!team.get(id)?.owner) continue;
+      const r = own.get(id) ?? { teamId: id, games: 0, gf: 0, ga: 0 };
+      r.games++; r.gf += gf; r.ga += ga; own.set(id, r);
+    }
+  }
+  const owned = [...own.values()].map(r => ({ ...r, team: team.get(r.teamId).name, player: team.get(r.teamId).owner.playerName }));
+  const bestAttack = pick(owned.filter(r => r.gf > 0), (a, b) => a.gf > b.gf || (a.gf === b.gf && a.games < b.games));
+  const bestDefence = pick(owned.filter(r => r.games >= 2), (a, b) => a.ga < b.ga || (a.ga === b.ga && a.games > b.games));
+  const line = m => ({ home: m.homeTeamName, away: m.awayTeamName, homeScore: m.homeScore, awayScore: m.awayScore, stage: m.stage });
+  const goalFest = pick(played.filter(m => m.homeScore + m.awayScore > 0), (a, b) => a.homeScore + a.awayScore > b.homeScore + b.awayScore);
+  const biggestWin = pick(played.filter(m => m.homeScore !== m.awayScore), (a, b) => Math.abs(a.homeScore - a.awayScore) > Math.abs(b.homeScore - b.awayScore));
+  const upsets = played.filter(m => m.homeScore !== m.awayScore).map(m => {
+    const [w, l] = m.homeScore > m.awayScore ? [m.homeTeamId, m.awayTeamId] : [m.awayTeamId, m.homeTeamId];
+    return { m, gap: (team.get(l)?.ovr ?? 0) - (team.get(w)?.ovr ?? 0), winner: team.get(w), loser: team.get(l) };
+  }).filter(u => u.gap >= 5 && u.winner && u.loser);
+  const upset = pick(upsets, (a, b) => a.gap > b.gap);
+  return {
+    bestAttack, bestDefence,
+    goalFest: goalFest ? { ...line(goalFest), goals: goalFest.homeScore + goalFest.awayScore } : null,
+    biggestWin: biggestWin ? { ...line(biggestWin), margin: Math.abs(biggestWin.homeScore - biggestWin.awayScore) } : null,
+    upset: upset ? { ...line(upset.m), winner: upset.winner.name, loser: upset.loser.name, gap: upset.gap } : null,
+  };
+}

@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
 import { html, page, th, _ } from './web/html.js';
 import { registerHomeRoutes } from './web/routes/home.js';
+import { registerRecordsRoutes } from './web/routes/records.js';
+import { registerVersusRoutes } from './web/routes/versus.js';
 import { registerPlayerRoutes } from './web/routes/players.js';
 import { registerProfileRoutes } from './web/routes/profile.js';
 import { registerTeamRoutes } from './web/routes/teams.js';
@@ -105,6 +107,8 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null }) {
   registerPlayoffRoutes(app, ctx);
   registerResultRoutes(app, ctx);
   registerStatsRoutes(app, ctx);
+  registerRecordsRoutes(app, ctx);
+  registerVersusRoutes(app, ctx);
   registerRecapRoutes(app, ctx);
   registerUndoRoutes(app, ctx);
 

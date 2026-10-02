@@ -275,6 +275,7 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   fixtures, delete championship (with its players/teams/matches), remove a player from a championship, remove a
   field team, delete template, delete team, delete player data. **New destructive routes must record an undo.**
   Not covered (re-runnable, just random): re-draw offers/controllers, group draw, "Fill field randomly".
+- **Awards, records, head to head**: the Recap has an "Awards" card row (`championshipAwards` in `domain/fun.js`: best attack/defence among the players' own teams, goal fest, biggest win, upset = win over a team ≥5 OVR higher). `/records` (`routes/records.js`, `domain/records.js` + `funStats`) lists the all-time records with holder/value/where; `/head-to-head?a=&b=` (`routes/versus.js`, `pairHistory` in `domain/stats.js`) shows two players' record (overall / own team / CPU) and every match between them. Linked from the top of Stats and from the profile's head-to-head table.
 - **Copy summary**: the Recap's "The story" has a `button[data-copy]` (`setupCopyButtons` in `filter.js`); it falls
   back to a hidden textarea + `execCommand('copy')` because `navigator.clipboard` needs https and friends use plain
   http over the LAN.

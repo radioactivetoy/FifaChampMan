@@ -76,7 +76,7 @@ export function registerProfileRoutes(app, { db }) {
         <h2>${_('Head to head')}</h2>
         ${rivals.length === 0 ? html`<p class="muted">${_('No games against other players yet.')}</p>` : html`
         <table><thead><tr><th>${_('Opponent')}</th><th>${_('Games')}</th><th>${_('W-D-L')}</th><th>${_('Goals')}</th><th></th></tr></thead><tbody>
-        ${rivals.map(r => html`<tr><td>${avatar(playerById.get(r.opponentId), { size: 24 })}<a href="/players/${r.opponentId}"><strong>${nameOf.get(r.opponentId)}</strong></a></td><td>${r.played}</td><td>${wdl(r)}</td><td>${r.goalsFor}:${r.goalsAgainst}</td>
+        ${rivals.map(r => html`<tr><td>${avatar(playerById.get(r.opponentId), { size: 24 })}<a href="/players/${r.opponentId}"><strong>${nameOf.get(r.opponentId)}</strong></a></td><td><a href="/head-to-head?a=${id}&b=${r.opponentId}" title="${_('Head to head')}">${r.played}</a></td><td>${wdl(r)}</td><td>${r.goalsFor}:${r.goalsAgainst}</td>
           <td>${nemesis?.nemesis?.opponentId === r.opponentId ? _('😈 nemesis') : nemesis?.victim?.opponentId === r.opponentId ? _('🐑 victim') : ''}</td></tr>`)}
         </tbody></table>`}
 

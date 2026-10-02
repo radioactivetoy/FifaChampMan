@@ -104,3 +104,23 @@ export function biggestWins(matches, limit = 5) {
   }).sort((a, b) => (b.goalsFor - b.goalsAgainst) - (a.goalsFor - a.goalsAgainst) || b.goalsFor - a.goalsFor)
     .slice(0, limit);
 }
+
+/**
+ * Every finished match in which player `a` and player `b` each controlled a side, oriented from a's point of view, plus
+ * their record in those matches for each view (overall / a with their own team / a controlling a CPU team).
+ */
+export function pairHistory({ matches, entries, aId, bId }) {
+  const ownerOf = new Map(entries.map(e => [`${e.championshipId}:${e.teamId}`, e.playerId]));
+  const list = [];
+  const record = { overall: emptyRecord(), own: emptyRecord(), cpu: emptyRecord() };
+  for (const m of matches) {
+    if (!hasResult(m)) continue;
+    const [home, away] = sidesOf(m);
+    const [me, them] = home.controllerId === aId && away.controllerId === bId ? [home, away] : home.controllerId === bId && away.controllerId === aId ? [away, home] : [];
+    if (!me) continue;
+    addResult(record.overall, me.goalsFor, me.goalsAgainst);
+    addResult(ownerOf.get(`${m.championshipId}:${me.teamId}`) === aId ? record.own : record.cpu, me.goalsFor, me.goalsAgainst);
+    list.push({ match: m, aTeamId: me.teamId, bTeamId: them.teamId, aGoals: me.goalsFor, bGoals: them.goalsFor });
+  }
+  return { record, list };
+}

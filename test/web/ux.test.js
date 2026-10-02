@@ -86,3 +86,19 @@ test('theme toggle: POST /theme stores the choice and pages carry it as data-the
     assert.equal(bad.headers.get('set-cookie'), null);
   } finally { await app.close(); }
 });
+
+test('records, head-to-head pages render; recap shows awards', async () => {
+  const { app, id } = await withGroups();
+  try {
+    assert.equal((await app.get('/records')).status, 200);
+    const h = await app.get('/head-to-head');
+    assert.equal(h.status, 200);
+    assert.match(h.text, /<select name="a" data-autosubmit/);
+    const players = (await import('../../src/repo/players.js')).listPlayers(app.db);
+    const v = await app.get(`/head-to-head?a=${players[0].id}&b=${players[1].id}`);
+    assert.match(v.text, /have not played each other yet|<table>/);
+    assert.equal((await app.get(`/head-to-head?a=${players[0].id}&b=${players[0].id}`)).status, 200);
+    assert.equal((await app.get(`/championships/${id}/recap`)).status, 200);
+    assert.match((await app.get('/stats')).text, /href="\/records"/);
+  } finally { await app.close(); }
+});

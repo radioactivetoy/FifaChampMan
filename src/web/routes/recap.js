@@ -1,8 +1,8 @@
-import { html, page, _ } from '../html.js';
-import { champNav, stars, teamName, badge, avatar } from '../components.js';
+import { html, page, tn, _ } from '../html.js';
+import { champNav, stars, teamName, badge, avatar, funCard } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches } from '../../repo/matches.js';
-import { championshipStory } from '../../domain/fun.js';
+import { championshipStory, championshipAwards } from '../../domain/fun.js';
 import { PLAYOFF_STAGES, STAGE_LABELS, REACHED_LABELS } from '../../domain/stages.js';
 
 const wdl = r => `${r.won}-${r.drawn}-${r.lost}`; // shown under the "W-D-L" heading (G-E-P in Spanish)
@@ -31,12 +31,21 @@ export function registerRecapRoutes(app, { db }) {
   app.get('/championships/:id/recap', (req, res) => {
     C.syncReachedFromPlayoff(db, Number(req.params.id));
     const { championship: c, players, groups, playoff } = C.championshipRecap(db, Number(req.params.id));
-    const story = championshipStory({ championship: c, players, matches: listMatches(db, c.id) });
+    const matches = listMatches(db, c.id);
+    const story = championshipStory({ championship: c, players, matches });
+    const aw = championshipAwards({ championship: c, matches });
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'recap')}
         ${story.lines.length ? html`<h2>${_('The story')}</h2><ul class="story">${story.lines.map(l => html`<li>${l}</li>`)}</ul>
           <button type="button" data-copy="${`${c.name} (${c.edition})\n${story.lines.map(l => `• ${l}`).join('\n')}`}">${_('📋 Copy summary')}</button> <span class="muted" data-copy-status></span>` : ''}
+        ${Object.values(aw).some(Boolean) ? html`<h2>${_('Awards')}</h2><div class="fun-cards">
+          ${aw.bestAttack && funCard('⚔️', _('Best attack'), aw.bestAttack.player, _('{team}: {n} goals in {games} games', { team: aw.bestAttack.team, n: aw.bestAttack.gf, games: aw.bestAttack.games }))}
+          ${aw.bestDefence && funCard('🧱', _('Best defence'), aw.bestDefence.player, _('{team}: {n} conceded in {games} games', { team: aw.bestDefence.team, n: aw.bestDefence.ga, games: aw.bestDefence.games }))}
+          ${aw.goalFest && funCard('🎢', _('Goal fest'), `${aw.goalFest.home} ${aw.goalFest.homeScore}–${aw.goalFest.awayScore} ${aw.goalFest.away}`, tn('{n} goal', '{n} goals', aw.goalFest.goals))}
+          ${aw.biggestWin && funCard('💥', _('Biggest win'), `${aw.biggestWin.home} ${aw.biggestWin.homeScore}–${aw.biggestWin.awayScore} ${aw.biggestWin.away}`, _('by {n} goals', { n: aw.biggestWin.margin }))}
+          ${aw.upset && funCard('🧚', _('Upset of the tournament'), `${aw.upset.winner} ${_('beat')} ${aw.upset.loser}`, _('{n} OVR points higher', { n: aw.upset.gap }))}
+        </div>` : ''}
         <h2>${_('Players')}</h2>
         <table><thead><tr><th>${_('Player')}</th><th>${_('Team')}</th><th>${_('Played at')}</th><th>${_('Group')}</th><th>${_('Pos')}</th><th>${_('Pts')}</th>
           <th>${_('W-D-L')}</th><th>${_('Goals')}</th><th>${_('GD')}</th><th>${_('Reached')}</th><th>${_('All matches')}</th><th>${_('As CPU controller')}</th><th>${_('Stars earned')}</th></tr></thead><tbody>
