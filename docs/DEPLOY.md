@@ -37,3 +37,13 @@ The database migrates itself on start (and a backup is taken first).
 - Team CSV import and template tools: `docker compose exec champman node tools/create-copa-del-rey-template.mjs "FC 27" /data/champman.db`.
 - LAN access without the tunnel is off by default; see the commented `ports:` block (and remember that route skips Cloudflare Access).
 - Cloudflare terminates TLS, so the app itself stays plain HTTP inside the compose network.
+
+## Optional: the championship's funny story (LLM)
+
+The Recap page can ask an LLM for a funny account of a finished championship. Without any setup it just offers the prompt to copy (paste it into Gemini or any chat, then paste the answer back). To generate it from the page:
+
+1. Create a free key at <https://aistudio.google.com> (API keys). **Do not enable billing** on that project: exceeding the free limits then only returns an error, it never charges.
+2. In `.env` set `LLM_KEY=...` (optionally `LLM_MODEL=` — default `gemini-2.5-flash-lite`; check AI Studio for the models that currently have a free tier — and `LLM_URL=` for another OpenAI-compatible service such as Groq, OpenRouter or a local Ollama).
+3. `docker compose up -d` again. The stories are stored in the database (and its backups).
+
+The prompt contains player names and results only. On free tiers Google may use submitted content to improve its products.

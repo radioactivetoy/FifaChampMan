@@ -601,7 +601,7 @@ export function hallOfFame(db) {
     const maracasScores = teamId => matches.filter(m => m.stage === 'group' && hasResult(m) && (m.homeTeamId === teamId || m.awayTeamId === teamId))
       .map(m => (m.homeTeamId === teamId ? `${m.homeScore}–${m.awayScore}` : `${m.awayScore}–${m.homeScore}`));
     return {
-      id: c.id, name: c.name, edition: c.edition, format: c.format, createdAt: c.createdAt, finishedAt: c.finishedAt,
+      hasStory: !!get(db, 'SELECT 1 AS x FROM championship_stories WHERE championship_id = ?', c.id), id: c.id, name: c.name, edition: c.edition, format: c.format, createdAt: c.createdAt, finishedAt: c.finishedAt,
       champion: placed('champion')[0] ?? null, runnerUp: placed('final')[0] ?? null, semifinalists: placed('sf'),
       cucharas: c.players.filter(p => p.cuchara && !p.maracas).map(p => ({ player: p.playerName, playerId: p.playerId, team: p.team })),
       maracas: c.players.filter(p => p.maracas).map(p => ({ player: p.playerName, playerId: p.playerId, team: p.team, scores: maracasScores(p.teamId) })),
