@@ -52,7 +52,7 @@ test('Maracas holder flagged on the championship, in the hall of fame, on the aw
     assert.equal(h.champion.teamId, champion);
     assert.equal(h.maracas[0].player, victim.playerName);
     assert.deepEqual(h.maracas[0].scores.map(s => s.split('–')[0]), ['0', '0', '0']);
-    assert.equal(h.cucharas.length, 0); // the Maracas holder is not listed twice on the wall of shame
+    assert.equal(h.cucharas.length, 0); // the Maracas holder is not listed twice on the cutlery drawer
     const page = (await app.get('/hall-of-fame')).text;
     assert.match(page, /class="vitrine lit"/);
     assert.match(page, /maracas-icon/);

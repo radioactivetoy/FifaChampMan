@@ -59,9 +59,9 @@ export const es = {
   'No finished championships yet — the first champion will be here.': 'Aún no hay campeonatos finalizados: aquí aparecerá el primer campeón.',
   'Runner-up': 'Subcampeón',
   'Semi-finalists': 'Semifinalistas',
-  '🥄 Wall of shame': '🥄 Muro de la vergüenza',
+  '🥄 The cutlery drawer': '🥄 La cubertería de honor',
   'Cuchara de Madera: 0 points and 0 goals in the group stage.': 'Cuchara de Madera: 0 puntos y 0 goles en la fase de grupos.',
-  'Nobody yet. Enjoy it while it lasts.': 'Nadie todavía. Disfrútalo mientras dure.',
+  'Nobody yet. Enjoy it while it lasts.': 'Nadie todavía. De momento, todos comen con tenedor.',
   'Three group games lost without scoring and with at least 10 goals conceded in every one. The pinnacle of bad play.': 'Tres partidos de grupos perdidos sin marcar y con al menos 10 goles encajados en cada uno. La cumbre del mal juego.',
   'Never achieved… yet.': 'Nadie lo ha conseguido… todavía.',
   // ---- session summary ----
