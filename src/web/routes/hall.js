@@ -3,7 +3,7 @@ import { avatar, maracasIcon, teamName } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { hallOfFame } from '../../repo/championships.js';
 
-/** Trophy room: a podium per finished championship, titles per player, the Cuchara de Madera wall of shame and the Maracas Trophy vitrine. */
+/** Trophy room: a podium per finished championship, titles per player, the Cuchara de Madera "cutlery drawer" and the Maracas Trophy vitrine. */
 export function registerHallRoutes(app, { db }) {
   app.get('/hall-of-fame', (req, res) => {
     const hall = hallOfFame(db);
@@ -30,7 +30,7 @@ export function registerHallRoutes(app, { db }) {
             ${step('bronze', '🥉', _('Semi-finalists'), h.semifinalists)}
           </div></section>`)}</div>`}
 
-        <h2>${_('🥄 Wall of shame')}</h2>
+        <h2>${_('🥄 The cutlery drawer')}</h2>
         <p class="muted">${_('Cuchara de Madera: 0 points and 0 goals in the group stage.')}</p>
         ${spoons.length === 0 ? html`<p class="muted">${_('Nobody yet. Enjoy it while it lasts.')}</p>` : html`
         <ul class="shame">${spoons.map(s => html`<li>🥄 <strong>${s.player}</strong> <span class="muted">${s.team?.name ?? ''} · <a href="/championships/${s.championship.id}/recap">${s.championship.name}</a></span></li>`)}</ul>`}
