@@ -1,6 +1,6 @@
 import { html, page, select, _ } from '../html.js';
 import { numOrNull } from '../form.js';
-import { champNav, stars, teamName, badge, avatar } from '../components.js';
+import { champNav, stars, teamName, badge, avatar, maracasIcon } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { REACHED, REACHED_LABELS } from '../../domain/stages.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
@@ -27,7 +27,7 @@ export function registerResultRoutes(app, { db }) {
         <h2>${_('Players')}</h2>
         <table><thead><tr><th>${_('Player')}</th><th>${_('Team')}</th><th>${_('Played at')}</th><th>${_('W-D-L (GF:GA)')}</th><th>${_('Reached')}</th><th>${_('Earned')}</th><th>${_('Override')}</th><th>${_('Next championship')}</th></tr></thead><tbody>
         ${outcomes.map(o => html`<tr>
-          <td>${avatar(o, { size: 24 })}${o.playerName}${o.cuchara ? html` <span title="${_('Cuchara de Madera: 0 points and 0 goals in the group stage')}">🥄</span>` : ''}</td><td>${o.team ? html`${badge(o.team)}${o.team.name}` : '—'}</td><td>${stars(o.stars)}</td>
+          <td>${avatar(o, { size: 24 })}${o.playerName}${o.maracas ? html` ${maracasIcon({ size: 20, title: _('Maracas Trophy: three group games lost 0–10 or worse') })}` : ''}${o.cuchara ? html` <span title="${_('Cuchara de Madera: 0 points and 0 goals in the group stage')}">🥄</span>` : ''}</td><td>${o.team ? html`${badge(o.team)}${o.team.name}` : '—'}</td><td>${stars(o.stars)}</td>
           <td>${o.record.won}-${o.record.drawn}-${o.record.lost} (${o.record.goalsFor}:${o.record.goalsAgainst})</td>
           <td>${REACHED_LABELS[o.reached]}</td><td>${stars(o.computedStars)}</td>
           <td><form method="post" action="${base}/players/${o.playerId}/result" class="inline">

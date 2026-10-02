@@ -37,6 +37,20 @@ export function computeStandings(teamIds, matches, enteredPoints = new Map()) {
  * "Cuchara de Madera" (wooden spoon): the player's own team finished the group stage with 0 points and
  * 0 goals scored, having played all 3 group games. matches: any matches of that championship.
  */
+/**
+ * "Maracas Trophy", the pinnacle of bad play: the player's own team lost all three group games, scoring 0 goals and
+ * conceding at least 10 in *each* of them (0–10 or worse, three times). matches: any matches of that championship.
+ */
+export const MARACAS_GOALS = 10;
+export function isMaracas(teamId, matches) {
+  if (teamId == null) return false;
+  const games = matches.filter(m => m.stage === 'group' && hasResult(m) && (m.homeTeamId === teamId || m.awayTeamId === teamId));
+  return games.length >= 3 && games.every(m => {
+    const [gf, ga] = m.homeTeamId === teamId ? [m.homeScore, m.awayScore] : [m.awayScore, m.homeScore];
+    return gf === 0 && ga >= MARACAS_GOALS;
+  });
+}
+
 export function isCucharaDeMadera(teamId, matches) {
   if (teamId == null) return false;
   const r = teamRecord(teamId, matches.filter(m => m.stage === 'group'));

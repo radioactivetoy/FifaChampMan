@@ -196,6 +196,7 @@ export function championshipStory({ championship, players, matches }) {
   });
   const champion = championship.teams.find(t => t.reached === 'champion');
   if (champion) lines.push(champion.owner ? _('🏆 {player} won the championship with {team}!', { player: champion.owner.playerName, team: champion.name }) : _('🏆 {team} won it (simulated by the console).', { team: champion.name }));
+  for (const p of players.filter(x => x.maracas)) lines.push(_('🪇 {player} wins the Maracas Trophy: three group games, no goals scored and 10 or more conceded in every one.', { player: p.playerName }));
   for (const p of players.filter(x => x.cuchara)) lines.push(_('🥄 {player} takes the Cuchara de Madera: 0 points and 0 goals in the group stage.', { player: p.playerName }));
   if (mvp) lines.push(tn("⚽ Top scorer among the players' teams: {player} ({team}) with {n} goal.", "⚽ Top scorer among the players' teams: {player} ({team}) with {n} goals.", mvp.goals, { player: mvp.player, team: mvp.team }));
   return { mvp, lines };

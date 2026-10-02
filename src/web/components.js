@@ -74,6 +74,44 @@ export function champNav(c, active) {
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}${tabCount(c, path)}</a>`)}</nav>`;
 }
 
+
+let maracasSeq = 0;
+/**
+ * The Maracas Trophy icon (inline SVG, so it needs no request and works on light and dark): a round navy badge with a gold rim,
+ * two crossed maracas (one hot red-orange, one golden) with studded heads and wooden handles, sparkles and two musical notes.
+ */
+export function maracasIcon({ size = 20, title = '' } = {}) {
+  const k = ++maracasSeq; // gradient ids must be unique per icon on the page
+  const maraca = (id, a, b, c, rot) => `
+    <g transform="rotate(${rot} 60 76)">
+      <path d="M56.5 52 L63.5 52 L62 98 L58 98 Z" fill="url(#wood${k})"/>
+      <circle cx="60" cy="101" r="5.2" fill="url(#wood${k})" stroke="#4d2d10" stroke-width=".8"/>
+      <ellipse cx="60" cy="33" rx="17.5" ry="22.5" fill="url(#${id}${k})" stroke="#4d1a0f" stroke-opacity=".55" stroke-width="1"/>
+      <path d="M43 30 Q60 40 77 30 M43.6 38 Q60 48 76.4 38" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.6" stroke-dasharray="1.2 3.4" stroke-linecap="round"/>
+      <path d="M60 11 L66 22 L60 33 L54 22 Z" fill="#fff" fill-opacity=".22"/>
+      <ellipse cx="52.5" cy="24" rx="3.6" ry="9" transform="rotate(18 52.5 24)" fill="#fff" fill-opacity=".5"/>
+      <rect x="54" y="50.5" width="12" height="4.5" rx="2" fill="${c}" stroke="#4d1a0f" stroke-opacity=".5" stroke-width=".7"/>
+    </g>`;
+  const sparkle = (x, y, r) => `<path d="M${x} ${y - r} Q${x} ${y} ${x + r} ${y} Q${x} ${y} ${x} ${y + r} Q${x} ${y} ${x - r} ${y} Q${x} ${y} ${x} ${y - r} Z" fill="#ffe27a"/>`;
+  return raw(`<svg class="maracas-icon" width="${size}" height="${size}" viewBox="0 0 120 120" role="img" aria-label="${escape(title || _('Maracas Trophy'))}">
+    <title>${escape(title || _('Maracas Trophy'))}</title>
+    <defs>
+      <radialGradient id="bg${k}" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="#3b4cc0"/><stop offset="1" stop-color="#0b1a55"/></radialGradient>
+      <linearGradient id="rim${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset=".5" stop-color="#f2b705"/><stop offset="1" stop-color="#b8780a"/></linearGradient>
+      <linearGradient id="hot${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9a6b"/><stop offset=".55" stop-color="#e8452c"/><stop offset="1" stop-color="#8f1d12"/></linearGradient>
+      <linearGradient id="sun${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a0"/><stop offset=".55" stop-color="#f6b81a"/><stop offset="1" stop-color="#b8700a"/></linearGradient>
+      <linearGradient id="wood${k}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d89a5a"/><stop offset="1" stop-color="#7a4a1d"/></linearGradient>
+    </defs>
+    <circle cx="60" cy="60" r="57" fill="url(#bg${k})" stroke="url(#rim${k})" stroke-width="4.5"/>
+    <circle cx="60" cy="60" r="50" fill="none" stroke="#ffe27a" stroke-opacity=".25" stroke-width="1" stroke-dasharray="2 4"/>
+    ${maraca('hot', '#ff9a6b', '#e8452c', '#ffd23f', -35)}
+    ${maraca('sun', '#fff0a0', '#f6b81a', '#e8452c', 35)}
+    ${sparkle(20, 30, 7)}${sparkle(101, 24, 5.5)}${sparkle(99, 98, 6)}${sparkle(17, 88, 4.5)}
+    <text x="12" y="62" font-size="15" fill="#ffe27a" fill-opacity=".9" font-family="serif">♪</text>
+    <text x="95" y="62" font-size="13" fill="#ffe27a" fill-opacity=".9" font-family="serif">♫</text>
+  </svg>`);
+}
+
 /**
  * On a finished championship: award cards under the header — the champion (with a shout-out when it was a
  * player's own team) and the Cuchara de Madera holder(s), if any (0 points and 0 goals in the groups).
@@ -82,13 +120,16 @@ function awards(c) {
   if (c.status !== 'finished') return '';
   const champion = c.teams.find(t => t.reached === 'champion');
   const holders = c.players.filter(p => p.cuchara);
-  if (!champion && holders.length === 0) return '';
+  const maracas = c.players.filter(p => p.maracas);
+  if (!champion && holders.length === 0 && maracas.length === 0) return '';
   return html`<div class="awards">
     ${champion ? html`<div class="award award-champion"><span class="award-icon" aria-hidden="true">🏆</span>
       <div><small>${_('Champion')}</small><strong>${badge(champion)}${champion.name}</strong>
         ${champion.owner ? html`<small>${th('<strong>{player}</strong> won it! 🎉', { player: champion.owner.playerName })}</small>` : ''}</div></div>` : ''}
     ${holders.length ? html`<div class="award award-spoon"><span class="award-icon" aria-hidden="true">🥄</span>
       <div><small>${_('Cuchara de Madera')}</small>${holders.map(p => html`<strong>${p.playerName}</strong>${p.team ? html`<small>${p.team.name}</small>` : ''}`)}</div></div>` : ''}
+    ${maracas.length ? html`<div class="award award-maracas"><span class="award-icon" aria-hidden="true">${maracasIcon({ size: 56 })}</span>
+      <div><small>${_('Maracas Trophy')}</small>${maracas.map(p => html`<strong>${p.playerName}</strong>${p.team ? html`<small>${p.team.name}</small>` : ''}`)}</div></div>` : ''}
   </div>`;
 }
 

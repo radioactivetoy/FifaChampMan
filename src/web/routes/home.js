@@ -41,7 +41,7 @@ export function registerHomeRoutes(app, { db }) {
               ${pending.length > MATCHES_SHOWN ? html`<p class="muted">${_('+{n} more', { n: pending.length - MATCHES_SHOWN })}</p>` : ''}`}</div>`;
         })}</div>
         ${champion ? html`<p class="muted">${th('Last champion: <strong>{team}</strong>{owner}', { team: champion.name, owner: champion.owner ? ` (${champion.owner.playerName})` : '' })}</p>` : ''}
-        <p class="muted"><a href="/session">${_('📰 Session summary')}</a> · <a href="/championships">${_('All championships')}</a> · <a href="/stats">${_('Stats')}</a> · <a href="/players">${_('Players')}</a></p>`,
+        <p class="muted"><a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a> · <a href="/session">${_('📰 Session summary')}</a> · <a href="/championships">${_('All championships')}</a> · <a href="/stats">${_('Stats')}</a> · <a href="/players">${_('Players')}</a></p>`,
     }));
   });
 }

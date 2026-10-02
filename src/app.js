@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
 import { html, page, th, _ } from './web/html.js';
 import { registerHomeRoutes } from './web/routes/home.js';
+import { registerHallRoutes } from './web/routes/hall.js';
 import { registerSessionRoutes } from './web/routes/session.js';
 import { registerRecordsRoutes } from './web/routes/records.js';
 import { registerVersusRoutes } from './web/routes/versus.js';
@@ -110,6 +111,7 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null }) {
   registerStatsRoutes(app, ctx);
   registerRecordsRoutes(app, ctx);
   registerSessionRoutes(app, ctx);
+  registerHallRoutes(app, ctx);
   registerVersusRoutes(app, ctx);
   registerRecapRoutes(app, ctx);
   registerUndoRoutes(app, ctx);

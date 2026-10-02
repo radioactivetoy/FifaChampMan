@@ -1,5 +1,5 @@
 import { html, page, raw, select, tn, _, N_ } from '../html.js';
-import { stars, badge, funCard, journeySvg, eloChart, avatar } from '../components.js';
+import { stars, badge, funCard, journeySvg, eloChart, avatar, maracasIcon } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
 import { listAllMatches } from '../../repo/matches.js';
@@ -67,7 +67,7 @@ export function registerStatsRoutes(app, { db }) {
     res.send(page({
       title: _('Stats'),
       body: html`
-        <p class="row"><a href="/session">${_('📰 Session summary')}</a> <a href="/records">${_('🏅 Records')}</a> <a href="/head-to-head">${_('⚔ Head to head')}</a></p>
+        <p class="row"><a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a> <a href="/session">${_('📰 Session summary')}</a> <a href="/records">${_('🏅 Records')}</a> <a href="/head-to-head">${_('⚔ Head to head')}</a></p>
         <form method="get" class="row">
           <label>${_('Edition')} ${select({ name: 'edition', items: editions.map(e => ({ value: e, label: e })), selected: selectedEdition, blank: _('All editions') })}</label>
           <button>${_('Filter')}</button>
@@ -78,6 +78,7 @@ export function registerStatsRoutes(app, { db }) {
           ${highlight(stats, _('Best win rate'), s => pct(s.own.won, s.own.played), s => _('{pct}% of {played} games (own team, min 3)', { pct: pct(s.own.won, s.own.played), played: s.own.played }), s => s.own.played >= 3)}
           ${highlight(stats, _('Most goals'), s => s.own.goalsFor, s => tn('{n} goal with their own team', '{n} goals with their own team', s.own.goalsFor))}
           ${highlight(stats, _('Best CPU controller'), s => pct(s.cpu.won, s.cpu.played), s => _('{pct}% wins controlling CPU teams (min 3)', { pct: pct(s.cpu.won, s.cpu.played) }), s => s.cpu.played >= 3)}
+          ${highlight(stats, _('Maracas Trophy'), s => s.maracas, s => tn('{n} time · three group games lost 0–10 or worse', '{n} times · three group games lost 0–10 or worse', s.maracas), () => true, maracasIcon({ size: 30 }))}
           ${highlight(stats, _('Cuchara de Madera'), s => s.cucharas, s => tn('{n} time · 0 pts and 0 goals in the groups', '{n} times · 0 pts and 0 goals in the groups', s.cucharas), () => true, '🥄')}
           ${highlight(stats, _('Best avg stars'), s => s.avgStars, s => _('{stars}★ per championship', { stars: s.avgStars }))}
         </div>
@@ -86,12 +87,12 @@ export function registerStatsRoutes(app, { db }) {
         <p class="muted">${_('Click a column header to sort. "Own team" is the team each player was assigned; "As CPU" is how they did when controlling CPU teams against other players.')}</p>
         <label class="lb-more"><input type="checkbox" id="lb-more"> ${_('Show all columns (goals, points per game, as CPU)')}</label>
         <div class="scroll-x"><table data-sortable class="leaderboard"><thead><tr>
-          <th>${_('Player')}</th><th>${_('Champ.')}</th><th>${_('Titles')}</th><th title="Cuchara de Madera">🥄</th><th>${_('Finals')}</th><th>${_('Qualified')}</th><th>${_('Best')}</th><th>${_('Avg ★')}</th><th>${_('Now ★')}</th>
+          <th>${_('Player')}</th><th>${_('Champ.')}</th><th>${_('Titles')}</th><th title="${_('Maracas Trophy')}">${maracasIcon({ size: 18 })}</th><th title="Cuchara de Madera">🥄</th><th>${_('Finals')}</th><th>${_('Qualified')}</th><th>${_('Best')}</th><th>${_('Avg ★')}</th><th>${_('Now ★')}</th>
           <th>${_('P')}</th><th>${_('W-D-L')}</th><th class="col-extra">${_('GF')}</th><th class="col-extra">${_('GA')}</th><th class="col-extra">${_('GD')}</th><th class="col-extra">${_('Pts/game')}</th><th>${_('Win %')}</th>
           <th class="col-extra">${_('As CPU W-D-L')}</th><th class="col-extra">${_('As CPU win %')}</th></tr></thead><tbody>
         ${stats.map(s => html`<tr>
           <td data-sort="${s.name.toLowerCase()}">${avatar(playerById.get(s.playerId), { size: 24 })}<a href="/players/${s.playerId}"><strong>${s.name}</strong></a></td>
-          ${num(s.championships)}${num(s.titles)}${num(s.cucharas)}${num(s.finals)}${num(s.qualified)}
+          ${num(s.championships)}${num(s.titles)}${num(s.maracas)}${num(s.cucharas)}${num(s.finals)}${num(s.qualified)}
           <td data-sort="${REACHED.indexOf(s.bestReached)}">${s.bestReached ? REACHED_LABELS[s.bestReached] : '—'}</td>
           ${num(s.avgStars, s.avgStars == null ? null : `${s.avgStars}★`)}${num(s.lastStars, s.lastStars == null ? null : `${s.lastStars}★`)}
           ${num(s.own.played)}<td data-sort="${points(s.own)}">${wdl(s.own)}</td>${num(s.own.goalsFor, undefined, 'col-extra')}${num(s.own.goalsAgainst, undefined, 'col-extra')}
@@ -156,7 +157,7 @@ export function registerStatsRoutes(app, { db }) {
             const e = entryFor(s.playerId, c.championshipId);
             if (!e) return html`<td class="muted">—</td>`;
             return html`<td class="reached-${e.reached}">${e.teamId ? teamLabel(e.teamId) : ''}<br>
-              <small>${REACHED_LABELS[e.reached]} · ${stars(e.stars)} → <strong>${stars(e.resultStars)}</strong></small>${e.cuchara ? html`<br><small title="Cuchara de Madera">🥄 ${_('Cuchara de Madera')}</small>` : ''}</td>`;
+              <small>${REACHED_LABELS[e.reached]} · ${stars(e.stars)} → <strong>${stars(e.resultStars)}</strong></small>${e.maracas ? html`<br><small>${maracasIcon({ size: 16 })} ${_('Maracas Trophy')}</small>` : ''}${e.cuchara ? html`<br><small title="Cuchara de Madera">🥄 ${_('Cuchara de Madera')}</small>` : ''}</td>`;
           })}
           <td>${c.team ? html`${badge(c.team)}${c.team.name}${c.playerName ? html`<br><small>🏆 <strong>${c.playerName}</strong></small>` : ''}` : html`<span class="muted">${c.status === 'finished' ? '—' : _('in progress')}</span>`}</td>
         </tr>`)}
