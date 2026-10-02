@@ -495,3 +495,32 @@ details.settings[open] > form.row { margin: 8px 0; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .notice { background: #3a3210; border-color: #7a6720; } }
 .next-step { margin: 4px 0 8px; font-weight: 600; }
 .nav-home { font-size: 16px; }
+
+/* ---------- Maracas Trophy ---------- */
+.maracas-icon { vertical-align: middle; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
+.award-maracas { border-color: #f2b705; background: linear-gradient(160deg, #1c2a78, #0b1a55); color: #fff; box-shadow: 0 0 0 2px rgba(242, 183, 5, .35), 0 6px 18px rgba(242, 183, 5, .25); }
+.award-maracas small { color: #ffe27a; }
+.award-maracas .award-icon { width: 56px; height: 56px; background: none; box-shadow: none; border-radius: 0; }
+
+/* ---------- Hall of Fame ---------- */
+.title-strip { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+.podiums { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.podium-card h3 { margin: 0; }
+.podium { display: flex; align-items: flex-end; justify-content: center; gap: 6px; margin-top: 12px; }
+.podium-step { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; text-align: center; font-size: 13px; }
+.podium-team { padding: 4px 2px; min-height: 40px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; }
+.podium-block { display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: var(--radius-sm) var(--radius-sm) 0 0; color: #3a2a00; font-weight: 700; }
+.podium-block span { font-size: 22px; }
+.podium-block small { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+.podium-step.gold .podium-block { height: 86px; background: linear-gradient(#ffe27a, #f2b705); }
+.podium-step.silver .podium-block { height: 64px; background: linear-gradient(#eef1f6, #b9c2d0); }
+.podium-step.bronze .podium-block { height: 48px; background: linear-gradient(#e8b98a, #b9713a); }
+.shame { list-style: none; padding: 0; display: grid; gap: 6px; }
+.vitrine { display: flex; align-items: center; gap: 20px; padding: 18px 22px; border-radius: var(--radius); border: 1px dashed var(--line); background: var(--surface); }
+.vitrine .vitrine-icon { flex: none; filter: grayscale(1) opacity(.35); }
+.vitrine.lit { border: 1px solid #f2b705; background: linear-gradient(160deg, #1c2a78, #0b1a55); color: #fff; box-shadow: 0 0 0 2px rgba(242, 183, 5, .35), 0 8px 24px rgba(242, 183, 5, .25); }
+.vitrine.lit .vitrine-icon { filter: none; }
+.vitrine.lit .muted, .vitrine.lit a { color: #ffe27a; }
+.maracas-holder .scores { font-weight: 800; letter-spacing: .08em; font-size: 18px; }
+@media (max-width: 760px) { .vitrine { flex-direction: column; text-align: center; } }
+.podium-block small { font-size: 10px; letter-spacing: .02em; max-width: 100%; overflow-wrap: anywhere; padding: 0 2px; }

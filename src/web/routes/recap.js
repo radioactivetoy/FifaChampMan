@@ -1,5 +1,5 @@
 import { html, page, tn, _ } from '../html.js';
-import { champNav, stars, teamName, badge, avatar, funCard } from '../components.js';
+import { champNav, stars, teamName, badge, avatar, funCard, maracasIcon } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { listMatches } from '../../repo/matches.js';
 import { championshipStory, championshipAwards } from '../../domain/fun.js';
@@ -50,7 +50,7 @@ export function registerRecapRoutes(app, { db }) {
         <table><thead><tr><th>${_('Player')}</th><th>${_('Team')}</th><th>${_('Played at')}</th><th>${_('Group')}</th><th>${_('Pos')}</th><th>${_('Pts')}</th>
           <th>${_('W-D-L')}</th><th>${_('Goals')}</th><th>${_('GD')}</th><th>${_('Reached')}</th><th>${_('All matches')}</th><th>${_('As CPU controller')}</th><th>${_('Stars earned')}</th></tr></thead><tbody>
         ${players.map(p => html`<tr>
-          <td>${avatar(p, { size: 24 })}<strong>${p.playerName}</strong>${p.cuchara ? html` <span title="${_('Cuchara de Madera: 0 points and 0 goals in the group stage')}">🥄</span>` : ''}</td>
+          <td>${avatar(p, { size: 24 })}<strong>${p.playerName}</strong>${p.maracas ? html` ${maracasIcon({ size: 20, title: _('Maracas Trophy: three group games lost 0–10 or worse') })}` : ''}${p.cuchara ? html` <span title="${_('Cuchara de Madera: 0 points and 0 goals in the group stage')}">🥄</span>` : ''}</td>
           <td>${p.team ? html`${badge(p.team)}${p.team.name}` : '—'}</td>
           <td>${stars(p.stars)}</td>
           <td>${p.groupLetter ?? '—'}</td>

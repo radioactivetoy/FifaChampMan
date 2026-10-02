@@ -21,7 +21,7 @@ function addResult(rec, gf, ga) {
 export function playerStats({ players, entries, matches }) {
   const ownerOf = new Map(entries.map(e => [`${e.championshipId}:${e.teamId}`, e.playerId]));
   const byPlayer = new Map(players.map(p => [p.id, {
-    playerId: p.id, name: p.name, championships: 0, titles: 0, cucharas: 0, finals: 0, qualified: 0, bestReached: null,
+    playerId: p.id, name: p.name, championships: 0, titles: 0, cucharas: 0, maracas: 0, finals: 0, qualified: 0, bestReached: null,
     avgStars: null, lastStars: null, own: emptyRecord(), cpu: emptyRecord(), history: [],
   }]));
 
@@ -31,10 +31,11 @@ export function playerStats({ players, entries, matches }) {
     s.championships++;
     if (e.reached === 'champion') s.titles++;
     if (e.cuchara) s.cucharas++;
+    if (e.maracas) s.maracas++;
     if (rank(e.reached) >= rank('final')) s.finals++;
     if (rank(e.reached) > rank('group')) s.qualified++;
     if (rank(e.reached) > rank(s.bestReached)) s.bestReached = e.reached;
-    s.history.push({ championshipId: e.championshipId, championshipName: e.championshipName, teamId: e.teamId, stars: e.stars, reached: e.reached, resultStars: e.resultStars, cuchara: !!e.cuchara });
+    s.history.push({ championshipId: e.championshipId, championshipName: e.championshipName, teamId: e.teamId, stars: e.stars, reached: e.reached, resultStars: e.resultStars, cuchara: !!e.cuchara, maracas: !!e.maracas });
   }
   for (const s of byPlayer.values()) {
     if (s.history.length === 0) continue;

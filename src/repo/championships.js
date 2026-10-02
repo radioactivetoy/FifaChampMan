@@ -3,7 +3,7 @@ import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
 import { listMatches, insertMatch, drawControllers, bracketSizeOf, listByes } from './matches.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
-import { teamRecord, computeStandings, hasResult, isCucharaDeMadera } from '../domain/standings.js';
+import { teamRecord, computeStandings, hasResult, isCucharaDeMadera, isMaracas } from '../domain/standings.js';
 import { playerStats } from '../domain/stats.js';
 import { fillField, scaleQuotas, DEFAULT_FIELD_QUOTAS } from '../domain/field.js';
 import { makePots, drawGroups, groupLettersFor, isValidGroupTeamCount } from '../domain/draw.js';
@@ -39,6 +39,7 @@ export function getChampionship(db, id) {
       ...p,
       team: teamsById.get(p.teamId) ?? null,
       cuchara: isCucharaDeMadera(p.teamId, matches),
+      maracas: isMaracas(p.teamId, matches),
       offered: JSON.parse(offeredJson).map(tid => teamsById.get(tid)).filter(Boolean),
     }));
   const ownerByTeam = new Map(players.filter(p => p.teamId).map(p => [p.teamId, p]));
@@ -526,7 +527,7 @@ export function playerOutcome(db, championshipId, playerId) {
   const record = teamRecord(entry.teamId, matches);
   const { format, teamCount } = get(db, 'SELECT format, team_count AS teamCount FROM championships WHERE id = ?', championshipId);
   const computedStars = resultStars({ reached, record, format, firstRound: firstRound(knockoutSize({ format, teamCount })) });
-  return { stars: entry.stars, teamId: entry.teamId, reached, record, cuchara: isCucharaDeMadera(entry.teamId, matches), computedStars, resultStars: entry.override ?? computedStars };
+  return { stars: entry.stars, teamId: entry.teamId, reached, record, cuchara: isCucharaDeMadera(entry.teamId, matches), maracas: isMaracas(entry.teamId, matches), computedStars, resultStars: entry.override ?? computedStars };
 }
 
 export function listOutcomes(db, championshipId) {
@@ -586,6 +587,26 @@ export function listChampions(db) {
       LEFT JOIN players p ON p.id = cp.player_id
       ORDER BY c.id`)
     .map(r => ({ ...r, team: teamsById.get(r.teamId) ?? null }));
+}
+
+/**
+ * The Hall of Fame: every finished championship, newest first, with its podium (champion, runner-up = lost the final,
+ * semi-finalists = lost in the semis), and who took the Cuchara de Madera and the Maracas Trophy (with the three scores).
+ */
+export function hallOfFame(db) {
+  return listChampionships(db).filter(c => c.status === 'finished').map(row => {
+    const c = getChampionship(db, row.id);
+    const matches = listMatches(db, c.id);
+    const placed = reached => c.teams.filter(t => t.reached === reached);
+    const maracasScores = teamId => matches.filter(m => m.stage === 'group' && hasResult(m) && (m.homeTeamId === teamId || m.awayTeamId === teamId))
+      .map(m => (m.homeTeamId === teamId ? `${m.homeScore}–${m.awayScore}` : `${m.awayScore}–${m.homeScore}`));
+    return {
+      id: c.id, name: c.name, edition: c.edition, format: c.format, createdAt: c.createdAt, finishedAt: c.finishedAt,
+      champion: placed('champion')[0] ?? null, runnerUp: placed('final')[0] ?? null, semifinalists: placed('sf'),
+      cucharas: c.players.filter(p => p.cuchara && !p.maracas).map(p => ({ player: p.playerName, playerId: p.playerId, team: p.team })),
+      maracas: c.players.filter(p => p.maracas).map(p => ({ player: p.playerName, playerId: p.playerId, team: p.team, scores: maracasScores(p.teamId) })),
+    };
+  });
 }
 
 export function allEntries(db) {

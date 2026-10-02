@@ -1,5 +1,5 @@
 import { html, page, th, tn, _ } from '../html.js';
-import { stars, badge, funCard, journeySvg, avatar } from '../components.js';
+import { stars, badge, funCard, journeySvg, avatar, maracasIcon } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams } from '../../repo/teams.js';
 import { listAllMatches } from '../../repo/matches.js';
@@ -51,6 +51,7 @@ export function registerProfileRoutes(app, { db }) {
           <div class="badges">
             <span class="badge-pill">${tn('🏆 {n} title', '🏆 {n} titles', stats.titles)}</span>
             <span class="badge-pill">${tn('🥈 {n} lost final', '🥈 {n} lost finals', lostFinals)}</span>
+            ${stats.maracas ? html`<span class="badge-pill">${maracasIcon({ size: 18 })} ${tn('{n} Maracas Trophy', '{n} Maracas Trophies', stats.maracas)}</span>` : ''}
             <span class="badge-pill">${tn('🥄 {n} Cuchara de Madera', '🥄 {n} Cucharas de Madera', stats.cucharas)}</span>
             ${myElo ? html`<span class="badge-pill">${_('📈 Elo {rating} (#{rank})', { rating: myElo.rating, rank: elo.indexOf(myElo) + 1 })}</span>` : ''}
           </div>
@@ -83,7 +84,7 @@ export function registerProfileRoutes(app, { db }) {
         <h2>${_('Championships')}</h2>
         ${history.length === 0 ? html`<p class="muted">${_("Hasn't played a championship yet.")}</p>` : html`
         <table><thead><tr><th>${_('Championship')}</th><th>${_('Team')}</th><th>${_('Played at')}</th><th>${_('Reached')}</th><th>${_('Earned')}</th></tr></thead><tbody>
-        ${[...history].reverse().map(e => html`<tr><td><a href="/championships/${e.championshipId}/recap">${e.championshipName}</a>${e.cuchara ? ' 🥄' : ''}</td><td>${teamLabel(e)}</td>
+        ${[...history].reverse().map(e => html`<tr><td><a href="/championships/${e.championshipId}/recap">${e.championshipName}</a>${e.maracas ? html` ${maracasIcon({ size: 16 })}` : ''}${e.cuchara ? ' 🥄' : ''}</td><td>${teamLabel(e)}</td>
           <td>${stars(e.stars)}</td><td>${REACHED_LABELS[e.reached]}</td><td><strong>${stars(e.resultStars)}</strong></td></tr>`)}
         </tbody></table>`}`,
     }));
