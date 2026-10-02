@@ -11,7 +11,7 @@ import { listFieldQuotas, updateFieldQuota } from '../../repo/settings.js';
 import { listTemplates } from '../../repo/templates.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 
-export function registerConfigRoutes(app, { db, dbPath }) {
+export function registerConfigRoutes(app, { db, dbPath, llm }) {
   const backupsOn = dbPath && dbPath !== ':memory:';
   const kb = n => `${Math.max(1, Math.round(n / 1024))} KB`;
   app.get('/config', (req, res) => {
@@ -28,6 +28,11 @@ export function registerConfigRoutes(app, { db, dbPath }) {
             <a class="button-link" href="/config/backups/${b.name}" download>${_('Download')}</a>
             <form method="post" action="/config/backups/${b.name}/restore" class="inline" ${confirmSubmit(_('Replace ALL current data with this backup the next time the app starts?'))}><button class="danger">${_('Restore')}</button></form></td></tr>`)}
           </tbody></table>` : ''}
+
+        <h2>${_('Story generator')}</h2>
+        ${llm ? html`<p class="muted">${th('Model in use: <code>{model}</code> (change it with LLM_MODEL in .env).', { model: llm.model })}</p>
+          <p><a class="button-link" href="/config/llm-models">${_('List the models available to my key')}</a></p>`
+    : html`<p class="muted">${_('Not configured: set LLM_KEY in .env to write the championship stories from the Recap page (see docs/DEPLOY.md).')}</p>`}
 
         <h2>${_('Star tiers')}</h2>
         <p class="muted">${_('A team gets the highest star level whose minimum OVR it reaches (unless its stars are set by hand on the Teams page).')}</p>
@@ -63,6 +68,20 @@ export function registerConfigRoutes(app, { db, dbPath }) {
     db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, '').replace('T', '-');
     res.download(file, `champman-${stamp}.db`, () => rmSync(dirname(file), { recursive: true, force: true }));
+  });
+
+  // Which model names the story service offers to this key (they get retired now and then); asked on demand, never at page load.
+  app.get('/config/llm-models', async (req, res, next) => {
+    try {
+      if (!llm) throw new UserError(_('No story generator is configured; copy the prompt instead'));
+      const models = await llm.listModels();
+      res.send(page({
+        title: _('Story generator'),
+        body: html`<p><a href="/config">${_('← Config')}</a></p>
+          <p class="muted">${th('Put one of these names in <code>LLM_MODEL</code> in .env and restart. Currently: <code>{model}</code>.', { model: llm.model })}</p>
+          <ul>${models.map(m => html`<li><code>${m}</code>${m === llm.model ? html` <strong>← ${_('in use')}</strong>` : ''}</li>`)}</ul>`,
+      }));
+    } catch (err) { next(err); }
   });
 
   app.post('/config/backups/now', (req, res) => {
