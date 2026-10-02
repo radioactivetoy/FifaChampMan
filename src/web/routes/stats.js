@@ -32,9 +32,11 @@ const num = (value, shown = value, cls = '') => html`<td${cls ? raw(` class="${c
 
 /** One highlight card: the best player by `score`, among those passing `eligible`. */
 function highlight(stats, label, score, show, eligible = () => true, icon = '★') {
-  const best = stats.filter(s => eligible(s) && score(s) != null && score(s) > 0).sort((a, b) => score(b) - score(a))[0];
+  const ranked = stats.filter(s => eligible(s) && score(s) != null && score(s) > 0).sort((a, b) => score(b) - score(a));
+  const best = ranked[0];
+  const leaders = ranked.filter(s => score(s) === score(best)); // everyone tied for the top shares the card
   return html`<div class="card stat-card"><div class="muted">${label}</div>
-    <div class="stat-value">${best ? best.name : '—'}</div><div class="muted">${best ? show(best) : ''}</div>
+    <div class="stat-value">${best ? leaders.map(s => s.name).join(' & ') : '—'}</div><div class="muted">${best ? show(best) : ''}</div>
     <span class="stat-icon" aria-hidden="true">${icon}</span></div>`;
 }
 

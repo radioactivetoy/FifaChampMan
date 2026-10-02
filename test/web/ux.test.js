@@ -166,3 +166,21 @@ test('next-step hint follows the championship through its stages', async () => {
   const { app, id } = await withGroups();
   try { assert.match((await app.get(`/championships/${id}`)).text, /class="next-step">Next: <a href="\/championships\/\d+\/groups">Play the group stage/); } finally { await app.close(); }
 });
+
+test('Stats highlight card lists every player tied for the top', async () => {
+  const { app } = await withGroups();
+  try {
+    // Ana and Ben both win a title (a finished championship each), Cris none
+    const { setChampion } = await import('../../src/repo/championships.js');
+    const players = (await import('../../src/repo/players.js')).listPlayers(app.db);
+    const rng = createRng(1);
+    for (const p of players.slice(0, 2)) {
+      const cid = createChampionship(app.db, { name: `T-${p.name}`, playerIds: [p.id], rng });
+      fillFieldRandom(app.db, cid, rng);
+      const team = getChampionship(app.db, cid).players[0].teamId;
+      setChampion(app.db, cid, team);
+    }
+    const text = (await app.get('/stats')).text;
+    assert.match(text, /Most titles<\/div>\s*<div class="stat-value">\w+ &amp; \w+</);
+  } finally { await app.close(); }
+});

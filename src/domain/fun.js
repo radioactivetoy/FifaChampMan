@@ -16,6 +16,16 @@ export const chrono = (a, b) => a.championshipId - b.championshipId || STAGE_ORD
   || (a.matchday ?? 0) - (b.matchday ?? 0) || a.id - b.id;
 
 const pick = (items, better) => items.reduce((best, x) => (best == null || better(x, best) ? x : best), null);
+/**
+ * Like `pick`, but players who tie for the best all hold the card: the result is the best item with `player` = every tied name
+ * joined by " & " and `playerIds` = their ids. Only for items whose other fields are the same for everyone tied.
+ */
+function pickTied(items, better) {
+  const best = pick(items, better);
+  if (!best) return null;
+  const tied = items.filter(x => x === best || (!better(x, best) && !better(best, x)));
+  return tied.length === 1 ? best : { ...best, player: tied.map(x => x.player).join(' & '), playerIds: tied.map(x => x.playerId) };
+}
 const record = () => ({ played: 0, won: 0, drawn: 0, lost: 0, goalsFor: 0, goalsAgainst: 0 });
 function add(rec, gf, ga) {
   rec.played++; rec.goalsFor += gf; rec.goalsAgainst += ga;
@@ -85,8 +95,8 @@ export function funStats({ players, entries, matches, teams }) {
     if (loser != null) pens.get(loser) && pens.get(loser).lost++;
   }
   const penList = [...pens].map(([playerId, r]) => ({ playerId, player: name.get(playerId), ...r }));
-  const penaltyKing = pick(penList.filter(x => x.won > 0), (a, b) => a.won > b.won || (a.won === b.won && a.lost < b.lost));
-  const penaltyCurse = pick(penList.filter(x => x.lost > 0), (a, b) => a.lost > b.lost || (a.lost === b.lost && a.won < b.won));
+  const penaltyKing = pickTied(penList.filter(x => x.won > 0), (a, b) => a.won > b.won || (a.won === b.won && a.lost < b.lost));
+  const penaltyCurse = pickTied(penList.filter(x => x.lost > 0), (a, b) => a.lost > b.lost || (a.lost === b.lost && a.won < b.won));
 
   // Cinderella: lowest-star team that reached the playoff (furthest wins ties); Bottler: highest-star team that missed it.
   const withTeam = entries.filter(e => e.teamId != null && e.stars != null);
@@ -99,18 +109,18 @@ export function funStats({ players, entries, matches, teams }) {
   // Eternal runner-up: most lost finals (reached "final" and not champion).
   const finals = new Map();
   for (const e of entries) if (e.reached === 'final') finals.set(e.playerId, (finals.get(e.playerId) ?? 0) + 1);
-  const runnerUp = pick([...finals].map(([playerId, n]) => ({ playerId, player: name.get(playerId), finals: n })), (a, b) => a.finals > b.finals);
+  const runnerUp = pickTied([...finals].map(([playerId, n]) => ({ playerId, player: name.get(playerId), finals: n })), (a, b) => a.finals > b.finals);
 
   // Per-player own-team record and streaks.
   const ownRec = new Map(players.map(p => [p.id, record()]));
   const runs = new Map(players.map(p => [p.id, []]));
   for (const g of own) { add(ownRec.get(g.playerId), g.gf, g.ga); runs.get(g.playerId).push(g.gf > g.ga ? 'W' : g.gf === g.ga ? 'D' : 'L'); }
-  const streakOf = (test, min = 2) => pick(players.map(p => ({ playerId: p.id, player: p.name, length: longestRun(runs.get(p.id), test) })).filter(x => x.length >= min), (a, b) => a.length > b.length);
+  const streakOf = (test, min = 2) => pickTied(players.map(p => ({ playerId: p.id, player: p.name, length: longestRun(runs.get(p.id), test) })).filter(x => x.length >= min), (a, b) => a.length > b.length);
   const unbeaten = streakOf(r => r !== 'L');
   const winStreak = streakOf(r => r === 'W');
   const losingRun = streakOf(r => r === 'L');
 
-  const drawKing = pick(players.map(p => ({ playerId: p.id, player: p.name, draws: ownRec.get(p.id).drawn, played: ownRec.get(p.id).played })).filter(x => x.draws > 0), (a, b) => a.draws > b.draws);
+  const drawKing = pickTied(players.map(p => ({ playerId: p.id, player: p.name, draws: ownRec.get(p.id).drawn, played: ownRec.get(p.id).played })).filter(x => x.draws > 0), (a, b) => a.draws > b.draws || (a.draws === b.draws && a.played < b.played));
   const hardest = pick(players.map(p => { const r = ownRec.get(p.id); return { playerId: p.id, player: p.name, lostPct: pct(r.lost, r.played), played: r.played, lost: r.lost }; })
     .filter(x => x.played >= 3), (a, b) => a.lostPct < b.lostPct || (a.lostPct === b.lostPct && a.played > b.played));
 
@@ -203,7 +213,7 @@ export function trophyCabinet(fun, playerId) {
     ['losingRun', '📉', N_('Longest losing run')], ['drawKing', '🤝', N_('Draw king')], ['hardestToBeat', '🛡️', N_('Hardest to beat')],
     ['cpuWhisperer', '🎮', N_('CPU whisperer')], ['luckiest', '🍀', N_('Luckiest group')], ['unluckiest', '☠️', N_('Group of death')],
   ];
-  const out = held.filter(([key]) => fun[key]?.playerId === playerId).map(([, icon, title]) => ({ icon, title: _(title) }));
+  const out = held.filter(([key]) => (fun[key]?.playerIds ?? [fun[key]?.playerId]).includes(playerId)).map(([, icon, title]) => ({ icon, title: _(title) }));
   if (fun.rivalry && (fun.rivalry.a === playerId || fun.rivalry.b === playerId)) out.push({ icon: '⚔️', title: _('Biggest rivalry') });
   return out;
 }
