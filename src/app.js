@@ -2,6 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
 import { html, page, th, _ } from './web/html.js';
+import { applyLlmSettings } from './repo/settings.js';
 import { registerHomeRoutes } from './web/routes/home.js';
 import { registerHallRoutes } from './web/routes/hall.js';
 import { registerSessionRoutes } from './web/routes/session.js';
@@ -95,6 +96,7 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
     next();
   });
 
+  applyLlmSettings(db, llm); // the model chosen on Config (saved in the database) wins over .env
   const ctx = { db, rng, dbPath, llm };
   registerHomeRoutes(app, ctx);
   registerPlayerRoutes(app, ctx);
