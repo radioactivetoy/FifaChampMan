@@ -109,3 +109,21 @@ test('a failing story service shows a message box (not a 5xx page that Cloudflar
     assert.match(decodeURIComponent(r.headers.get('set-cookie') ?? ''), /refused the request \(403: quota\)/);
   } finally { await app.close(); }
 });
+
+test('listModels asks GET /models; Config shows the generator and lists the models on demand', async () => {
+  const seen = [];
+  const llm = createLlm({ LLM_KEY: 'k', LLM_URL: 'http://x/v1' }, async (url, opts) => { seen.push([url, opts]); return { ok: true, json: async () => ({ data: [{ id: 'models/gemini-b' }, { id: 'models/gemini-a' }] }) }; });
+  assert.deepEqual(await llm.listModels(), ['gemini-a', 'gemini-b']);
+  assert.equal(seen[0][0], 'http://x/v1/models');
+  assert.equal(llm.model, 'gemini-flash-latest');
+  const { app } = await setup({ llm });
+  try {
+    const cfg = (await app.get('/config')).text;
+    assert.match(cfg, /Model in use: <code>gemini-flash-latest<\/code>/);
+    const list = (await app.get('/config/llm-models')).text;
+    assert.match(list, /<code>gemini-a<\/code>/);
+    assert.equal(seen.length, 2); // asked on demand only (the Config page itself made no call)
+  } finally { await app.close(); }
+  const off = await setup();
+  try { assert.match((await off.app.get('/config')).text, /Not configured: set LLM_KEY/); } finally { await off.app.close(); }
+});

@@ -64,6 +64,13 @@ export const es = {
   'Nobody yet. Enjoy it while it lasts.': 'Nadie todavía. De momento, todos comen con tenedor.',
   'Three group games lost without scoring and with at least 10 goals conceded in every one. The pinnacle of bad play.': 'Tres partidos de grupos perdidos sin marcar y con al menos 10 goles encajados en cada uno. La cumbre del mal juego.',
   'Never achieved… yet.': 'Nadie lo ha conseguido… todavía.',
+  'Story generator': 'Generador de relatos',
+  'Model in use: <code>{model}</code> (change it with LLM_MODEL in .env).': 'Modelo en uso: <code>{model}</code> (cámbialo con LLM_MODEL en el .env).',
+  'List the models available to my key': 'Listar los modelos disponibles para mi clave',
+  'Not configured: set LLM_KEY in .env to write the championship stories from the Recap page (see docs/DEPLOY.md).': 'Sin configurar: pon LLM_KEY en el .env para escribir los relatos de los campeonatos desde el Resumen (mira docs/DEPLOY.md).',
+  '← Config': '← Configuración',
+  'Put one of these names in <code>LLM_MODEL</code> in .env and restart. Currently: <code>{model}</code>.': 'Pon uno de estos nombres en <code>LLM_MODEL</code> del .env y reinicia. Ahora: <code>{model}</code>.',
+  'in use': 'en uso',
   // ---- the tale (LLM story) ----
   'Sports bar chronicler': 'Cronista de bar deportivo',
   'a sports chronicler from a bar: loud, exaggerated, full of football clichés': 'un cronista deportivo de barra de bar: escandaloso, exagerado y lleno de tópicos futboleros',
