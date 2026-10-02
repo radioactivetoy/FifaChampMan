@@ -40,8 +40,8 @@ test('createLlm: off without a key; calls an OpenAI-compatible endpoint; errors 
   assert.equal(seen[0][0], 'http://x/v1/chat/completions');
   assert.equal(seen[0][1].headers.authorization, 'Bearer k');
   assert.deepEqual(JSON.parse(seen[0][1].body).messages, [{ role: 'user', content: 'prompt' }]);
-  const refused = createLlm({ LLM_KEY: 'k' }, async () => ({ ok: false, status: 429 }));
-  await assert.rejects(refused.generate('p'), /429/);
+  const refused = createLlm({ LLM_KEY: 'k' }, async () => ({ ok: false, status: 400, text: async () => '{"error":{"message":"API key not valid"}}' }));
+  await assert.rejects(refused.generate('p'), err => err.status === 424 && /400/.test(err.message) && /API key not valid/.test(err.message));
   const down = createLlm({ LLM_KEY: 'k' }, async () => { throw new Error('boom'); });
   await assert.rejects(down.generate('p'), /did not answer/);
   assert.match(createLlm({ LLM_KEY: 'k' }).model, /gemini/);
@@ -97,5 +97,15 @@ test('story by hand: save, edit, delete; empty is refused; generating an unfinis
     assert.match(decodeURIComponent(gen.headers.get('set-cookie') ?? ''), /once the championship is finished/);
     await app.post(`/championships/${id}/story/delete`);
     assert.equal(getStory(app.db, id), null);
+  } finally { await app.close(); }
+});
+
+test('a failing story service shows a message box (not a 5xx page that Cloudflare would replace)', async () => {
+  const failing = createLlm({ LLM_KEY: 'k' }, async () => ({ ok: false, status: 403, text: async () => 'quota' }));
+  const { app, id } = await setup({ llm: failing });
+  try {
+    const r = await fetch(`${app.baseUrl}/championships/${id}/story/generate`, { method: 'POST', body: new URLSearchParams({}), redirect: 'manual', headers: { referer: `${app.baseUrl}/championships/${id}/recap` } });
+    assert.equal(r.status, 303);
+    assert.match(decodeURIComponent(r.headers.get('set-cookie') ?? ''), /refused the request \(403: quota\)/);
   } finally { await app.close(); }
 });
