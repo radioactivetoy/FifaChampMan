@@ -42,10 +42,25 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
     res.redirect(back);
   });
 
+  // Light/dark toggle in the header: the `theme` cookie ('light' | 'dark'; unset = follow the device) becomes data-theme on <html>.
+  app.post('/theme', (req, res) => {
+    if (['light', 'dark'].includes(req.body.theme)) res.cookie('theme', req.body.theme, { maxAge: 365 * 24 * 3600 * 1000, sameSite: 'lax', path: '/' });
+    let back = '/';
+    try { const ref = new URL(req.get('referer') ?? ''); if (ref.host === req.get('host')) back = ref.pathname + ref.search + ref.hash; } catch { /* no referer */ }
+    res.redirect(back);
+  });
+  app.use((req, res, next) => {
+    const theme = /(?:^|;\s*)theme=(light|dark)/.exec(req.headers.cookie ?? '')?.[1];
+    if (!theme) return next();
+    const send = res.send.bind(res);
+    res.send = body => send(typeof body === 'string' && body.startsWith('<!doctype html>') ? body.replace('<html ', `<html data-theme="${theme}" `) : body);
+    next();
+  });
+
   // A form action that went through (a POST answered with a redirect) leaves a one-shot `ok` cookie, which the next page shows as a
   // short "Saved" toast — without it a successful save looks exactly like nothing happening. Failed actions set `res.locals.failed`.
   app.use((req, res, next) => {
-    if (req.method !== 'POST' || /^\/(lang|undo)\b/.test(req.path)) return next();
+    if (req.method !== 'POST' || /^\/(lang|theme|undo)\b/.test(req.path)) return next();
     const redirect = res.redirect.bind(res);
     res.redirect = (...args) => { if (!res.locals.failed) res.cookie('ok', '1', { maxAge: 60 * 1000, sameSite: 'lax', path: '/', httpOnly: true }); return redirect(...args); };
     next();

@@ -11,6 +11,8 @@ export const es = {
   'Stats': 'Estadísticas',
   'Config': 'Configuración',
   'EA FC Champions League': 'Champions League de EA FC',
+  'Light mode': 'Modo claro',
+  'Dark mode': 'Modo oscuro',
   // ---- home, toast ----
   'ChampMan': 'ChampMan',
   'Saved': 'Guardado',
