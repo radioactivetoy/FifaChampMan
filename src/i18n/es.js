@@ -11,6 +11,17 @@ export const es = {
   'Stats': 'Estadísticas',
   'Config': 'Configuración',
   'EA FC Champions League': 'Champions League de EA FC',
+  // ---- home, toast ----
+  'ChampMan': 'ChampMan',
+  'Saved': 'Guardado',
+  'Open championship': 'Abrir campeonato',
+  '{n} player': { one: '{n} jugador', other: '{n} jugadores' },
+  'What each player plays next': 'Qué juega cada jugador a continuación',
+  'No fixtures yet.': 'Aún no hay partidos.',
+  'Nothing left to play right now.': 'No queda nada por jugar ahora mismo.',
+  '+{n} more': '+{n} más',
+  'Last champion: <strong>{team}</strong>{owner}': 'Último campeón: <strong>{team}</strong>{owner}',
+  'All championships': 'Todos los campeonatos',
   // ---- text used by public/filter.js (window.T) ----
   'Copied!': '¡Copiado!',
   'Could not copy — select the text above instead.': 'No se pudo copiar: selecciona el texto de arriba.',

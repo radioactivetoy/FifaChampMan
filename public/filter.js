@@ -224,10 +224,11 @@ function setupBracketAdvance() {
 
 // select[data-autosubmit]: choosing a value submits its form (no separate "Set" button). requestSubmit() fires the form's own
 // submit handlers, so an onsubmit confirm still asks; if it is cancelled the select goes back to the saved value, so the page
-// never shows something that was not stored. The empty placeholder option does nothing.
+// never shows something that was not stored. The empty placeholder option does nothing, unless the select is data-submit-blank
+// (there the empty option means "clear it").
 document.addEventListener('change', event => {
   const select = event.target.closest?.('select[data-autosubmit]');
-  if (!select?.form || select.value === '') return;
+  if (!select?.form || (select.value === '' && !('submitBlank' in select.dataset))) return;
   let cancelled = false;
   select.form.addEventListener('submit', e => { cancelled = e.defaultPrevented; }, { once: true });
   select.form.requestSubmit();
@@ -288,3 +289,12 @@ function setupPhotoUpload() {
     });
   }
 }
+
+// Score entry: tapping a score box selects its content (typing replaces it), and a digit typed in a home score jumps to the away
+// score of the same match (…homeScore… → …awayScore…), so a result is typed without touching the screen between the two numbers.
+document.addEventListener('focusin', event => { if (event.target.matches?.('input.num[name*="Score"]')) event.target.select(); });
+document.addEventListener('input', event => {
+  const input = event.target;
+  if (!input.matches?.('input.num[name*="homeScore"]') || !/^\d$/.test(input.value)) return;
+  document.querySelector(`input[name="${CSS.escape(input.name.replace('homeScore', 'awayScore'))}"]`)?.focus();
+});
