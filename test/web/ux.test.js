@@ -86,3 +86,83 @@ test('theme toggle: POST /theme stores the choice and pages carry it as data-the
     assert.equal(bad.headers.get('set-cookie'), null);
   } finally { await app.close(); }
 });
+
+test('records, head-to-head pages render; recap shows awards', async () => {
+  const { app, id } = await withGroups();
+  try {
+    assert.equal((await app.get('/records')).status, 200);
+    const h = await app.get('/head-to-head');
+    assert.equal(h.status, 200);
+    assert.match(h.text, /<select name="a" data-autosubmit/);
+    const players = (await import('../../src/repo/players.js')).listPlayers(app.db);
+    const v = await app.get(`/head-to-head?a=${players[0].id}&b=${players[1].id}`);
+    assert.match(v.text, /have not played each other yet|<table>/);
+    assert.equal((await app.get(`/head-to-head?a=${players[0].id}&b=${players[0].id}`)).status, 200);
+    assert.equal((await app.get(`/championships/${id}/recap`)).status, 200);
+    assert.match((await app.get('/stats')).text, /href="\/records"/);
+  } finally { await app.close(); }
+});
+
+test('random actions can be undone: group draw, fixtures, field fill', async () => {
+  const { latestUndo } = await import('../../src/repo/undo.js');
+  const { app, id } = await withGroups();
+  try {
+    const snap = () => JSON.stringify([getChampionship(app.db, id).teams.map(t => [t.teamId, t.pot, t.groupLetter]), app.db.prepare('SELECT COUNT(*) AS n FROM matches').get().n]);
+    const undoLast = async () => app.post(`/undo/${latestUndo(app.db).id}`, { back: '/' });
+    await app.post(`/championships/${id}/groups/fixtures/clear`); // the draw is refused while fixtures exist
+    const cleared = snap();
+    await app.post(`/championships/${id}/draw`);
+    assert.match(latestUndo(app.db).label, /group draw/);
+    assert.notEqual(snap(), cleared);
+    await undoLast();
+    assert.equal(snap(), cleared);
+    await app.post(`/championships/${id}/groups/fixtures`);
+    assert.notEqual(snap(), cleared);
+    assert.match(latestUndo(app.db).label, /Generated the group fixtures/);
+    await undoLast();
+    assert.equal(snap(), cleared);
+  } finally { await app.close(); }
+});
+
+test('export download and import form', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const r = await fetch(`${app.baseUrl}/championships/${id}/export`);
+    assert.match(r.headers.get('content-disposition'), /Liga\.json/);
+    const data = await r.text();
+    assert.equal((await app.get('/championships/import')).status, 200);
+    const posted = await app.post('/championships/import', { json: data });
+    assert.match(posted.location, /^\/championships\/\d+$/);
+    assert.notEqual(posted.location, `/championships/${id}`);
+    const bad = await app.post('/championships/import', { json: 'nope' }); // typed-input form: keeps the error page (its Back link restores the text)
+    assert.equal(bad.status, 400);
+    assert.match(bad.text, /not a ChampMan championship file/);
+  } finally { await app.close(); }
+});
+
+test('new championship form shows start levels, select all and the teams per level of each pool', async () => {
+  const { app } = await withGroups();
+  try {
+    const t = (await app.get('/championships/new')).text;
+    assert.match(t, /data-check-all="playerIds"/);
+    assert.match(t, /starts at/);
+    assert.match(t, /Teams available per star level/);
+  } finally { await app.close(); }
+});
+
+test('next-step hint follows the championship through its stages', async () => {
+  const { nextStep } = await import('../../src/domain/progress.js');
+  const base = { status: 'active', format: 'groups', teamCount: 8, groupStageClosed: false, players: [1], teams: [], progress: { groups: { played: 0, total: 0 }, playoff: { played: 0, total: 0 } }, groupMatchCount: 0, playoffMatchCount: 0 };
+  const teams = Array.from({ length: 8 }, (_, i) => ({ teamId: i, groupLetter: 'A' }));
+  assert.equal(nextStep({ ...base, players: [] }).step, 'players');
+  assert.equal(nextStep(base).step, 'field');
+  assert.equal(nextStep({ ...base, teams: teams.map(t => ({ ...t, groupLetter: null })) }).step, 'draw');
+  assert.equal(nextStep({ ...base, teams }).step, 'fixtures');
+  const withFix = { ...base, teams, groupMatchCount: 12, progress: { groups: { played: 3, total: 12 }, playoff: { played: 0, total: 0 } } };
+  assert.deepEqual(nextStep(withFix), { step: 'groups', played: 3, total: 12 });
+  assert.equal(nextStep({ ...withFix, progress: { ...withFix.progress, groups: { played: 12, total: 12 } } }).step, 'close');
+  assert.equal(nextStep({ ...withFix, groupStageClosed: true }).step, 'bracket');
+  assert.equal(nextStep({ ...withFix, status: 'finished' }), null);
+  const { app, id } = await withGroups();
+  try { assert.match((await app.get(`/championships/${id}`)).text, /class="next-step">Next: <a href="\/championships\/\d+\/groups">Play the group stage/); } finally { await app.close(); }
+});

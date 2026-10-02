@@ -243,9 +243,9 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   glossary at the top of `es.js` (PJ/G/E/P/GF/GC/DG, Octavos/Cuartos/Semifinal, Controlador, Bota de Oro…). Numbers keep
   `.` decimals (`2.5★`). Tests run in English by default (`startTestApp({ lang: 'es' })` for Spanish).
 - **Backups**: `server.js` calls `backupOnStart` (`db/backup.js`) *before* opening the database, copying
-  `champman.db` to `backups/<name>-YYYYMMDD-HHMMSS.db` next to it (newest 10 kept, folder git-ignored) — so a copy
+  `champman.db` to `backups/<name>-YYYYMMDD-HHMMSS.db` next to it (newest 14 kept, folder git-ignored) — so a copy
   exists from before any migration runs. Config has a "Download backup" link (`GET /config/backup`, `VACUUM INTO`
-  a temp file, streamed as a download).
+  a temp file, streamed as a download). `snapshotBackup` also copies the open database (`VACUUM INTO`) every `BACKUP_EVERY_HOURS` (default 24, `server.js` timer) and on "Back up now"; Config lists the folder with Download and **Restore**: a restore can't swap the file under the open connection, so `stageRestore` copies the chosen backup to `restore-pending.db` and `applyPendingRestore` (first thing in `server.js`, after keeping a copy of the current data) applies it on the next start. `createApp` takes `dbPath` for this (null in tests = backup list hidden).
 - **Elo** (`domain/elo.js`, `eloRatings`): rates the *people* from every match where two different players each
   controlled a side (own or CPU team). Start 1000, K 24, margin factor `log2(|goal diff|+1)` capped at 2.5, draws
   half a win, one history snapshot per championship (feeds the Stats "Elo ranking" table and `eloChart`, which
@@ -274,7 +274,10 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   `back` must be a same-site path). Covered: delete match, playoff matches removed by clearing teams, clear group
   fixtures, delete championship (with its players/teams/matches), remove a player from a championship, remove a
   field team, delete template, delete team, delete player data. **New destructive routes must record an undo.**
-  Not covered (re-runnable, just random): re-draw offers/controllers, group draw, "Fill field randomly".
+  Random/re-runnable actions are undoable too through `trackUndo(db, label, scopes, fn)` (`repo/undo.js`): it snapshots the rows in the given scopes (`fieldScopes(id)`: a championship's players, field teams, matches and its own row), runs the action and records the diff (`delete` rows that appeared, `replace`/`update` rows that changed) — used for re-draw offers, level/team changes, controller draws, group draw, fixtures, field fills. Use it for any new re-runnable action; plain deletes keep using `rowsOf`/`insertSteps`.
+- **Awards, records, head to head**: the Recap has an "Awards" card row (`championshipAwards` in `domain/fun.js`: best attack/defence among the players' own teams, goal fest, biggest win, upset = win over a team ≥5 OVR higher). `/records` (`routes/records.js`, `domain/records.js` + `funStats`) lists the all-time records with holder/value/where; `/head-to-head?a=&b=` (`routes/versus.js`, `pairHistory` in `domain/stats.js`) shows two players' record (overall / own team / CPU) and every match between them. Linked from the top of Stats and from the profile's head-to-head table.
+- **Export / import a championship** (`repo/transfer.js`): `GET /championships/:id/export` downloads one championship as JSON (players, field, matches, byes, picked teams' data — everything refers to players by name and teams by name+edition, never ids); `/championships/import` (file picked client-side into a textarea via `data-fill-textarea`, or pasted) creates a *new* championship in one transaction, adding missing players/teams (a name clash gets " (imported)"). Linked from the championships list and the overview's settings.
+- **Next-step hint & new-championship form**: `nextStep(c)` (`domain/progress.js`, pure) returns the organiser's next step (players → field → draw → fixtures → groups → close → bracket → playoff, null when finished); `champNav` renders it as the "Next: …" link under the header. `getChampionship` carries `groupMatchCount`/`playoffMatchCount` for it. The new-championship form shows each player's starting level (latest `resultStars`), Select all/None (`data-check-all`) and a table of teams per star level for every pool (all teams + each template, for the default edition) so an empty level is visible before creating.
 - **Copy summary**: the Recap's "The story" has a `button[data-copy]` (`setupCopyButtons` in `filter.js`); it falls
   back to a hidden textarea + `execCommand('copy')` because `navigator.clipboard` needs https and friends use plain
   http over the LAN.

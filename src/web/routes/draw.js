@@ -1,5 +1,5 @@
 import { html, page, select, th, _, confirmSubmit } from '../html.js';
-import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
+import { recordUndo, rowsOf, insertSteps, trackUndo, fieldScopes } from '../../repo/undo.js';
 import { intOrNull } from '../form.js';
 import { champNav, stars, teamName } from '../components.js';
 import { listTeams } from '../../repo/teams.js';
@@ -67,12 +67,14 @@ export function registerDrawRoutes(app, { db, rng }) {
   app.post('/championships/:id/field/fill', (req, res) => {
     const defaultQuotas = fieldQuotasMap(db);
     const quotas = Object.fromEntries(STAR_LEVELS.map(s => [s, intOrNull(req.body[`quota_${s}`]) ?? defaultQuotas[s] ?? 0]));
-    C.fillFieldRandom(db, Number(req.params.id), rng, quotas);
+    const id = Number(req.params.id);
+    trackUndo(db, _('Filled the field randomly'), fieldScopes(id), () => C.fillFieldRandom(db, id, rng, quotas));
     res.redirect(`/championships/${req.params.id}/draw`);
   });
 
   app.post('/championships/:id/field/all', (req, res) => {
-    C.fillFieldWholePool(db, Number(req.params.id));
+    const id = Number(req.params.id);
+    trackUndo(db, _('Filled the field with the whole pool'), fieldScopes(id), () => C.fillFieldWholePool(db, id));
     res.redirect(`/championships/${req.params.id}/draw`);
   });
 
@@ -100,7 +102,8 @@ export function registerDrawRoutes(app, { db, rng }) {
   });
 
   app.post('/championships/:id/draw', (req, res) => {
-    C.runDraw(db, Number(req.params.id), rng);
+    const id = Number(req.params.id);
+    trackUndo(db, _('Ran the group draw'), fieldScopes(id), () => C.runDraw(db, id, rng));
     res.redirect(`/championships/${req.params.id}/draw`);
   });
 }

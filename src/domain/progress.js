@@ -26,3 +26,25 @@ export function championshipProgress(teams, bracket = 16) {
   const alive = teams.filter(t => !isOut(t)).sort((a, b) => rank(b.reached) - rank(a.reached));
   return { champion, playersOut, allPlayersOut, alive, over: champion != null || allPlayersOut };
 }
+
+/**
+ * What to do next in a championship, as a step key (the page turns it into text and a link) plus counts where useful; null when
+ * nothing is left for the organiser (finished, or all played and only the closing/winner steps remain, which have their own banners).
+ * c: the getChampionship aggregate.
+ */
+export function nextStep(c) {
+  if (c.status === 'finished') return null;
+  if (c.players.length === 0) return { step: 'players' };
+  if (c.teams.length < c.teamCount) return { step: 'field', have: c.teams.length, need: c.teamCount };
+  if (c.format === 'groups') {
+    if (c.teams.some(t => t.groupLetter == null)) return { step: 'draw' };
+    if (c.groupMatchCount === 0) return { step: 'fixtures' };
+    if (!c.groupStageClosed) {
+      const { played, total } = c.progress.groups;
+      return played < total ? { step: 'groups', played, total } : { step: 'close' };
+    }
+  }
+  const { played, total } = c.progress.playoff;
+  if (c.playoffMatchCount === 0) return { step: 'bracket' };
+  return played < total ? { step: 'playoff', played, total } : null;
+}

@@ -54,7 +54,7 @@ export function getChampionship(db, id) {
   const tally = list => ({ played: list.filter(m => m.homeScore != null && m.awayScore != null).length, total: list.length });
   const human = m => ownerByTeam.has(m.homeTeamId) || ownerByTeam.has(m.awayTeamId) || m.homeControllerId != null || m.awayControllerId != null;
   const progress = { groups: tally(matches.filter(m => m.stage === 'group' && human(m))), playoff: tally(matches.filter(m => m.stage !== 'group' && human(m))) };
-  return { ...c, players, teams, progress };
+  return { ...c, players, teams, progress, groupMatchCount: matches.filter(m => m.stage === 'group').length, playoffMatchCount: matches.filter(m => m.stage !== 'group').length };
 }
 
 /** Throws a UserError unless `format`/`teamCount` describe a possible championship. */

@@ -2,7 +2,7 @@ import { html, page, select, th, _, confirmSubmit, raw } from '../html.js';
 import { intOrNull, numOrNull, requiredText, toArray, textOrDefault } from '../form.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
-import { recordUndo, rowsOf, insertSteps } from '../../repo/undo.js';
+import { recordUndo, rowsOf, insertSteps, trackUndo, fieldScopes } from '../../repo/undo.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams, listEditions } from '../../repo/teams.js';
 import { listTemplates } from '../../repo/templates.js';
@@ -11,6 +11,7 @@ import { GROUP_SIZE, MIN_GROUP_TEAMS, MAX_GROUP_TEAMS } from '../../domain/draw.
 import { CUP_MIN_TEAMS, CUP_MAX_TEAMS } from '../../domain/bracket.js';
 import * as C from '../../repo/championships.js';
 import { UserError } from '../../errors.js';
+import { exportChampionship, importChampionship } from '../../repo/transfer.js';
 
 /** Format + number of teams controls (create form and the overview's edit form share them). */
 const groupCounts = Array.from({ length: (MAX_GROUP_TEAMS - MIN_GROUP_TEAMS) / GROUP_SIZE + 1 }, (_, i) => MIN_GROUP_TEAMS + i * GROUP_SIZE);
@@ -30,11 +31,12 @@ const templateSelect = (db, selected) => select({
 });
 
 export function registerChampionshipRoutes(app, { db, rng }) {
+  const playerName = (championshipId, playerId) => C.getChampionship(db, championshipId).players.find(p => p.playerId === playerId)?.playerName ?? _('player');
   app.get('/championships', (req, res) => {
     const list = C.listChampionships(db);
     res.send(page({
       title: _('Championships'),
-      body: html`<p><a href="/championships/new"><button class="primary">${_('New championship')}</button></a></p>
+      body: html`<p class="row"><a href="/championships/new"><button class="primary">${_('New championship')}</button></a> <a href="/championships/import"><button>${_('Import')}</button></a></p>
         ${list.length === 0 ? html`<p class="muted">${th('No championships yet. Add <a href="/players">players</a> and <a href="/teams">teams</a> first.')}</p>` : ''}
         <table><thead><tr><th>${_('Name')}</th><th>${_('Players')}</th><th>${_('Status')}</th><th>${_('Created')}</th></tr></thead><tbody>
         ${list.map(c => html`<tr><td><a href="/championships/${c.id}">${c.name}</a></td><td>${c.playerCount}</td>
@@ -43,9 +45,39 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     }));
   });
 
+  // Whole-championship export (JSON download) and import (paste or pick the file) — the import creates a new championship.
+  app.get('/championships/import', (req, res) => {
+    res.send(page({
+      title: _('Import a championship'),
+      body: html`<p class="muted">${_('Choose a file exported from a championship (Settings → Export), or paste its contents. A new championship is created; missing players and teams are added.')}</p>
+        <form method="post" action="/championships/import">
+          <p><input type="file" accept="application/json,.json" data-fill-textarea="json"></p>
+          <p><textarea name="json" rows="10" class="wide" required placeholder="{ &quot;format&quot;: &quot;champman-championship&quot; … }"></textarea></p>
+          <button class="primary">${_('Import')}</button></form>`,
+    }));
+  });
+  app.post('/championships/import', (req, res) => {
+    let data;
+    try { data = JSON.parse(req.body.json ?? ''); } catch { throw new UserError(_('That is not a ChampMan championship file')); }
+    res.redirect(`/championships/${importChampionship(db, data)}`);
+  });
+  app.get('/championships/:id/export', (req, res) => {
+    const data = exportChampionship(db, Number(req.params.id));
+    res.attachment(`${data.championship.name.replace(/[^\w.-]+/g, '-')}.json`).type('application/json').send(JSON.stringify(data, null, 1));
+  });
+
   app.get('/championships/new', (req, res) => {
     const players = listPlayers(db, { activeOnly: true });
     const editions = listEditions(db);
+    // The level each player starts at: what their latest championship earned (0.5★ for newcomers).
+    const levels = new Map();
+    for (const e of C.allEntries(db)) if (e.resultStars != null) levels.set(e.playerId, e.resultStars);
+    const poolOf = (name, templateId) => {
+      const counts = {};
+      for (const t of listTeams(db, { templateId, edition: DEFAULT_EDITION })) counts[t.stars] = (counts[t.stars] ?? 0) + 1;
+      return { name, counts };
+    };
+    const pools = [poolOf(_('All teams'), null), ...listTemplates(db).map(t => poolOf(t.name, t.id))];
     res.send(page({
       title: _('New championship'),
       body: html`<form method="post" action="/championships">
@@ -56,8 +88,13 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         <p class="row">${sizeControls('groups', 32)}</p>
         <p><label>${_('Team pool')} ${templateSelect(db, null)}</label> <a href="/config" class="muted">${_('manage templates')}</a></p>
         <p>${_('Who plays this time?')}</p>
-        ${players.map(p => html`<p><label><input type="checkbox" name="playerIds" value="${p.id}"> ${p.name}</label></p>`)}
+        <p class="row"><button type="button" data-check-all="playerIds">${_('Select all')}</button><button type="button" data-check-all="playerIds" data-check-none>${_('None')}</button></p>
+        ${players.map(p => html`<p><label><input type="checkbox" name="playerIds" value="${p.id}"> ${p.name}</label> <small class="muted">${_('starts at')} ${stars(levels.get(p.id) ?? 0.5)}</small></p>`)}
         <p class="muted">${_("Teams are drawn automatically from each player's star level (0.5★ for newcomers).")}</p>
+        <h3>${_('Teams available per star level ({edition})', { edition: DEFAULT_EDITION })}</h3>
+        <div class="scroll-x"><table><thead><tr><th>${_('Team pool')}</th>${[...STAR_LEVELS].reverse().map(l => html`<th>${stars(l)}</th>`)}</tr></thead><tbody>
+          ${pools.map(pool => html`<tr><td>${pool.name}</td>${[...STAR_LEVELS].reverse().map(l => html`<td class="${pool.counts[l] ? '' : 'error'}">${pool.counts[l] ?? 0}</td>`)}</tr>`)}
+        </tbody></table></div>
         <button class="primary">${_('Create')}</button></form>`,
     }));
   });
@@ -113,6 +150,8 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
         <form method="post" action="/championships/${c.id}/size" class="row">${sizeControls(c.format, c.teamCount)}<button>${_('Save')}</button>
           <span class="muted">${_('Can only be changed before the draw or any match exists.')}</span></form>
+        <p><a class="button-link" href="/championships/${c.id}/export" download>${_('⬇ Export this championship')}</a>
+          <span class="muted">${_('A JSON file with players, teams, draw, matches and results; import it on this or another installation.')}</span></p>
         </details>
         <details class="help"><summary>${_('Danger zone')}</summary>
         <form method="post" action="/championships/${c.id}/delete" class="card danger-zone"
@@ -190,19 +229,22 @@ export function registerChampionshipRoutes(app, { db, rng }) {
   app.post('/championships/:id/players/:playerId/team', (req, res) => {
     const teamId = intOrNull(req.body.teamId);
     if (teamId == null) throw new UserError(_('Pick a team'));
-    C.setPlayerTeam(db, Number(req.params.id), Number(req.params.playerId), teamId);
+    const [id, playerId] = [Number(req.params.id), Number(req.params.playerId)];
+    trackUndo(db, _('Changed the team of {who}', { who: playerName(id, playerId) }), fieldScopes(id), () => C.setPlayerTeam(db, id, playerId, teamId));
     res.redirect(`/championships/${req.params.id}`);
   });
 
   app.post('/championships/:id/players/:playerId/level', (req, res) => {
     const level = numOrNull(req.body.stars);
     if (level == null) throw new UserError(_('Pick a star level'));
-    C.setPlayerLevel(db, Number(req.params.id), Number(req.params.playerId), level, rng);
+    const [id, playerId] = [Number(req.params.id), Number(req.params.playerId)];
+    trackUndo(db, _('Changed the level of {who}', { who: playerName(id, playerId) }), fieldScopes(id), () => C.setPlayerLevel(db, id, playerId, level, rng));
     res.redirect(`/championships/${req.params.id}`);
   });
 
   app.post('/championships/:id/players/:playerId/reroll', (req, res) => {
-    C.rerollOffer(db, Number(req.params.id), Number(req.params.playerId), rng);
+    const [id, playerId] = [Number(req.params.id), Number(req.params.playerId)];
+    trackUndo(db, _('Re-drew the teams of {who}', { who: playerName(id, playerId) }), fieldScopes(id), () => C.rerollOffer(db, id, playerId, rng));
     res.redirect(`/championships/${req.params.id}`);
   });
 

@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
 import { html, page, th, _ } from './web/html.js';
 import { registerHomeRoutes } from './web/routes/home.js';
+import { registerRecordsRoutes } from './web/routes/records.js';
+import { registerVersusRoutes } from './web/routes/versus.js';
 import { registerPlayerRoutes } from './web/routes/players.js';
 import { registerProfileRoutes } from './web/routes/profile.js';
 import { registerTeamRoutes } from './web/routes/teams.js';
@@ -20,7 +22,7 @@ import { registerUndoRoutes } from './web/routes/undo.js';
 import { latestUndo } from './repo/undo.js';
 import { runWithLang, LANGS } from './i18n/index.js';
 
-export function createApp({ db, rng, defaultLang = 'es' }) {
+export function createApp({ db, rng, defaultLang = 'es', dbPath = null }) {
   const app = express();
   // A full FC club database pasted as CSV is ~150 KB; the default limit is 100 KB.
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
@@ -91,7 +93,7 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
     next();
   });
 
-  const ctx = { db, rng };
+  const ctx = { db, rng, dbPath };
   registerHomeRoutes(app, ctx);
   registerPlayerRoutes(app, ctx);
   registerProfileRoutes(app, ctx);
@@ -105,6 +107,8 @@ export function createApp({ db, rng, defaultLang = 'es' }) {
   registerPlayoffRoutes(app, ctx);
   registerResultRoutes(app, ctx);
   registerStatsRoutes(app, ctx);
+  registerRecordsRoutes(app, ctx);
+  registerVersusRoutes(app, ctx);
   registerRecapRoutes(app, ctx);
   registerUndoRoutes(app, ctx);
 

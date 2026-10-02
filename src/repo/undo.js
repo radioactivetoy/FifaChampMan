@@ -36,6 +36,41 @@ export function recordUndo(db, label, steps) {
 /** The newest undo entry still inside its window, or null. */
 export const latestUndo = db => get(db, `SELECT id, label FROM undo_log WHERE created_at >= datetime('now', '-${WINDOW_MINUTES} minutes') ORDER BY id DESC LIMIT 1`) ?? null;
 
+/**
+ * Runs `fn` and records an undo for whatever it changed in the given scopes, found by comparing the rows before and after:
+ * `{ table, keys, where, params, update }` — rows that appeared are deleted again, rows that changed or vanished are put
+ * back (`update: true` restores columns in place instead of replacing the row, for parents whose children cascade).
+ * Meant for re-runnable random actions (re-draws, fills), which cannot name their rows up front like a delete can.
+ */
+export function trackUndo(db, label, scopes, fn) {
+  const read = () => scopes.map(s => rowsOf(db, s.table, s.where, ...(s.params ?? [])));
+  const before = read();
+  const result = fn();
+  const after = read();
+  const steps = [];
+  scopes.forEach((s, i) => {
+    const keyOf = r => s.keys.map(k => r[k]).join('|');
+    const keyObj = r => Object.fromEntries(s.keys.map(k => [k, r[k]]));
+    const [b, a] = [new Map(before[i].map(r => [keyOf(r), r])), new Map(after[i].map(r => [keyOf(r), r]))];
+    for (const [k, r] of a) if (!b.has(k)) steps.push({ op: 'delete', table: s.table, key: keyObj(r) });
+    for (const [k, r] of b) {
+      if (a.has(k) && JSON.stringify(a.get(k)) === JSON.stringify(r)) continue;
+      if (s.update) steps.push({ op: 'update', table: s.table, key: keyObj(r), row: Object.fromEntries(Object.entries(r).filter(([c]) => !s.keys.includes(c))) });
+      else steps.push({ op: 'replace', table: s.table, row: r });
+    }
+  });
+  recordUndo(db, label, steps);
+  return result;
+}
+
+/** The rows a player/field re-draw can touch in one championship. */
+export const fieldScopes = id => [
+  { table: 'championship_players', keys: ['championship_id', 'player_id'], where: 'championship_id = ?', params: [id] },
+  { table: 'championship_teams', keys: ['championship_id', 'team_id'], where: 'championship_id = ?', params: [id] },
+  { table: 'matches', keys: ['id'], where: 'championship_id = ?', params: [id] },
+  { table: 'championships', keys: ['id'], where: 'id = ?', params: [id], update: true },
+];
+
 export const dismissUndo = (db, id) => { run(db, 'DELETE FROM undo_log WHERE id = ?', id); };
 
 /** Replays an entry and removes it. Throws a UserError (leaving everything unchanged) if it can no longer be applied. */
@@ -45,9 +80,12 @@ export function applyUndo(db, id) {
   try {
     transaction(db, () => {
       for (const step of decode(entry.steps)) {
-        const cols = Object.keys(step.row);
-        if (step.op === 'insert') {
-          run(db, `INSERT OR IGNORE INTO ${step.table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, ...cols.map(c => step.row[c]));
+        const cols = Object.keys(step.row ?? {});
+        if (step.op === 'delete') {
+          const keys = Object.keys(step.key);
+          run(db, `DELETE FROM ${step.table} WHERE ${keys.map(k => `${k} = ?`).join(' AND ')}`, ...keys.map(k => step.key[k]));
+        } else if (step.op === 'insert' || step.op === 'replace') {
+          run(db, `INSERT OR ${step.op === 'insert' ? 'IGNORE' : 'REPLACE'} INTO ${step.table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, ...cols.map(c => step.row[c]));
         } else {
           const keys = Object.keys(step.key);
           run(db, `UPDATE ${step.table} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE ${keys.map(k => `${k} = ?`).join(' AND ')}`,

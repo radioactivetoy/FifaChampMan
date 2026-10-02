@@ -305,3 +305,18 @@ function markTheme() {
   for (const b of document.querySelectorAll('[data-theme-switch] button')) b.classList.toggle('on', (b.value === 'dark') === dark);
 }
 markTheme();
+
+// input[type=file][data-fill-textarea=name]: puts the chosen text file's contents into that textarea (import by file, no upload endpoint).
+document.addEventListener('change', async event => {
+  const input = event.target.closest?.('input[data-fill-textarea]');
+  if (!input?.files?.[0]) return;
+  const area = document.querySelector(`textarea[name="${input.dataset.fillTextarea}"]`);
+  if (area) area.value = await input.files[0].text();
+});
+
+// button[data-check-all=name]: ticks every checkbox of that name (or clears them with data-check-none).
+document.addEventListener('click', event => {
+  const button = event.target.closest?.('button[data-check-all]');
+  if (!button) return;
+  for (const box of document.querySelectorAll(`input[type=checkbox][name="${button.dataset.checkAll}"]`)) box.checked = !('checkNone' in button.dataset);
+});
