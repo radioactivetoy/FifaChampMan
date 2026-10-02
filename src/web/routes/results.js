@@ -31,7 +31,7 @@ export function registerResultRoutes(app, { db }) {
           <td>${o.record.won}-${o.record.drawn}-${o.record.lost} (${o.record.goalsFor}:${o.record.goalsAgainst})</td>
           <td>${REACHED_LABELS[o.reached]}</td><td>${stars(o.computedStars)}</td>
           <td><form method="post" action="${base}/players/${o.playerId}/result" class="inline">
-            ${select({ name: 'override', items: starItems, selected: o.resultStarsOverride, blank: _('auto') })}<button>${_('Save')}</button></form></td>
+            ${select({ name: 'override', items: starItems, selected: o.resultStarsOverride, blank: _('auto'), autosubmit: 'blank' })}<noscript><button>${_('Save')}</button></noscript></form></td>
           <td><strong>${stars(o.resultStars)}</strong> <span class="muted">${nextStep(o)}</span></td>
         </tr>`)}
         </tbody></table>
@@ -39,7 +39,7 @@ export function registerResultRoutes(app, { db }) {
         <table><thead><tr><th>${_('Team')}</th><th>${_('Group')}</th><th>${_('Reached')}</th></tr></thead><tbody>
         ${teams.map(t => html`<tr id="team-${t.teamId}"><td>${teamName(t)}</td><td>${t.groupLetter ?? '—'}</td>
           <td><form method="post" action="${base}/teams/${t.teamId}/reached" class="inline">
-            ${select({ name: 'reached', items: reachedItems, selected: t.reached })}<button>${_('Save')}</button></form></td></tr>`)}
+            ${select({ name: 'reached', items: reachedItems, selected: t.reached, autosubmit: true })}<noscript><button>${_('Save')}</button></noscript></form></td></tr>`)}
         </tbody></table>`,
     }));
   });

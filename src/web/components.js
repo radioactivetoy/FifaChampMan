@@ -39,6 +39,12 @@ export function teamFilterBar(teams) {
   </div>`;
 }
 
+/** Small "played/total" counter on a championship tab (only matches with a player in them count); empty until there are matches. */
+function tabCount(c, path) {
+  const p = c.progress?.[path];
+  return p && p.total > 0 ? html` <span class="tab-count${p.played === p.total ? ' done' : ''}">${p.played}/${p.total}</span>` : '';
+}
+
 export function champNav(c, active) {
   const tabs = [['', _('Players & teams')], ['draw', _('Field & draw')], ['groups', _('Group stage')], ['playoff', _('Playoff')], ['results', _('Results')], ['recap', _('Recap')]]
     .filter(([path]) => !(c.format === 'cup' && path === 'groups')); // a cup has no group stage
@@ -46,7 +52,7 @@ export function champNav(c, active) {
       · <details class="rename-inline"><summary>${_('✏️ Rename')}</summary>
         <form method="post" action="/championships/${c.id}" class="row"><input name="name" value="${c.name}" required><button class="primary">${_('Save')}</button></form></details></p>
     ${finishBanner(c)}${awards(c)}
-    <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}</a>`)}</nav>`;
+    <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}${tabCount(c, path)}</a>`)}</nav>`;
 }
 
 /**
@@ -139,7 +145,7 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
   const cpuOnly = isCpuOnly(c, m);
   const playerItems = c.players.map(p => ({ value: p.playerId, label: p.playerName }));
   const teamItems = c.teams.map(t => ({ value: t.teamId, label: teamLabel(t) }));
-  const num = (name, value) => html`<input form="${formId}" name="${name}_${m.id}" type="number" min="0" class="num" value="${value ?? ''}">`;
+  const num = (name, value) => html`<input form="${formId}" name="${name}_${m.id}" type="number" inputmode="numeric" min="0" class="num" value="${value ?? ''}">`;
   const team = side => {
     const t = byId.get(m[`${side}TeamId`]);
     if (playoff) return html`${t ? badge(t) : ''}${select({ name: `${side}TeamId_${m.id}`, form: formId, items: teamItems, selected: m[`${side}TeamId`] })}`;
@@ -180,7 +186,7 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
  */
 function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
   const base = `/championships/${c.id}/matches/${m.id}`;
-  const num = (name, value) => html`<input form="${formId}" name="${name}_${m.id}" type="number" min="0" class="num" value="${value ?? ''}">`;
+  const num = (name, value) => html`<input form="${formId}" name="${name}_${m.id}" type="number" inputmode="numeric" min="0" class="num" value="${value ?? ''}">`;
   // Who controls each side: the owner of a player's team, or the player drawn for a CPU side when the match was created
   // (the draw/edit controls are in "⋯ more"). A pill in that player's colour right under the side's row; a player's own
   // team additionally gets a filled pill and a tinted, accented row (`.own-side`) so it stands out at a glance.
@@ -289,13 +295,13 @@ export function playoffBracket(c, matches, { formId, teamItems, byes = [] }) {
     const fed = prevStage ? { home: throughAt(prevStage, 2 * slot), away: throughAt(prevStage, 2 * slot + 1) } : {};
     const row = side => html`<div class="bracket-match-row" data-side="${side}">
       ${select({ name: field(`${side}TeamId`), form: formId, items: teamItems, blank: '—', selected: fed[side] })}
-      <input form="${formId}" name="${field(`${side}Score`)}" type="number" min="0" class="num">
+      <input form="${formId}" name="${field(`${side}Score`)}" type="number" inputmode="numeric" min="0" class="num">
     </div>`;
     return html`<div class="bracket-tie bracket-tie-empty${connect ? ` connect-${connect}${paired ? ' paired' : ''}` : ''}" data-stage="${stage}" data-slot="${slot}">
       <div class="bracket-match">${row('home')}${row('away')}
         <div class="row bracket-new-pens" hidden><small class="muted">${_('Pens')}</small>
-          <input form="${formId}" name="${field('homePens')}" type="number" min="0" class="num"> –
-          <input form="${formId}" name="${field('awayPens')}" type="number" min="0" class="num"></div></div>
+          <input form="${formId}" name="${field('homePens')}" type="number" inputmode="numeric" min="0" class="num"> –
+          <input form="${formId}" name="${field('awayPens')}" type="number" inputmode="numeric" min="0" class="num"></div></div>
       ${stage === first ? html`<label class="bracket-bye-toggle"><input type="checkbox" form="${formId}" name="${field('bye')}" value="1"> ${_('Bye: the first team goes straight through')}</label>` : ''}</div>`;
   };
 

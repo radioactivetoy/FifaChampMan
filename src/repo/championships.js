@@ -50,7 +50,11 @@ export function getChampionship(db, id) {
       eliminated: lostAt.has(ct.teamId) && REACHED.indexOf(ct.reached) <= REACHED.indexOf(lostAt.get(ct.teamId)),
     }))
     .sort((a, b) => b.ovr - a.ovr || a.name.localeCompare(b.name));
-  return { ...c, players, teams };
+  // Matches with a human in them (a player owns or controls a side), played = both scores in — feeds the tab counters.
+  const tally = list => ({ played: list.filter(m => m.homeScore != null && m.awayScore != null).length, total: list.length });
+  const human = m => ownerByTeam.has(m.homeTeamId) || ownerByTeam.has(m.awayTeamId) || m.homeControllerId != null || m.awayControllerId != null;
+  const progress = { groups: tally(matches.filter(m => m.stage === 'group' && human(m))), playoff: tally(matches.filter(m => m.stage !== 'group' && human(m))) };
+  return { ...c, players, teams, progress };
 }
 
 /** Throws a UserError unless `format`/`teamCount` describe a possible championship. */

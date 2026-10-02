@@ -55,9 +55,9 @@ export function registerDrawRoutes(app, { db, rng }) {
         ${c.teams.map(t => { const f = `ft${t.teamId}`; return html`<tr>
           <td><form id="${f}" method="post" action="${base}/field/${t.teamId}"></form>${teamName(t)}</td>
           <td>${t.country}</td><td>${t.ovr}</td><td>${stars(t.stars)}</td>
-          <td>${select({ name: 'pot', form: f, items: potItems(), selected: t.pot, blank: '—' })}</td>
-          <td>${select({ name: 'groupLetter', form: f, items: groupItems(c), selected: t.groupLetter, blank: '—' })}</td>
-          <td class="actions"><button form="${f}">${_('Save')}</button>
+          <td>${select({ name: 'pot', form: f, items: potItems(), selected: t.pot, blank: '—', autosubmit: 'blank' })}</td>
+          <td>${select({ name: 'groupLetter', form: f, items: groupItems(c), selected: t.groupLetter, blank: '—', autosubmit: 'blank' })}</td>
+          <td class="actions"><noscript><button form="${f}">${_('Save')}</button></noscript>
             <form method="post" action="${base}/field/${t.teamId}/remove" class="inline"><button class="danger">${_('Remove')}</button></form></td>
         </tr>`; })}
         </tbody></table>`}`,

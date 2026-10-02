@@ -38,7 +38,7 @@ export function html(strings, ...values) {
 
 export function select({ name, items, selected, blank, form, autosubmit = false }) {
   const isSelected = v => selected != null && String(v) === String(selected);
-  return html`<select name="${name}"${form ? raw(` form="${escape(form)}"`) : ''}${autosubmit ? raw(' data-autosubmit autocomplete="off"') : ''}>${blank != null ? html`<option value="">${blank}</option>` : ''}${items.map(i => html`<option value="${i.value}"${isSelected(i.value) ? raw(' selected') : ''}>${i.label}</option>`)}</select>`;
+  return html`<select name="${name}"${form ? raw(` form="${escape(form)}"`) : ''}${autosubmit ? raw(` data-autosubmit${autosubmit === 'blank' ? ' data-submit-blank' : ''} autocomplete="off"`) : ''}>${blank != null ? html`<option value="">${blank}</option>` : ''}${items.map(i => html`<option value="${i.value}"${isSelected(i.value) ? raw(' selected') : ''}>${i.label}</option>`)}</select>`;
 }
 
 /**
