@@ -17,6 +17,7 @@ services:
       DB_PATH: /data/champman.db
       LLM_KEY: ${LLM_KEY:-}           # optional, see .env.example (story generator)
       LLM_MODEL: ${LLM_MODEL:-}
+      LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}
       LLM_URL: ${LLM_URL:-}
     volumes:
       - champman-data:/data          # champman.db + backups/ (or bind-mount a NAS folder, see below)
