@@ -123,3 +123,19 @@ test('random actions can be undone: group draw, fixtures, field fill', async () 
     assert.equal(snap(), cleared);
   } finally { await app.close(); }
 });
+
+test('export download and import form', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const r = await fetch(`${app.baseUrl}/championships/${id}/export`);
+    assert.match(r.headers.get('content-disposition'), /Liga\.json/);
+    const data = await r.text();
+    assert.equal((await app.get('/championships/import')).status, 200);
+    const posted = await app.post('/championships/import', { json: data });
+    assert.match(posted.location, /^\/championships\/\d+$/);
+    assert.notEqual(posted.location, `/championships/${id}`);
+    const bad = await app.post('/championships/import', { json: 'nope' }); // typed-input form: keeps the error page (its Back link restores the text)
+    assert.equal(bad.status, 400);
+    assert.match(bad.text, /not a ChampMan championship file/);
+  } finally { await app.close(); }
+});

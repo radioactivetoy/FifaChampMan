@@ -33,6 +33,15 @@ export const es = {
   'Generated the group fixtures': 'Partidos de grupos generados',
   'Drew the missing controllers': 'Sorteados los controladores que faltan',
   'Re-drew the controller of {home} v {away}': 'Resorteado el controlador de {home} v {away}',
+  // ---- export / import a championship ----
+  'Import a championship': 'Importar un campeonato',
+  'Choose a file exported from a championship (Settings → Export), or paste its contents. A new championship is created; missing players and teams are added.': 'Elige un archivo exportado de un campeonato (Ajustes → Exportar) o pega su contenido. Se crea un campeonato nuevo; los jugadores y equipos que falten se añaden.',
+  'Import': 'Importar',
+  '⬇ Export this championship': '⬇ Exportar este campeonato',
+  'A JSON file with players, teams, draw, matches and results; import it on this or another installation.': 'Un archivo JSON con jugadores, equipos, sorteo, partidos y resultados; impórtalo en esta u otra instalación.',
+  'That is not a ChampMan championship file': 'Eso no es un archivo de campeonato de ChampMan',
+  'The file refers to the team "{name}" but does not include it': 'El archivo menciona al equipo «{name}» pero no lo incluye',
+  'imported': 'importado',
   // ---- awards, records, head to head ----
   'Awards': 'Premios',
   'Best attack': 'Mejor ataque',

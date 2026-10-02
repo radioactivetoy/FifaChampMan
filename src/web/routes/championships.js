@@ -11,6 +11,7 @@ import { GROUP_SIZE, MIN_GROUP_TEAMS, MAX_GROUP_TEAMS } from '../../domain/draw.
 import { CUP_MIN_TEAMS, CUP_MAX_TEAMS } from '../../domain/bracket.js';
 import * as C from '../../repo/championships.js';
 import { UserError } from '../../errors.js';
+import { exportChampionship, importChampionship } from '../../repo/transfer.js';
 
 /** Format + number of teams controls (create form and the overview's edit form share them). */
 const groupCounts = Array.from({ length: (MAX_GROUP_TEAMS - MIN_GROUP_TEAMS) / GROUP_SIZE + 1 }, (_, i) => MIN_GROUP_TEAMS + i * GROUP_SIZE);
@@ -35,13 +36,34 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     const list = C.listChampionships(db);
     res.send(page({
       title: _('Championships'),
-      body: html`<p><a href="/championships/new"><button class="primary">${_('New championship')}</button></a></p>
+      body: html`<p class="row"><a href="/championships/new"><button class="primary">${_('New championship')}</button></a> <a href="/championships/import"><button>${_('Import')}</button></a></p>
         ${list.length === 0 ? html`<p class="muted">${th('No championships yet. Add <a href="/players">players</a> and <a href="/teams">teams</a> first.')}</p>` : ''}
         <table><thead><tr><th>${_('Name')}</th><th>${_('Players')}</th><th>${_('Status')}</th><th>${_('Created')}</th></tr></thead><tbody>
         ${list.map(c => html`<tr><td><a href="/championships/${c.id}">${c.name}</a></td><td>${c.playerCount}</td>
           <td>${c.status === 'finished' ? _('Finished') : _('In progress')}</td><td>${c.createdAt.slice(0, 10)}</td></tr>`)}
         </tbody></table>`,
     }));
+  });
+
+  // Whole-championship export (JSON download) and import (paste or pick the file) — the import creates a new championship.
+  app.get('/championships/import', (req, res) => {
+    res.send(page({
+      title: _('Import a championship'),
+      body: html`<p class="muted">${_('Choose a file exported from a championship (Settings → Export), or paste its contents. A new championship is created; missing players and teams are added.')}</p>
+        <form method="post" action="/championships/import">
+          <p><input type="file" accept="application/json,.json" data-fill-textarea="json"></p>
+          <p><textarea name="json" rows="10" class="wide" required placeholder="{ &quot;format&quot;: &quot;champman-championship&quot; … }"></textarea></p>
+          <button class="primary">${_('Import')}</button></form>`,
+    }));
+  });
+  app.post('/championships/import', (req, res) => {
+    let data;
+    try { data = JSON.parse(req.body.json ?? ''); } catch { throw new UserError(_('That is not a ChampMan championship file')); }
+    res.redirect(`/championships/${importChampionship(db, data)}`);
+  });
+  app.get('/championships/:id/export', (req, res) => {
+    const data = exportChampionship(db, Number(req.params.id));
+    res.attachment(`${data.championship.name.replace(/[^\w.-]+/g, '-')}.json`).type('application/json').send(JSON.stringify(data, null, 1));
   });
 
   app.get('/championships/new', (req, res) => {
@@ -114,6 +136,8 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
         <form method="post" action="/championships/${c.id}/size" class="row">${sizeControls(c.format, c.teamCount)}<button>${_('Save')}</button>
           <span class="muted">${_('Can only be changed before the draw or any match exists.')}</span></form>
+        <p><a class="button-link" href="/championships/${c.id}/export" download>${_('⬇ Export this championship')}</a>
+          <span class="muted">${_('A JSON file with players, teams, draw, matches and results; import it on this or another installation.')}</span></p>
         </details>
         <details class="help"><summary>${_('Danger zone')}</summary>
         <form method="post" action="/championships/${c.id}/delete" class="card danger-zone"
