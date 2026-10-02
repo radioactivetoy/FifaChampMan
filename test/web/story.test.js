@@ -42,7 +42,7 @@ test('createLlm: off without a key; calls an OpenAI-compatible endpoint; errors 
   assert.deepEqual(JSON.parse(seen[0][1].body).messages, [{ role: 'user', content: 'prompt' }]);
   const refused = createLlm({ LLM_KEY: 'k' }, async () => ({ ok: false, status: 400, text: async () => '{"error":{"message":"API key not valid"}}' }));
   await assert.rejects(refused.generate('p'), err => err.status === 424 && /400/.test(err.message) && /API key not valid/.test(err.message));
-  const down = createLlm({ LLM_KEY: 'k' }, async () => { throw new Error('boom'); });
+  const down = createLlm({ LLM_KEY: 'k' }, async () => { throw new Error('boom'); }, async () => {});
   await assert.rejects(down.generate('p'), /did not answer/);
   assert.match(createLlm({ LLM_KEY: 'k' }).model, /gemini/);
 });
@@ -126,4 +126,30 @@ test('listModels asks GET /models; Config shows the generator and lists the mode
   } finally { await app.close(); }
   const off = await setup();
   try { assert.match((await off.app.get('/config')).text, /Not configured: set LLM_KEY/); } finally { await off.app.close(); }
+});
+
+test('busy replies are retried, then the fallback model is tried; real errors are not retried', async () => {
+  const wait = []; const sleep = async ms => { wait.push(ms); };
+  const ok = { ok: true, json: async () => ({ choices: [{ message: { content: 'listo' } }] }) };
+  const busy = { ok: false, status: 503, text: async () => 'high demand' };
+  // two 503s, then success on the main model
+  let n = 0; const models = [];
+  const a = createLlm({ LLM_KEY: 'k' }, async (u, o) => { models.push(JSON.parse(o.body).model); return ++n < 3 ? busy : ok; }, sleep);
+  assert.equal(await a.generate('p'), 'listo');
+  assert.deepEqual(wait, [2000, 5000]);
+  // main model stays busy: after 3 tries the fallback model answers
+  models.length = 0;
+  const b = createLlm({ LLM_KEY: 'k', LLM_MODEL: 'main', LLM_FALLBACK_MODEL: 'backup' }, async (u, o) => { const m = JSON.parse(o.body).model; models.push(m); return m === 'backup' ? ok : busy; }, sleep);
+  assert.equal(await b.generate('p'), 'listo');
+  assert.deepEqual(models, ['main', 'main', 'main', 'backup']);
+  // an invalid key is not retried
+  let calls = 0;
+  const c = createLlm({ LLM_KEY: 'k' }, async () => { calls++; return { ok: false, status: 400, text: async () => 'API key not valid' }; }, sleep);
+  await assert.rejects(c.generate('p'), /API key not valid/);
+  assert.equal(calls, 1);
+  // everything busy and no fallback: gives the last error after 3 tries
+  calls = 0;
+  const d = createLlm({ LLM_KEY: 'k' }, async () => { calls++; return busy; }, sleep);
+  await assert.rejects(d.generate('p'), /503/);
+  assert.equal(calls, 3);
 });
