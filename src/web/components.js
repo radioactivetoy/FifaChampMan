@@ -66,7 +66,7 @@ function nextStepHint(c) {
 export function champNav(c, active) {
   const tabs = [['', _('Players & teams')], ['draw', _('Field & draw')], ['groups', _('Group stage')], ['playoff', _('Playoff')], ['results', _('Results')], ['recap', _('Recap')]]
     .filter(([path]) => !(c.format === 'cup' && path === 'groups')); // a cup has no group stage
-  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')}
+  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')} · ${c.createdAt.slice(0, 10)}${c.finishedAt ? ` → ${c.finishedAt.slice(0, 10)}` : ''}
       · <details class="rename-inline"><summary>${_('✏️ Rename')}</summary>
         <form method="post" action="/championships/${c.id}" class="row"><input name="name" value="${c.name}" required><button class="primary">${_('Save')}</button></form></details></p>
     ${finishBanner(c)}${awards(c)}

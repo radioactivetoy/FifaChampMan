@@ -30,6 +30,9 @@ const templateSelect = (db, selected) => select({
   selected, blank: _('All teams'),
 });
 
+/** Local "yyyy-mm-dd hh:mm", the default suffix of a new championship's name. */
+const nowStamp = (d = new Date()) => { const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
 export function registerChampionshipRoutes(app, { db, rng }) {
   const playerName = (championshipId, playerId) => C.getChampionship(db, championshipId).players.find(p => p.playerId === playerId)?.playerName ?? _('player');
   app.get('/championships', (req, res) => {
@@ -38,9 +41,9 @@ export function registerChampionshipRoutes(app, { db, rng }) {
       title: _('Championships'),
       body: html`<p class="row"><a href="/championships/new"><button class="primary">${_('New championship')}</button></a> <a href="/championships/import"><button>${_('Import')}</button></a></p>
         ${list.length === 0 ? html`<p class="muted">${th('No championships yet. Add <a href="/players">players</a> and <a href="/teams">teams</a> first.')}</p>` : ''}
-        <table><thead><tr><th>${_('Name')}</th><th>${_('Players')}</th><th>${_('Status')}</th><th>${_('Created')}</th></tr></thead><tbody>
+        <table><thead><tr><th>${_('Name')}</th><th>${_('Players')}</th><th>${_('Status')}</th><th>${_('Created')}</th><th>${_('Closed')}</th></tr></thead><tbody>
         ${list.map(c => html`<tr><td><a href="/championships/${c.id}">${c.name}</a></td><td>${c.playerCount}</td>
-          <td>${c.status === 'finished' ? _('Finished') : _('In progress')}</td><td>${c.createdAt.slice(0, 10)}</td></tr>`)}
+          <td>${c.status === 'finished' ? _('Finished') : _('In progress')}</td><td>${c.createdAt.slice(0, 10)}</td><td>${c.finishedAt?.slice(0, 10) ?? '—'}</td></tr>`)}
         </tbody></table>`,
     }));
   });
@@ -81,7 +84,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     res.send(page({
       title: _('New championship'),
       body: html`<form method="post" action="/championships">
-        <p><label>${_('Name')} <input name="name" value="${_('Championship {year}', { year: new Date().getFullYear() })}" required></label></p>
+        <p><label>${_('Name')} <input name="name" value="${_('Championship {date}', { date: nowStamp() })}" required></label></p>
         <p><label>${_('Edition')} <input name="edition" list="editions" value="${DEFAULT_EDITION}"></label>
           <span class="muted">${_("Which FC game's teams this championship draws from.")}</span></p>
         <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
@@ -150,6 +153,10 @@ export function registerChampionshipRoutes(app, { db, rng }) {
         <datalist id="editions">${editions.map(e => html`<option value="${e}">`)}</datalist>
         <form method="post" action="/championships/${c.id}/size" class="row">${sizeControls(c.format, c.teamCount)}<button>${_('Save')}</button>
           <span class="muted">${_('Can only be changed before the draw or any match exists.')}</span></form>
+        <form method="post" action="/championships/${c.id}/dates" class="row">
+          <label>${_('Start date')} <input type="date" name="startedAt" value="${c.createdAt.slice(0, 10)}" required></label>
+          <label>${_('Close date')} <input type="date" name="finishedAt" value="${c.finishedAt?.slice(0, 10) ?? ''}"></label><button>${_('Save')}</button>
+          <span class="muted">${_('The start is the creation date. The close date is set when the championship is marked finished; leave it empty while it is open.')}</span></form>
         <p><a class="button-link" href="/championships/${c.id}/export" download>${_('⬇ Export this championship')}</a>
           <span class="muted">${_('A JSON file with players, teams, draw, matches and results; import it on this or another installation.')}</span></p>
         </details>
@@ -172,6 +179,11 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     let back = `/championships/${id}`;
     try { const ref = new URL(req.get('referer') ?? ''); if (ref.host === req.get('host') && ref.pathname.startsWith(`/championships/${id}`)) back = ref.pathname; } catch { /* no referer */ }
     res.redirect(back);
+  });
+
+  app.post('/championships/:id/dates', (req, res) => {
+    C.setChampionshipDates(db, Number(req.params.id), { startedAt: req.body.startedAt, finishedAt: req.body.finishedAt });
+    res.redirect(`/championships/${req.params.id}`);
   });
 
   app.post('/championships/:id/template', (req, res) => {

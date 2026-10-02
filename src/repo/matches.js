@@ -8,7 +8,7 @@ import { _ } from '../i18n/index.js';
 const COLS = `m.id, m.championship_id AS championshipId, m.stage, m.group_letter AS groupLetter, m.matchday, m.leg, m.slot,
   m.home_team_id AS homeTeamId, m.away_team_id AS awayTeamId, m.home_score AS homeScore, m.away_score AS awayScore,
   m.home_pens AS homePens, m.away_pens AS awayPens, m.home_controller_id AS homeControllerId, m.away_controller_id AS awayControllerId,
-  ht.name AS homeTeamName, at.name AS awayTeamName`;
+  m.played_at AS playedAt, ht.name AS homeTeamName, at.name AS awayTeamName`;
 const FROM = 'FROM matches m JOIN teams ht ON ht.id = m.home_team_id JOIN teams at ON at.id = m.away_team_id';
 const ORDER = `ORDER BY CASE m.stage WHEN 'group' THEN 0 WHEN 'r64' THEN 1 WHEN 'r32' THEN 2 WHEN 'r16' THEN 3 WHEN 'qf' THEN 4 WHEN 'sf' THEN 5 ELSE 6 END,
   m.group_letter, m.matchday, m.leg, m.id`;
@@ -39,19 +39,25 @@ export function getMatch(db, id) {
 
 export function insertMatch(db, championshipId, m) {
   return Number(run(db, `INSERT INTO matches (championship_id, stage, group_letter, matchday, leg, slot, home_team_id, away_team_id,
-      home_score, away_score, home_pens, away_pens, home_controller_id, away_controller_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      home_score, away_score, home_pens, away_pens, home_controller_id, away_controller_id, played_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${m.homeScore != null && m.awayScore != null ? "datetime('now')" : 'NULL'})`,
     championshipId, m.stage, m.groupLetter ?? null, m.matchday ?? null, m.leg ?? null, m.slot ?? null, m.homeTeamId, m.awayTeamId,
     m.homeScore ?? null, m.awayScore ?? null, m.homePens ?? null, m.awayPens ?? null,
     m.homeControllerId ?? null, m.awayControllerId ?? null).lastInsertRowid);
 }
 
 /** fields: any subset of EDITABLE keys; unknown keys are ignored. */
-export function updateMatch(db, id, fields) {
+export function updateMatch(db, id, fields, { touchPlayed = true } = {}) {
   const entries = Object.entries(fields).filter(([k]) => k in EDITABLE);
   if (entries.length === 0) return;
+  const before = touchPlayed && ('homeScore' in fields || 'awayScore' in fields) ? get(db, 'SELECT home_score AS h, away_score AS a, played_at AS p FROM matches WHERE id = ?', id) : null;
   run(db, `UPDATE matches SET ${entries.map(([k]) => `${EDITABLE[k]} = ?`).join(', ')} WHERE id = ?`,
     ...entries.map(([, v]) => v ?? null), id);
+  if (before) { // played_at = when the result was last entered or changed; unchanged scores (a bulk save) keep it
+    const now = get(db, 'SELECT home_score AS h, away_score AS a FROM matches WHERE id = ?', id);
+    if (now.h == null || now.a == null) run(db, 'UPDATE matches SET played_at = NULL WHERE id = ?', id);
+    else if (before.p == null || now.h !== before.h || now.a !== before.a) run(db, "UPDATE matches SET played_at = datetime('now') WHERE id = ?", id);
+  }
 }
 
 /** Applies field updates to several matches in one transaction. updates: [{ id, fields }]. */
@@ -67,7 +73,7 @@ export function swapHomeAway(db, id) {
     homeScore: m.awayScore, awayScore: m.homeScore,
     homePens: m.awayPens, awayPens: m.homePens,
     homeControllerId: m.awayControllerId, awayControllerId: m.homeControllerId,
-  });
+  }, { touchPlayed: false });
 }
 
 export function deleteMatch(db, id) {

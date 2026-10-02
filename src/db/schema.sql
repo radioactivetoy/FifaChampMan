@@ -55,7 +55,8 @@ CREATE TABLE IF NOT EXISTS championships (
   group_stage_closed INTEGER NOT NULL DEFAULT 0,
   format TEXT NOT NULL DEFAULT 'groups',
   team_count INTEGER NOT NULL DEFAULT 32,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')), -- the start date (editable)
+  finished_at TEXT -- the close date: set when it is marked finished (editable), null while open
 );
 
 -- A player taking part in a championship, with the level and team they play with.
@@ -95,7 +96,8 @@ CREATE TABLE IF NOT EXISTS matches (
   home_pens INTEGER,
   away_pens INTEGER,
   home_controller_id INTEGER REFERENCES players(id),
-  away_controller_id INTEGER REFERENCES players(id)
+  away_controller_id INTEGER REFERENCES players(id),
+  played_at TEXT -- when the result was last entered/changed (feeds the session summary)
 );
 
 -- Steps to reverse the last destructive actions (see repo/undo.js); short-lived.
