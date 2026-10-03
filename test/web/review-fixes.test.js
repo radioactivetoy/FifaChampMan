@@ -46,3 +46,22 @@ test('1. two friends saving the same group page keep both results', async () => 
     assert.equal(listMatches(app.db, id).find(m => m.id === m2.id).homeScore, 2);
   } finally { await app.close(); }
 });
+
+test('2/3/8. Qualified uses the first knockout round; one champion only; Results lists only real rounds', async () => {
+  const { app, id } = await groups({ teamCount: 8 }); // 2 groups → 4 qualifiers → semi-finals first
+  try {
+    const page = (await app.get(`/championships/${id}/groups`)).text;
+    assert.match(page, /name="reached" value="sf"/);
+    assert.doesNotMatch(page, /name="reached" value="r16"/);
+    const results = (await app.get(`/championships/${id}/results`)).text;
+    assert.doesNotMatch(results, /<option value="r16"/);
+    assert.match(results, /<option value="sf"/);
+    const [a, b] = getChampionship(app.db, id).teams;
+    assert.equal((await app.post(`/championships/${id}/teams/${a.teamId}/reached`, { reached: 'r32' })).status, 400);
+    await app.post(`/championships/${id}/teams/${a.teamId}/reached`, { reached: 'champion' });
+    await app.post(`/championships/${id}/teams/${b.teamId}/reached`, { reached: 'champion' });
+    const champs = getChampionship(app.db, id).teams.filter(t => t.reached === 'champion');
+    assert.deepEqual(champs.map(t => t.teamId), [b.teamId]);
+    assert.equal(getChampionship(app.db, id).teams.find(t => t.teamId === a.teamId).reached, 'final');
+  } finally { await app.close(); }
+});

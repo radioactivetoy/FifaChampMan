@@ -292,7 +292,7 @@ same way on first open, from a domain default constant: `tiers` from `DEFAULT_TI
   playoff) — "nobody repeats until everyone played". "Draw missing controllers" also re-draws CPU sides controlled by a
   same-group player (fixes older data). CPU-vs-CPU matches are simulated by the console: no
   controllers, results optional, hidden by default. "Draw missing controllers" fills gaps.
-- **Qualification is manual** (`championship_teams.reached`: group → r16 → qf → sf → final → champion).
+- **Qualification is manual** (`championship_teams.reached`: group → r16 → qf → sf → final → champion). The group page's "Qualified" button marks `firstRound(c.bracketSize)` (sf in an 8-team championship, not r16), the Results "Reached" dropdown offers only `group`, the bracket's own stages and `champion`, and `POST …/teams/:teamId/reached` refuses any other value; choosing `champion` goes through `setChampion`, so there is never more than one.
   CPU teams' group points can be typed in (`points_override`, never for player teams). "Close group stage"
   keeps exactly-two marked qualifiers per group or takes the top two by points; the playoff pickers then list
   only qualified teams. Playoff matches are entered by hand.

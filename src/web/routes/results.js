@@ -3,6 +3,7 @@ import { numOrNull } from '../form.js';
 import { champNav, stars, teamName, badge, avatar, maracasIcon } from '../components.js';
 import * as C from '../../repo/championships.js';
 import { REACHED, REACHED_LABELS } from '../../domain/stages.js';
+import { bracketStages } from '../../domain/bracket.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { UserError } from '../../errors.js';
 
@@ -14,7 +15,7 @@ export function registerResultRoutes(app, { db }) {
     const c = C.getChampionship(db, Number(req.params.id));
     const outcomes = C.listOutcomes(db, c.id);
     const base = `/championships/${c.id}`;
-    const reachedItems = REACHED.map(r => ({ value: r, label: REACHED_LABELS[r] }));
+    const reachedItems = ['group', ...bracketStages(c.bracketSize), 'champion'].map(r => ({ value: r, label: REACHED_LABELS[r] })); // only the rounds this bracket has
     const starItems = STAR_LEVELS.map(s => ({ value: s, label: stars(s) }));
     const teams = [...c.teams].sort((a, b) => REACHED.indexOf(b.reached) - REACHED.indexOf(a.reached) || b.ovr - a.ovr);
     res.send(page({

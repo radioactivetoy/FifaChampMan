@@ -8,6 +8,7 @@ import { groupLettersFor } from '../../domain/draw.js';
 import { intOrNull } from '../form.js';
 import { UserError } from '../../errors.js';
 import { REACHED_LABELS } from '../../domain/stages.js';
+import { firstRound, bracketStages } from '../../domain/bracket.js';
 
 export function registerGroupRoutes(app, { db, rng }) {
   app.get('/championships/:id/groups', (req, res) => {
@@ -45,7 +46,7 @@ export function registerGroupRoutes(app, { db, rng }) {
           <td>${teamName(t)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td>
           <td>${r.goalsFor}</td><td>${r.goalsAgainst}</td><td>${r.goalDiff}</td>${pointsCell(r)}
           <td><form method="post" action="${base}/teams/${t.teamId}/reached" class="inline">
-            <input type="hidden" name="reached" value="${qualified ? 'group' : 'r16'}"><input type="hidden" name="back" value="groups">
+            <input type="hidden" name="reached" value="${qualified ? 'group' : firstRound(c.bracketSize)}"><input type="hidden" name="back" value="groups">
             <button class="${qualified ? 'primary' : ''}">${qualified ? `✓ ${REACHED_LABELS[t.reached]}` : _('No')}</button></form></td>
         </tr>`; })}
         </tbody></table>
@@ -154,7 +155,13 @@ export function registerGroupRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/teams/:teamId/reached', (req, res) => {
     const championshipId = Number(req.params.id), teamId = Number(req.params.teamId);
-    C.setReached(db, championshipId, teamId, req.body.reached);
+    const reached = req.body.reached;
+    // only the stages this championship's bracket has (an r32 in a 16-team bracket could never count as out)
+    if (!['group', ...bracketStages(C.getChampionship(db, championshipId).bracketSize), 'champion'].includes(reached)) {
+      throw new UserError(_('Unknown stage "{stage}"', { stage: reached }));
+    }
+    if (reached === 'champion') C.setChampion(db, championshipId, teamId); // only one champion: the old one goes back to the final
+    else C.setReached(db, championshipId, teamId, reached);
     if (req.body.back === 'groups') {
       // Return to the same group instead of the top of the page.
       const letter = C.getChampionship(db, championshipId).teams.find(t => t.teamId === teamId)?.groupLetter;
