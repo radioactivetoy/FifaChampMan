@@ -106,3 +106,36 @@ test('9. removing a photo asks first and can be undone', async () => {
     assert.deepEqual(Buffer.from(app.db.prepare('SELECT photo FROM players WHERE id = ?').get(pid).photo), jpeg);
   } finally { await app.close(); }
 });
+
+test('6. a double tap calls the story model once; a failed attempt also starts the cooldown', async () => {
+  const { getStory } = await import('../../src/repo/stories.js');
+  let calls = 0, release;
+  const llm = { model: 'slow', generate: () => { calls++; return new Promise(r => { release = () => r('Hola.'); }); } };
+  const app = await startTestApp({ llm });
+  seedTeams(app.db);
+  const rng = createRng(3);
+  const id = createChampionship(app.db, { name: 'Liga', playerIds: seedPlayers(app.db), rng });
+  updateChampionship(app.db, id, { status: 'finished' });
+  const post = () => fetch(`${app.baseUrl}/championships/${id}/story/generate`, { method: 'POST', body: new URLSearchParams({}), redirect: 'manual', headers: { referer: `${app.baseUrl}/championships/${id}/recap` } });
+  try {
+    const first = post();
+    await new Promise(r => setTimeout(r, 50)); // the first request is now waiting on the model
+    const second = await post();
+    assert.match(decodeURIComponent(second.headers.get('set-cookie') ?? ''), /already being written/);
+    release();
+    await first;
+    assert.equal(calls, 1);
+    assert.equal(getStory(app.db, id).text, 'Hola.');
+  } finally { await app.close(); }
+
+  let failing = 0;
+  const bad = { model: 'x', generate: async () => { failing++; throw Object.assign(new Error('down'), { status: 424 }); } };
+  const app2 = await startTestApp({ llm: bad });
+  seedTeams(app2.db);
+  const id2 = createChampionship(app2.db, { name: 'Liga', playerIds: seedPlayers(app2.db), rng });
+  updateChampionship(app2.db, id2, { status: 'finished' });
+  try {
+    for (let i = 0; i < 2; i++) await fetch(`${app2.baseUrl}/championships/${id2}/story/generate`, { method: 'POST', body: new URLSearchParams({}), redirect: 'manual', headers: { referer: `${app2.baseUrl}/championships/${id2}/recap` } });
+    assert.equal(failing, 1); // the retry right after a failure waits for the cooldown
+  } finally { await app2.close(); }
+});

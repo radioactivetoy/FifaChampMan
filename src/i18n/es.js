@@ -144,6 +144,7 @@ export const es = {
   'The story is too long': 'El relato es demasiado largo',
   'The story can be generated once the championship is finished': 'El relato se puede generar cuando el campeonato esté finalizado',
   'No story generator is configured; copy the prompt instead': 'No hay generador de relatos configurado; copia el prompt en su lugar',
+  'The story is already being written — wait a moment and reload': 'El relato ya se está escribiendo: espera un momento y recarga',
   'Wait a moment before generating it again': 'Espera un momento antes de volver a generarlo',
   'Wrote the story of {name}': 'Relato escrito de {name}',
   'Saved the story of {name}': 'Relato guardado de {name}',

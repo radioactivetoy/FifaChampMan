@@ -55,6 +55,8 @@ function promptFor(c, players, matches, story, aw, { tone, custom, length }) {
 }
 
 export function registerRecapRoutes(app, { db, llm, rng }) {
+  const inFlight = new Set(); // championships whose story is being written right now (a double tap must not call the model twice)
+  const lastAttempt = new Map(); // championship id -> ms of the last generation attempt (counts even when it failed)
   /** The style options of a request (query on the page, body on generate): the tone as chosen ("random" stays so), custom text, length. */
   const optionsOf = src => ({ tone: toneOf(src.tone), custom: cleanCustomTone(src.custom), length: lengthOf(src.length) });
   /** The same with "Surprise me" turned into one real tone. */
@@ -71,14 +73,19 @@ export function registerRecapRoutes(app, { db, llm, rng }) {
       const id = Number(req.params.id);
       if (!llm) throw new UserError(_('No story generator is configured; copy the prompt instead'));
       const c = finishedChampionship(id);
+      if (inFlight.has(id)) throw new UserError(_('The story is already being written — wait a moment and reload'));
       const age = storyAgeSeconds(db, id);
-      if (age != null && age < COOLDOWN_SECONDS) throw new UserError(_('Wait a moment before generating it again'));
+      const sinceAttempt = (Date.now() - (lastAttempt.get(id) ?? 0)) / 1000;
+      if ((age != null && age < COOLDOWN_SECONDS) || sinceAttempt < COOLDOWN_SECONDS) throw new UserError(_('Wait a moment before generating it again'));
       C.syncReachedFromPlayoff(db, id);
       const { championship, players } = C.championshipRecap(db, id);
       const matches = listMatches(db, id);
       const style = withRolledTone(optionsOf(req.body));
       const prompt = promptFor(c, players, matches, championshipStory({ championship, players, matches }), championshipAwards({ championship, matches }), style);
-      const text = await llm.generate(prompt);
+      inFlight.add(id);
+      lastAttempt.set(id, Date.now());
+      let text;
+      try { text = await llm.generate(prompt); } finally { inFlight.delete(id); }
       trackUndo(db, _('Wrote the story of {name}', { name: c.name }), storyScope(id), () => saveStory(db, id, { text, tone: style.tone === CUSTOM_TONE ? `${CUSTOM_TONE}: ${style.custom}` : style.tone, source: 'llm', model: llm.usedModel ?? llm.model }));
       res.redirect(`/championships/${id}/recap#story`);
     } catch (err) { next(err); }
