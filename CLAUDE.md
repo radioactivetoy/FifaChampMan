@@ -61,7 +61,7 @@ dependency is express. Server-rendered HTML forms: POST → redirect → GET. Th
   per-row 🎲/⇄/✕ actions stay individual forms, since they act on the match's current DB state, not on
   typed-but-unsaved values. Web-layer parsing (`parseMatchFields`, `bulkFieldsFor`) and the reusable
   `saveMatchesFromBody(db, matchIds, body)` live in `web/routes/matches.js`; `repo/matches.js`'s
-  `updateMatches(db, updates)` applies them all in one transaction. The group-stage save route
+  `updateMatches(db, updates)` applies them all in one transaction. **Only what this user changed is written**: each rendered match posts `was_<matchId>` (`wasField` in `components.js`, a JSON snapshot of its editable values) and `bulkFieldsFor` drops every field still equal to it (stage + both teams travel together), CPU points likewise carry `was_points_<teamId>`, and `parseMatchFields` only returns fields that were posted — so two friends saving the same page never blank each other's results, and a match created after the page loaded is never nulled. The group-stage save route
   (`POST /championships/:id/groups/:letter/save`) also folds in the CPU teams' points in the same submit.
 - `public/filter.js` — the only client JS: team list filtering, CPU-match toggle (localStorage), sortable
   tables (`table[data-sortable]`, cells may carry `data-sort`), head-to-head view switch, group-stage

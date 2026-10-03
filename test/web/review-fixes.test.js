@@ -1,0 +1,48 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { startTestApp } from '../helpers.js';
+import { seedTeams, seedPlayers } from '../seed.js';
+import { createChampionship, fillFieldRandom, runDraw, generateGroupFixtures, getChampionship, updateChampionship, setChampion } from '../../src/repo/championships.js';
+import { listMatches, updateMatch } from '../../src/repo/matches.js';
+import { createRng } from '../../src/domain/rng.js';
+
+async function groups({ teamCount = 32 } = {}) {
+  const app = await startTestApp();
+  seedTeams(app.db);
+  const rng = createRng(3);
+  const id = createChampionship(app.db, { name: 'Liga', playerIds: seedPlayers(app.db), teamCount, rng });
+  fillFieldRandom(app.db, id, rng); runDraw(app.db, id, rng); generateGroupFixtures(app.db, id, rng);
+  return { app, id };
+}
+
+/** What a group page's Save would post for every match of the group, as rendered now (scores empty unless set). */
+function groupForm(db, id, letter, edits = {}) {
+  const body = {};
+  for (const m of listMatches(db, id).filter(x => x.stage === 'group' && x.groupLetter === letter)) {
+    const snap = Object.fromEntries(['homeScore', 'awayScore', 'homeControllerId', 'awayControllerId', 'matchday', 'stage', 'leg', 'homeTeamId', 'awayTeamId', 'homePens', 'awayPens'].map(k => [k, m[k] == null ? '' : String(m[k])]));
+    body[`was_${m.id}`] = JSON.stringify(snap);
+    for (const k of ['homeScore', 'awayScore', 'homeControllerId', 'awayControllerId', 'matchday']) body[`${k}_${m.id}`] = snap[k];
+    Object.assign(body, Object.fromEntries(Object.entries(edits[m.id] ?? {}).map(([k, v]) => [`${k}_${m.id}`, v])));
+  }
+  return body;
+}
+
+test('1. two friends saving the same group page keep both results', async () => {
+  const { app, id } = await groups();
+  try {
+    const [m1, m2] = listMatches(app.db, id).filter(x => x.stage === 'group' && x.groupLetter === 'A');
+    const formA = groupForm(app.db, id, 'A', { [m2.id]: { homeScore: 1, awayScore: 1 } }); // A loaded the page before B saved
+    const formB = groupForm(app.db, id, 'A', { [m1.id]: { homeScore: 3, awayScore: 0 } });
+    await app.post(`/championships/${id}/groups/A/save`, formB);
+    await app.post(`/championships/${id}/groups/A/save`, formA); // A's stale empty boxes for m1 must not blank B's result
+    const after = new Map(listMatches(app.db, id).map(m => [m.id, m]));
+    assert.deepEqual([after.get(m1.id).homeScore, after.get(m1.id).awayScore], [3, 0]);
+    assert.deepEqual([after.get(m2.id).homeScore, after.get(m2.id).awayScore], [1, 1]);
+    // the page really renders the snapshot
+    assert.match((await app.get(`/championships/${id}/groups`)).text, new RegExp(`name="was_${m1.id}"`));
+    // a match with no inputs in the form keeps its result
+    updateMatch(app.db, m2.id, { homeScore: 2, awayScore: 2 });
+    await app.post(`/championships/${id}/groups/A/save`, {});
+    assert.equal(listMatches(app.db, id).find(m => m.id === m2.id).homeScore, 2);
+  } finally { await app.close(); }
+});

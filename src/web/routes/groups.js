@@ -28,7 +28,8 @@ export function registerGroupRoutes(app, { db, rng }) {
       const pointsCell = r => (r.team.owner
         ? html`<td><strong>${r.points}</strong></td>`
         : html`<td><input form="${formId}" name="points_${r.teamId}" type="number" min="0" class="num"
-            value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="${_('Points from the FIFA table (empty = calculated)')}"></td>`);
+            value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="${_('Points from the FIFA table (empty = calculated)')}">
+            <input type="hidden" form="${formId}" name="was_points_${r.teamId}" value="${r.team.pointsOverride ?? ''}"></td>`);
       // Human groups start open so results are one click away; ?open=X (a redirect back to that
       // group) opens it too; the rest stay collapsed to cut down scrolling.
       const open = rows.some(r => r.team.owner) || letter === openLetter;
@@ -106,6 +107,8 @@ export function registerGroupRoutes(app, { db, rng }) {
     if (!groupLettersFor(C.getChampionship(db, id).teamCount).includes(letter)) throw new UserError(_('Unknown group "{letter}"', { letter }));
     for (const t of C.getChampionship(db, id).teams.filter(x => x.groupLetter === letter && !x.owner)) {
       const key = `points_${t.teamId}`;
+      // unchanged since the page was rendered (was_points_…): leave whatever someone else may have saved meanwhile
+      if (`was_${key}` in req.body && req.body[`was_${key}`] === req.body[key]) continue;
       if (key in req.body) C.setGroupPoints(db, id, t.teamId, intOrNull(req.body[key]));
     }
     const matchIds = listMatches(db, id).filter(m => m.stage === 'group' && m.groupLetter === letter).map(m => m.id);
