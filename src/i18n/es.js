@@ -88,6 +88,9 @@ export const es = {
   'Forget the saved models and go back to .env or the defaults?': '¿Olvidar los modelos guardados y volver a los del .env o a los predeterminados?',
   'Back to the default': 'Volver al predeterminado',
   'No backup model': 'Sin modelo de reserva',
+  'There are already {count} teams in the field; remove some first': 'Ya hay {count} equipos en el campeonato; quita algunos primero',
+  'Remove this photo? You can undo it for 30 minutes.': '¿Quitar esta foto? Puedes deshacerlo durante 30 minutos.',
+  'Removed the photo of {name}': 'Foto de {name} quitada',
   // ---- the tale (LLM story) ----
   'Sports bar chronicler': 'Cronista de bar deportivo',
   'a sports chronicler from a bar: loud, exaggerated, full of football clichés': 'un cronista deportivo de barra de bar: escandaloso, exagerado y lleno de tópicos futboleros',

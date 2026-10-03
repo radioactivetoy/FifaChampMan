@@ -226,6 +226,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
       ...insertSteps('championship_teams', rowsOf(db, 'championship_teams', 'championship_id = ?', c.id)),
       ...insertSteps('matches', rowsOf(db, 'matches', 'championship_id = ?', c.id)),
       ...insertSteps('bracket_byes', rowsOf(db, 'bracket_byes', 'championship_id = ?', c.id)),
+      ...insertSteps('championship_stories', rowsOf(db, 'championship_stories', 'championship_id = ?', c.id)),
     ]);
     C.deleteChampionship(db, c.id);
     res.redirect('/championships');

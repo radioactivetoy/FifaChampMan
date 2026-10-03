@@ -65,3 +65,44 @@ test('2/3/8. Qualified uses the first knockout round; one champion only; Results
     assert.equal(getChampionship(app.db, id).teams.find(t => t.teamId === a.teamId).reached, 'final');
   } finally { await app.close(); }
 });
+
+test('4. undoing a deleted championship brings its tale back', async () => {
+  const { saveStory, getStory } = await import('../../src/repo/stories.js');
+  const { latestUndo } = await import('../../src/repo/undo.js');
+  const { app, id } = await groups();
+  try {
+    saveStory(app.db, id, { text: 'Érase una vez.' });
+    await app.post(`/championships/${id}/delete`, { confirmName: 'Liga' });
+    assert.equal(getStory(app.db, id), null);
+    await app.post(`/undo/${latestUndo(app.db).id}`, { back: '/' });
+    assert.equal(getStory(app.db, id).text, 'Érase una vez.');
+  } finally { await app.close(); }
+});
+
+test('7. the size cannot drop below the teams already in the field', async () => {
+  const { setChampionshipSize } = await import('../../src/repo/championships.js');
+  const app = await startTestApp();
+  seedTeams(app.db);
+  const rng = createRng(3);
+  const id = createChampionship(app.db, { name: 'Liga', playerIds: seedPlayers(app.db), rng });
+  fillFieldRandom(app.db, id, rng); // 32 teams, no draw yet
+  try {
+    assert.throws(() => setChampionshipSize(app.db, id, { teamCount: 16 }), /already 32 teams/);
+    assert.equal(getChampionship(app.db, id).teamCount, 32);
+  } finally { await app.close(); }
+});
+
+test('9. removing a photo asks first and can be undone', async () => {
+  const { latestUndo } = await import('../../src/repo/undo.js');
+  const app = await startTestApp();
+  const [pid] = seedPlayers(app.db);
+  const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+  app.db.prepare("UPDATE players SET photo = ?, photo_type = 'image/jpeg' WHERE id = ?").run(jpeg, pid);
+  try {
+    assert.match((await app.get('/players')).text, /photo\/delete" class="inline" onsubmit="return confirm/);
+    await app.post(`/players/${pid}/photo/delete`);
+    assert.equal(app.db.prepare('SELECT photo FROM players WHERE id = ?').get(pid).photo, null);
+    await app.post(`/undo/${latestUndo(app.db).id}`, { back: '/' });
+    assert.deepEqual(Buffer.from(app.db.prepare('SELECT photo FROM players WHERE id = ?').get(pid).photo), jpeg);
+  } finally { await app.close(); }
+});

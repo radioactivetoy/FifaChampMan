@@ -1,7 +1,7 @@
 import { html, page, _, confirmSubmit } from '../html.js';
 import { requiredText } from '../form.js';
 import { avatar } from '../components.js';
-import { recordUndo } from '../../repo/undo.js';
+import { recordUndo, rowsOf, updateSteps } from '../../repo/undo.js';
 import { listPlayers, savePlayer, deletePlayer, setPlayerActive, parsePhotoDataUrl, setPlayerPhoto, clearPlayerPhoto, getPlayerPhoto } from '../../repo/players.js';
 
 export function registerPlayerRoutes(app, { db }) {
@@ -20,7 +20,7 @@ export function registerPlayerRoutes(app, { db }) {
             <form method="post" action="/players/${p.id}/photo" class="inline photo-form">
               <input type="hidden" name="photo"><label class="button-link photo-pick">${p.hasPhoto ? _('📷 Change photo') : _('📷 Add photo')}<input type="file" accept="image/*" data-photo-upload hidden></label>
             </form>
-            ${p.hasPhoto ? html`<form method="post" action="/players/${p.id}/photo/delete" class="inline"><button title="${_('Remove photo')}">${_('✕ photo')}</button></form>` : ''}</td>
+            ${p.hasPhoto ? html`<form method="post" action="/players/${p.id}/photo/delete" class="inline" ${confirmSubmit(_('Remove this photo? You can undo it for 30 minutes.'))}><button title="${_('Remove photo')}">${_('✕ photo')}</button></form>` : ''}</td>
           <td class="actions"><a class="button-link" href="/players/${p.id}">${_('Profile')}</a> <button form="p${p.id}">${_('Save')}</button>
             <form method="post" action="/players/${p.id}/deactivate" class="inline"><button title="${_('Hide from new championships; keeps all their history and stats')}">${_('Deactivate')}</button></form></td>
         </tr>`)}
@@ -50,7 +50,10 @@ export function registerPlayerRoutes(app, { db }) {
   });
 
   app.post('/players/:id/photo/delete', (req, res) => {
-    clearPlayerPhoto(db, Number(req.params.id));
+    const id = Number(req.params.id);
+    const rows = rowsOf(db, 'players', 'id = ? AND photo IS NOT NULL', id);
+    recordUndo(db, _('Removed the photo of {name}', { name: rows[0]?.name ?? '' }), updateSteps('players', ['id'], ['photo', 'photo_type'], rows));
+    clearPlayerPhoto(db, id);
     res.redirect('/players');
   });
 
