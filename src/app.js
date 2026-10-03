@@ -70,9 +70,14 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
   // Organiser vs viewer. With EDITOR_TOKEN set, only browsers that opened /editor?token=<it> once (cookie `editor` = its hash) can
   // change anything; everyone else gets a read-only app (POSTs refused, edit controls hidden, backups not downloadable).
   // Without EDITOR_TOKEN everybody edits, as before.
-  const editorHash = editorToken ? createHash('sha256').update(String(editorToken)).digest('hex') : null;
+  // .env values often carry quotes, spaces or a Windows line ending that nobody types into the link: ignore them
+  const token = String(editorToken ?? '').trim().replace(/^(["'])(.*)\1$/, '$2').trim();
+  const editorHash = token ? createHash('sha256').update(token).digest('hex') : null;
   app.get('/editor', (req, res) => {
-    if (!editorHash || createHash('sha256').update(String(req.query.token ?? '')).digest('hex') !== editorHash) {
+    if (!editorHash) {
+      return res.status(404).send(page({ title: _('Organiser link'), body: html`<p class="error">${_('No organiser token is set on the server (EDITOR_TOKEN), so everybody can already edit. Add it to .env and recreate the container with docker compose up -d.')}</p><p><a href="/">${_('Home')}</a></p>` }));
+    }
+    if (createHash('sha256').update(String(req.query.token ?? '').trim()).digest('hex') !== editorHash) {
       return res.status(403).send(page({ title: _('Organiser link'), body: html`<p class="error">${_('That organiser link is not valid.')}</p><p><a href="/">${_('Home')}</a></p>` }));
     }
     res.cookie('editor', editorHash, { maxAge: 365 * 24 * 3600 * 1000, sameSite: 'lax', path: '/', httpOnly: true });
@@ -145,7 +150,7 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
 
   applyLlmSettings(db, llm); // the model chosen on Config (saved in the database) wins over .env
   try { baselineAchievements(db); } catch (err) { console.error('achievements:', err.message); } // old history: no toast flood
-  const ctx = { db, rng, dbPath, llm, editorToken };
+  const ctx = { db, rng, dbPath, llm, editorToken: token || null };
   registerHomeRoutes(app, ctx);
   registerPlayerRoutes(app, ctx);
   registerProfileRoutes(app, ctx);

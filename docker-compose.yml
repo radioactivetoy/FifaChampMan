@@ -21,11 +21,9 @@ services:
       LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}
       LLM_URL: ${LLM_URL:-}
     volumes:
-      - champman-data:/data          # champman.db + backups/ (or bind-mount a NAS folder, see below)
-      # - /volume1/docker/champman:/data   # <- Synology/QNAP style bind mount instead of the named volume above
-    # Uncomment to ALSO open it on your LAN (bypasses Cloudflare Access — LAN only, don't port-forward it):
-    # ports:
-    #   - "3210:3210"
+      - champman-data:/data          # champman.db + backups/
+    # Don't edit this file for your own setup (a NAS folder instead of the volume, a LAN port…): put that in
+    # docker-compose.override.yml (see docker-compose.override.yml.example) so `git pull` never conflicts.
     read_only: true                  # the app only writes to /data
     tmpfs:
       - /tmp

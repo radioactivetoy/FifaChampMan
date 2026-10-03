@@ -15,6 +15,7 @@ ChampMan has **no login of its own**, so it should never be exposed directly. Th
 ```bash
 git clone <this repo> champman && cd champman
 cp .env.example .env        # paste TUNNEL_TOKEN, set TZ
+cp docker-compose.override.yml.example docker-compose.override.yml   # optional: NAS folder, LAN port (edit it)
 docker compose up -d --build
 docker compose logs -f
 ```
@@ -22,10 +23,22 @@ Open `https://champman.example.com` — Cloudflare Access asks who you are first
 
 ## Data and backups
 - Everything lives in the `champman-data` volume: `champman.db` and `backups/` (the app copies the database there on every start and every `BACKUP_EVERY_HOURS` (default 24), newest 14 kept; Config lists them with download and restore).
-  To keep it in a NAS folder, use the bind-mount line in `docker-compose.yml` instead (the folder must be writable by uid 1000, the `node` user).
+  To keep it in a NAS folder instead, set it in `docker-compose.override.yml` (copy `docker-compose.override.yml.example`; the folder must be writable by uid 1000, the `node` user).
 - *Config → Download backup* still works through the tunnel.
 - **Moving your existing data:** stop the app, then copy your local `champman.db` into the volume, e.g.
   `docker compose cp champman.db champman:/data/champman.db` (start the stack once first so the volume exists; the app makes a backup at each start).
+
+## Your own settings: `.env` and `docker-compose.override.yml`, never `docker-compose.yml`
+Secrets and options go in `.env`; a NAS folder or a LAN port go in `docker-compose.override.yml` (Docker Compose merges it
+automatically; both files are git-ignored). Editing the tracked `docker-compose.yml` makes the next `git pull` fail with
+*"Your local changes to the following files would be overwritten by merge: docker-compose.yml"*.
+
+**Already edited it?** Move your changes once:
+```bash
+cp docker-compose.override.yml.example docker-compose.override.yml   # put your folder / port in it
+git checkout docker-compose.yml                                       # drop the local edits
+```
+(Or, just for one update: `git stash && git pull && git stash pop`.)
 
 ## Updating
 ```bash
@@ -35,7 +48,7 @@ The database migrates itself on start (and a backup is taken first).
 
 ## Notes
 - Team CSV import and template tools: `docker compose exec champman node tools/create-copa-del-rey-template.mjs "FC 27" /data/champman.db`.
-- LAN access without the tunnel is off by default; see the commented `ports:` block (and remember that route skips Cloudflare Access).
+- LAN access without the tunnel is off by default; add the `ports:` block in `docker-compose.override.yml` (and remember that route skips Cloudflare Access).
 - Cloudflare terminates TLS, so the app itself stays plain HTTP inside the compose network.
 
 ## Optional: the championship's funny story (LLM)

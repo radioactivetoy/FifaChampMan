@@ -225,7 +225,16 @@ test('read-only viewers: POSTs refused, edit controls hidden; the organiser link
     assert.equal((await fetch(`${app.baseUrl}/lang`, { method: 'POST', body: new URLSearchParams({ lang: 'es' }), redirect: 'manual' })).status, 302);
   } finally { await app.close(); }
   const open = await startTestApp(); // no token: everybody edits
-  try { assert.doesNotMatch((await open.get('/players')).text, /read-only/); } finally { await open.close(); }
+  try {
+    assert.doesNotMatch((await open.get('/players')).text, /read-only/);
+    // the organiser link on a server without a token says so, instead of a misleading "not valid"
+    const r = await fetch(`${open.baseUrl}/editor?token=anything`);
+    assert.equal(r.status, 404);
+    assert.match(await r.text(), /No organiser token is set/);
+  } finally { await open.close(); }
+  // stray quotes / spaces / a Windows line ending around the token in .env are ignored
+  const crlf = await startTestApp({ editorToken: ' "s3cret"\r' });
+  try { assert.equal((await fetch(`${crlf.baseUrl}/editor?token=s3cret`, { redirect: 'manual' })).status, 302); } finally { await crlf.close(); }
 });
 
 test('achievements: a save that unlocks one shows a toast once; the profile lists them; revenge tag on the rematch', async () => {
