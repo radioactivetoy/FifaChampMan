@@ -92,6 +92,8 @@ export const es = {
   'There are already {count} teams in the field; remove some first': 'Ya hay {count} equipos en el campeonato; quita algunos primero',
   'Remove this photo? You can undo it for 30 minutes.': '¿Quitar esta foto? Puedes deshacerlo durante 30 minutos.',
   'Removed the photo of {name}': 'Foto de {name} quitada',
+  'Finished championship: results can still be corrected here; to redo fixtures or reopen the groups, <a href="{results}">reopen it on Results</a> first.': 'Campeonato finalizado: aquí aún puedes corregir resultados; para rehacer los partidos o reabrir los grupos, <a href="{results}">reábrelo en Resultados</a> primero.',
+  '🏆 Champion: <strong>{team}</strong>{owner}': '🏆 Campeón: <strong>{team}</strong>{owner}',
   // ---- the tale (LLM story) ----
   'Sports bar chronicler': 'Cronista de bar deportivo',
   'a sports chronicler from a bar: loud, exaggerated, full of football clichés': 'un cronista deportivo de barra de bar: escandaloso, exagerado y lleno de tópicos futboleros',
@@ -684,7 +686,6 @@ export const es = {
   'That undo is no longer available': 'Ese deshacer ya no está disponible',
   'Can\'t undo that any more — something it depended on has changed since': 'Ya no se puede deshacer: algo de lo que dependía ha cambiado desde entonces',
   // ---- Rename championship ----
-  '✏️ Rename': '✏️ Renombrar',
   // ---- Star tiers reset ----
   'Set all star tiers back to the EA table?': '¿Volver a dejar todos los niveles de estrellas según la tabla de EA?',
   'Reset to EA table': 'Restablecer a la tabla de EA',

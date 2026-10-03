@@ -73,12 +73,12 @@ export function registerGroupRoutes(app, { db, rng }) {
               <button type="button" data-groups-toggle="collapse">${_('Collapse all')}</button>` : ''}
             ${cpuToggle(matches.filter(m => isCpuOnly(c, m)).length)}
           </div>
-          <div class="toolbar-group">
+          ${c.status === 'finished' ? '' : html`<div class="toolbar-group">
             <form method="post" action="${base}/groups/fixtures"><button class="primary">${_('Generate fixtures')}</button></form>
             <form method="post" action="${base}/groups/fixtures/clear" ${confirmSubmit(_('Delete ALL group matches and their results? You can undo it for 30 minutes.'))}><button class="danger">${_('Clear fixtures')}</button></form>
-          </div>
+          </div>`}
         </div>
-        ${closeControls}
+        ${c.status === 'finished' ? html`<p class="muted">${th('Finished championship: results can still be corrected here; to redo fixtures or reopen the groups, <a href="{results}">reopen it on Results</a> first.', { results: `${base}/results` })}</p>` : closeControls}
         ${fillControllersButton(c, countMissingControllers(db, c.id), 'groups')}
         <details class="help"><summary>${_('How the group stage works')}</summary>
           <p class="muted">${th('Single round: each team plays the other three once. When fixtures are generated, the player controlling each CPU team that faces a human is drawn automatically (nobody repeats inside a group until everyone has had a turn); press <strong>🎲 Draw</strong> on a match to re-draw it. CPU-vs-CPU matches are simulated by the console; entering their result is optional. Fill in as many scores and CPU points as you like within a group, then press <strong>Save results</strong> once for that whole group. Mark who qualified with the "Qualified" buttons.')}</p></details>

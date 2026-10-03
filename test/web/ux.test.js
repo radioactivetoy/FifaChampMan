@@ -184,3 +184,19 @@ test('Stats highlight card lists every player tied for the top', async () => {
     assert.match(text, /Most titles<\/div>\s*<div class="stat-value">\w+ &amp; \w+</);
   } finally { await app.close(); }
 });
+
+test('visual pass: finished championship home summary, no fixture tools, no empty stat cards, players table class', async () => {
+  const { app, id } = await withGroups();
+  try {
+    assert.doesNotMatch((await app.get('/stats')).text, /<div class="stat-value">—<\/div>/);
+    assert.match((await app.get(`/championships/${id}`)).text, /class="players-table"/);
+    assert.match((await app.get(`/championships/${id}/groups`)).text, /groups\/fixtures"/);
+    await app.post(`/championships/${id}/status`, { status: 'finished' });
+    const groupsPage = (await app.get(`/championships/${id}/groups`)).text;
+    assert.doesNotMatch(groupsPage, /action="\/championships\/\d+\/groups\/fixtures"/);
+    assert.match(groupsPage, /Finished championship: results can still be corrected/);
+    const home = (await app.get('/')).text;
+    assert.match(home, /class="home-finished"/);
+    assert.doesNotMatch(home, /What each player plays next/);
+  } finally { await app.close(); }
+});

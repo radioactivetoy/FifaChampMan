@@ -260,13 +260,14 @@ test('a finished championship shows its champion, and says so when a player won 
   try {
     const human = teams.find(t => t.owner), cpu = teams.find(t => !t.owner);
     await app.post(`/championships/${id}/finish`, { winnerTeamId: String(cpu.teamId) });
-    let text = (await app.get(`/championships/${id}/results`)).text;
+    let text = (await app.get(`/championships/${id}`)).text; // full award cards on the overview…
     assert.match(text, /class="award award-champion"/);
+    assert.match((await app.get(`/championships/${id}/results`)).text, /class="award-chip"/); // …a compact chip on the other tabs
     assert.doesNotMatch(text, /won it!/);
 
     await app.post(`/championships/${id}/status`, { status: 'active' });
     await app.post(`/championships/${id}/finish`, { winnerTeamId: String(human.teamId) });
-    text = (await app.get(`/championships/${id}/results`)).text;
+    text = (await app.get(`/championships/${id}`)).text;
     assert.match(text, new RegExp(`<strong>${human.owner.playerName}</strong> won it!`));
   } finally {
     await app.close();
@@ -342,7 +343,8 @@ test('Cuchara de Madera: 0 points and 0 goals in the group stage shows on result
     assert.doesNotMatch((await app.get(`/championships/${id}/results`)).text, /Cuchara de Madera: <strong>/); // not finished yet
 
     await app.post(`/championships/${id}/status`, { status: 'finished' });
-    assert.match((await app.get(`/championships/${id}/results`)).text, new RegExp(`award-spoon[\\s\\S]*?<strong>${spoon.playerName}</strong>`));
+    assert.match((await app.get(`/championships/${id}`)).text, new RegExp(`award-spoon[\\s\\S]*?<strong>${spoon.playerName}</strong>`));
+    assert.match((await app.get(`/championships/${id}/results`)).text, new RegExp(`award-chip spoon[\\s\\S]*?${spoon.playerName}`));
   } finally {
     await app.close();
   }

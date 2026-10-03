@@ -124,7 +124,7 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, '')}
-        <table><thead><tr><th>${_('Player')}</th><th>${_('Level')}</th><th>${_('Team')}</th><th>${_('Choose between')}</th><th></th></tr></thead><tbody>
+        <table class="players-table"><thead><tr><th>${_('Player')}</th><th>${_('Level')}</th><th>${_('Team')}</th><th>${_('Choose between')}</th><th></th></tr></thead><tbody>
         ${c.players.map(p => { const base = `/championships/${c.id}/players/${p.playerId}`; return html`<tr>
           <td>${p.playerName}</td>
           <td><form method="post" action="${base}/level" class="inline"
