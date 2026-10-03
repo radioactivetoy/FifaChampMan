@@ -70,3 +70,12 @@ export function page({ title, body }) {
 <form method="post" action="/theme" class="theme-switch" data-theme-switch>${[['light', '☀', t('Light mode')], ['dark', '☾', t('Dark mode')]].map(([v, icon, title]) => html`<button name="theme" value="${v}" title="${title}" aria-label="${title}">${icon}</button>`)}</form>
 </nav></div></header><main><h1>${title}</h1>${body}</main></body></html>`;
 }
+
+/** A bare full-screen page for the TV (no header or menu), always dark, reloading itself every `refresh` seconds. */
+export function tvPage({ title, body, refresh = 30 }) {
+  const lang = currentLang();
+  return '<!doctype html>' + html`<html lang="${lang === 'es' ? 'es-ES' : 'en'}" data-theme="dark"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="refresh" content="${refresh}">
+<title>${title} · ChampMan TV</title><link rel="stylesheet" href="/style.css?v=${assetVersion('style.css')}"></head>
+<body class="tv">${body}</body></html>`;
+}

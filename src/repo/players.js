@@ -21,13 +21,13 @@ const PHOTO_TYPES = [
 ];
 
 /** Validates an uploaded picture sent as a data URL (the browser resizes it first) → { buffer, type }. */
-export function parsePhotoDataUrl(dataUrl) {
+export function parsePhotoDataUrl(dataUrl, { maxBytes = MAX_PHOTO_BYTES } = {}) {
   const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl ?? ''));
   if (!m) throw new UserError(_('Choose an image file (JPEG, PNG or WebP)'));
   const buffer = Buffer.from(m[2], 'base64');
   const type = PHOTO_TYPES.find(([t, looksLike]) => t === m[1] && looksLike(buffer))?.[0];
   if (!type) throw new UserError(_('That file is not a valid image'));
-  if (buffer.length > MAX_PHOTO_BYTES) throw new UserError(_('The photo is too big (max 400 KB after resizing)'));
+  if (buffer.length > maxBytes) throw new UserError(_('The photo is too big (max {kb} KB after resizing)', { kb: Math.round(maxBytes / 1024) }));
   return { buffer, type };
 }
 

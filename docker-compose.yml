@@ -15,6 +15,7 @@ services:
       TZ: ${TZ:-Europe/Madrid}
       PORT: "3210"
       DB_PATH: /data/champman.db
+      EDITOR_TOKEN: ${EDITOR_TOKEN:-}  # optional: read-only for everyone except organisers (see .env.example)
       LLM_KEY: ${LLM_KEY:-}           # optional, see .env.example (story generator)
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_FALLBACK_MODEL: ${LLM_FALLBACK_MODEL:-}

@@ -276,11 +276,20 @@ function setupPhotoUpload() {
       const form = input.closest('form');
       const image = new Image();
       image.onload = () => {
-        const side = Math.min(image.width, image.height), size = 256;
         const canvas = document.createElement('canvas');
-        canvas.width = canvas.height = size;
-        canvas.getContext('2d').drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, size, size);
-        form.elements.photo.value = canvas.toDataURL('image/jpeg', 0.85);
+        if (input.dataset.photoUpload === 'wide') {
+          // a championship photo: keep its shape, longest side at most 1600 px
+          const scale = Math.min(1, 1600 / Math.max(image.width, image.height));
+          canvas.width = Math.round(image.width * scale); canvas.height = Math.round(image.height * scale);
+          canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+          form.elements.photo.value = canvas.toDataURL('image/jpeg', 0.82);
+        } else {
+          // a player avatar: centred square, 256 px
+          const side = Math.min(image.width, image.height), size = 256;
+          canvas.width = canvas.height = size;
+          canvas.getContext('2d').drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, size, size);
+          form.elements.photo.value = canvas.toDataURL('image/jpeg', 0.85);
+        }
         URL.revokeObjectURL(image.src);
         form.submit();
       };

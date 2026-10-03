@@ -2,7 +2,7 @@ import { html, page, select, th, _, confirmSubmit, raw } from '../html.js';
 import { intOrNull, numOrNull, requiredText, toArray, textOrDefault } from '../form.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 import { champNav, stars, badge } from '../components.js';
-import { recordUndo, rowsOf, insertSteps, trackUndo, fieldScopes } from '../../repo/undo.js';
+import { recordUndo, rowsOf, insertSteps, updateSteps, trackUndo, fieldScopes } from '../../repo/undo.js';
 import { listPlayers } from '../../repo/players.js';
 import { listTeams, listEditions } from '../../repo/teams.js';
 import { listTemplates } from '../../repo/templates.js';
@@ -12,6 +12,7 @@ import { CUP_MIN_TEAMS, CUP_MAX_TEAMS } from '../../domain/bracket.js';
 import * as C from '../../repo/championships.js';
 import { UserError } from '../../errors.js';
 import { exportChampionship, importChampionship } from '../../repo/transfer.js';
+import { parsePhotoDataUrl } from '../../repo/players.js';
 
 /** Format + number of teams controls (create form and the overview's edit form share them). */
 const groupCounts = Array.from({ length: (MAX_GROUP_TEAMS - MIN_GROUP_TEAMS) / GROUP_SIZE + 1 }, (_, i) => MIN_GROUP_TEAMS + i * GROUP_SIZE);
@@ -124,6 +125,13 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, '')}
+        ${c.status === 'finished' || c.hasPhoto ? html`<section id="photo" class="champ-photo-section">
+          ${c.hasPhoto ? html`<figure class="champ-photo"><img src="/championships/${c.id}/photo?v=${Date.now().toString(36)}" alt="${_('Photo of {name}', { name: c.name })}"></figure>` : ''}
+          <div class="row">
+            <form method="post" action="/championships/${c.id}/photo" class="inline photo-form"><input type="hidden" name="photo">
+              <label class="button-link photo-pick">${c.hasPhoto ? _('📷 Change the champion photo') : _('📷 Add the champion photo')}<input type="file" accept="image/*" data-photo-upload="wide" hidden></label></form>
+            ${c.hasPhoto ? html`<form method="post" action="/championships/${c.id}/photo/delete" class="inline" ${confirmSubmit(_('Remove this photo? You can undo it for 30 minutes.'))}><button>${_('✕ photo')}</button></form>` : ''}
+          </div></section>` : ''}
         <table class="players-table"><thead><tr><th>${_('Player')}</th><th>${_('Level')}</th><th>${_('Team')}</th><th>${_('Choose between')}</th><th></th></tr></thead><tbody>
         ${c.players.map(p => { const base = `/championships/${c.id}/players/${p.playerId}`; return html`<tr>
           <td>${p.playerName}</td>
@@ -179,6 +187,25 @@ export function registerChampionshipRoutes(app, { db, rng }) {
     let back = `/championships/${id}`;
     try { const ref = new URL(req.get('referer') ?? ''); if (ref.host === req.get('host') && ref.pathname.startsWith(`/championships/${id}`)) back = ref.pathname; } catch { /* no referer */ }
     res.redirect(back);
+  });
+
+  // The championship photo (the champion with the trophy, the group…): resized in the browser (data-photo-upload="wide"), up to 1.5 MB.
+  app.post('/championships/:id/photo', (req, res) => {
+    const id = Number(req.params.id);
+    C.setChampionshipPhoto(db, id, parsePhotoDataUrl(req.body.photo, { maxBytes: C.CHAMPIONSHIP_PHOTO_MAX_BYTES }));
+    res.redirect(`/championships/${id}#photo`);
+  });
+  app.post('/championships/:id/photo/delete', (req, res) => {
+    const id = Number(req.params.id);
+    const rows = rowsOf(db, 'championships', 'id = ? AND photo IS NOT NULL', id);
+    recordUndo(db, _('Removed the photo of {name}', { name: rows[0]?.name ?? '' }), updateSteps('championships', ['id'], ['photo', 'photo_type'], rows));
+    C.clearChampionshipPhoto(db, id);
+    res.redirect(`/championships/${id}#photo`);
+  });
+  app.get('/championships/:id/photo', (req, res) => {
+    const photo = C.getChampionshipPhoto(db, Number(req.params.id));
+    if (!photo) return res.status(404).send('No photo');
+    res.set('Content-Type', photo.type).set('Cache-Control', 'no-cache').send(photo.buffer);
   });
 
   app.post('/championships/:id/dates', (req, res) => {

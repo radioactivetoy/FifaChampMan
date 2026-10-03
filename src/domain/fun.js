@@ -162,7 +162,18 @@ export function funStats({ players, entries, matches, teams }) {
       .map(e => ({ championshipId: e.championshipId, championship: e.championshipName, stars: e.stars, reached: e.reached })),
   })).filter(j => j.points.length > 0);
 
-  return { goldenBoot, rollerCoaster: coaster, ironWall, luckiest, unluckiest, penaltyKing, penaltyCurse, cinderella, bottler,
+  // Revenge served: most wins in matches where the player had lost the previous meeting with that opponent.
+  const rev = revenges(matches);
+  const served = new Map();
+  for (const m of played) {
+    const who = rev.get(m.id);
+    if (who == null) continue;
+    const won = (m.homeControllerId === who && m.homeScore > m.awayScore) || (m.awayControllerId === who && m.awayScore > m.homeScore);
+    if (won) served.set(who, (served.get(who) ?? 0) + 1);
+  }
+  const revengeServed = pickTied([...served].map(([playerId, n]) => ({ playerId, player: name.get(playerId), n })), (a, b) => a.n > b.n);
+
+  return { revengeServed, goldenBoot, rollerCoaster: coaster, ironWall, luckiest, unluckiest, penaltyKing, penaltyCurse, cinderella, bottler,
     runnerUp, unbeaten, winStreak, losingRun, drawKing, hardestToBeat: hardest, cpuWhisperer, rivalry, nemesis, journeys };
 }
 
@@ -212,7 +223,7 @@ export function trophyCabinet(fun, playerId) {
     ['penaltyCurse', '🥶', N_('Penalty Curse')], ['cinderella', '🧚', N_('Cinderella')], ['bottler', '🍌', N_('Bottler')],
     ['runnerUp', '🥈', N_('Eternal runner-up')], ['unbeaten', '🔥', N_('Longest unbeaten run')], ['winStreak', '🚀', N_('Longest winning run')],
     ['losingRun', '📉', N_('Longest losing run')], ['drawKing', '🤝', N_('Draw king')], ['hardestToBeat', '🛡️', N_('Hardest to beat')],
-    ['cpuWhisperer', '🎮', N_('CPU whisperer')], ['luckiest', '🍀', N_('Luckiest group')], ['unluckiest', '☠️', N_('Group of death')],
+    ['cpuWhisperer', '🎮', N_('CPU whisperer')], ['revengeServed', '🔥', N_('Revenge served')], ['luckiest', '🍀', N_('Luckiest group')], ['unluckiest', '☠️', N_('Group of death')],
   ];
   const out = held.filter(([key]) => (fun[key]?.playerIds ?? [fun[key]?.playerId]).includes(playerId)).map(([, icon, title]) => ({ icon, title: _(title) }));
   if (fun.rivalry && (fun.rivalry.a === playerId || fun.rivalry.b === playerId)) out.push({ icon: '⚔️', title: _('Biggest rivalry') });
@@ -252,4 +263,22 @@ export function championshipAwards({ championship, matches }) {
     biggestWin: biggestWin ? { ...line(biggestWin), margin: Math.abs(biggestWin.homeScore - biggestWin.awayScore) } : null,
     upset: upset ? { ...line(upset.m), winner: upset.winner.name, loser: upset.loser.name, gap: upset.gap } : null,
   };
+}
+
+/**
+ * Revenge matches: for every match between two different players (each controlling a side), the player who LOST their previous
+ * decided meeting (any championship, in chronological order; draws don't change it) is out for revenge.
+ * Returns Map matchId -> playerId of the avenger.
+ */
+export function revenges(matches) {
+  const lastLoser = new Map();
+  const out = new Map();
+  for (const m of [...matches].sort(chrono)) {
+    const [h, a] = [m.homeControllerId, m.awayControllerId];
+    if (h == null || a == null || h === a) continue;
+    const key = h < a ? `${h}-${a}` : `${a}-${h}`;
+    if (lastLoser.has(key)) out.set(m.id, lastLoser.get(key));
+    if (hasResult(m) && m.homeScore !== m.awayScore) lastLoser.set(key, m.homeScore > m.awayScore ? a : h);
+  }
+  return out;
 }

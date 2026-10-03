@@ -200,3 +200,109 @@ test('visual pass: finished championship home summary, no fixture tools, no empt
     assert.doesNotMatch(home, /What each player plays next/);
   } finally { await app.close(); }
 });
+
+test('read-only viewers: POSTs refused, edit controls hidden; the organiser link makes a device an editor', async () => {
+  const app = await startTestApp({ editorToken: 's3cret' });
+  seedTeams(app.db);
+  try {
+    const page = await fetch(`${app.baseUrl}/players`);
+    const text = await page.text();
+    assert.match(text, /<body class="read-only">/);
+    assert.match(text, /class="readonly-bar"/);
+    const post = await fetch(`${app.baseUrl}/players`, { method: 'POST', body: new URLSearchParams({ name: 'Zoe' }), redirect: 'manual', headers: { referer: `${app.baseUrl}/players` } });
+    assert.equal(post.status, 303);
+    assert.match(decodeURIComponent(post.headers.get('set-cookie') ?? ''), /Read-only/);
+    assert.equal((await fetch(`${app.baseUrl}/config/backup`)).status, 403);
+    assert.equal((await fetch(`${app.baseUrl}/editor?token=wrong`)).status, 403);
+    const ok = await fetch(`${app.baseUrl}/editor?token=s3cret`, { redirect: 'manual' });
+    const cookie = /editor=[0-9a-f]+/.exec(ok.headers.get('set-cookie'))[0];
+    const asEditor = await fetch(`${app.baseUrl}/players`, { method: 'POST', body: new URLSearchParams({ name: 'Zoe' }), redirect: 'manual', headers: { cookie } });
+    assert.equal(asEditor.status, 302);
+    const editorPage = await (await fetch(`${app.baseUrl}/config`, { headers: { cookie } })).text();
+    assert.doesNotMatch(editorPage, /class="read-only"/);
+    assert.match(editorPage, /editor\?token=s3cret/);
+    // the language switch still works for viewers
+    assert.equal((await fetch(`${app.baseUrl}/lang`, { method: 'POST', body: new URLSearchParams({ lang: 'es' }), redirect: 'manual' })).status, 302);
+  } finally { await app.close(); }
+  const open = await startTestApp(); // no token: everybody edits
+  try { assert.doesNotMatch((await open.get('/players')).text, /read-only/); } finally { await open.close(); }
+});
+
+test('achievements: a save that unlocks one shows a toast once; the profile lists them; revenge tag on the rematch', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const c = getChampionship(app.db, id);
+    const owner = c.players[0];
+    const m = (await import('../../src/repo/matches.js')).listMatches(app.db, id).find(x => x.homeTeamId === owner.teamId || x.awayTeamId === owner.teamId);
+    const [hs, as] = m.homeTeamId === owner.teamId ? ['6', '0'] : ['0', '6'];
+    // the first POST on a database with history just marks what exists; this one has none yet, so the manita is announced
+    const r = await fetch(`${app.baseUrl}/championships/${id}/groups/${m.groupLetter}/save`, { method: 'POST', body: new URLSearchParams({ [`homeScore_${m.id}`]: hs, [`awayScore_${m.id}`]: as }), redirect: 'manual' });
+    const ach = /ach=([^;]+)/.exec(r.headers.get('set-cookie') ?? '')?.[1];
+    assert.ok(ach, 'achievement cookie set');
+    assert.match(decodeURIComponent(ach), /manita/);
+    const page = await (await fetch(`${app.baseUrl}/championships/${id}`, { headers: { cookie: `ach=${ach}` } })).text();
+    assert.match(page, /class="ach-toast"[\s\S]*Achievement unlocked[\s\S]*Manita/);
+    // next save: nothing new to announce
+    const again = await fetch(`${app.baseUrl}/championships/${id}/groups/${m.groupLetter}/save`, { method: 'POST', body: new URLSearchParams({}), redirect: 'manual' });
+    assert.doesNotMatch(again.headers.get('set-cookie') ?? '', /ach=/);
+    const profile = (await app.get(`/players/${owner.playerId}`)).text;
+    assert.match(profile, /<h2>Achievements/);
+    assert.match(profile, /class="achievement"[^>]*>[\s\S]*?Manita/);
+  } finally { await app.close(); }
+});
+
+test('TV mode: bare self-refreshing page with next matches, latest results and the player groups', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const empty = await startTestApp();
+    try { assert.match((await empty.get('/tv')).text, /No championships yet/); } finally { await empty.close(); }
+    const ms = (await import('../../src/repo/matches.js')).listMatches(app.db, id);
+    (await import('../../src/repo/matches.js')).updateMatch(app.db, ms[0].id, { homeScore: 2, awayScore: 1 });
+    const t = (await app.get('/tv')).text;
+    assert.match(t, /<meta http-equiv="refresh" content="30">/);
+    assert.match(t, /<body class="tv">/);
+    assert.doesNotMatch(t, /<header><div class="bar">/); // no site header
+    assert.match(t, /Up next/);
+    assert.match(t, /tv-now/);
+    assert.match(t, /Latest results[\s\S]*2–1/);
+    assert.match(t, /Groups with players/);
+    assert.match((await app.get(`/tv?id=${id}`)).text, /Liga/);
+    assert.match((await app.get(`/championships/${id}`)).text, new RegExp(`href="/tv\\?id=${id}"`));
+  } finally { await app.close(); }
+});
+
+test('championship photo: upload, shown on overview/recap/hall/TV, removable with undo, size-limited', async () => {
+  const { latestUndo } = await import('../../src/repo/undo.js');
+  const { app, id } = await withGroups();
+  try {
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(600 * 1024, 1)]); // 600 KB: too big for an avatar, fine here
+    (await import('../../src/repo/championships.js')).setChampion(app.db, id, getChampionship(app.db, id).players[0].teamId);
+    await app.post(`/championships/${id}/status`, { status: 'finished' });
+    assert.match((await app.get(`/championships/${id}`)).text, /data-photo-upload="wide"/);
+    const up = await app.post(`/championships/${id}/photo`, { photo: `data:image/jpeg;base64,${jpeg.toString('base64')}` });
+    assert.equal(up.status, 302);
+    const img = await fetch(`${app.baseUrl}/championships/${id}/photo`);
+    assert.equal(img.status, 200);
+    assert.equal(Buffer.from(await img.arrayBuffer()).length, jpeg.length);
+    for (const path of [`/championships/${id}`, `/championships/${id}/recap`, '/hall-of-fame', '/tv']) assert.match((await app.get(path)).text, new RegExp(`/championships/${id}/photo`), path);
+    await app.post(`/championships/${id}/photo/delete`);
+    assert.equal((await fetch(`${app.baseUrl}/championships/${id}/photo`)).status, 404);
+    await app.post(`/undo/${latestUndo(app.db).id}`, { back: '/' });
+    assert.equal((await fetch(`${app.baseUrl}/championships/${id}/photo`)).status, 200);
+    const huge = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(1600 * 1024, 1)]);
+    assert.equal((await app.post(`/championships/${id}/photo`, { photo: `data:image/jpeg;base64,${huge.toString('base64')}` })).status, 400);
+  } finally { await app.close(); }
+});
+
+test('yearly ranking page and season champions in the Hall of Fame', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const year = getChampionship(app.db, id).createdAt.slice(0, 4);
+    const t = (await app.get('/season')).text;
+    assert.match(t, /Yearly ranking/);
+    assert.match(t, new RegExp(`Leading the ${year} season`));
+    assert.match(t, /class="season-part"/);
+    assert.match((await app.get('/stats')).text, /href="\/season"/);
+    assert.match((await app.get('/hall-of-fame')).text, /Season champions/);
+  } finally { await app.close(); }
+});

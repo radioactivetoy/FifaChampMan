@@ -12,13 +12,19 @@ import { listFieldQuotas, updateFieldQuota } from '../../repo/settings.js';
 import { listTemplates } from '../../repo/templates.js';
 import { STAR_LEVELS } from '../../domain/tiers.js';
 
-export function registerConfigRoutes(app, { db, dbPath, llm }) {
+export function registerConfigRoutes(app, { db, dbPath, llm, editorToken }) {
   const backupsOn = dbPath && dbPath !== ':memory:';
   const kb = n => `${Math.max(1, Math.round(n / 1024))} KB`;
   app.get('/config', (req, res) => {
     res.send(page({
       title: _('Config'),
       body: html`
+        <h2>${_('Organiser and viewers')}</h2>
+        ${editorToken ? html`<p class="muted">${_('Viewers (anyone without the organiser link) can look at everything but change nothing. Share the normal address with them; keep this link for the organisers — opening it once on a device makes that device an organiser.')}</p>
+          <p><code>${`${req.get('x-forwarded-proto') ?? req.protocol}://${req.get('host')}/editor?token=${encodeURIComponent(editorToken)}`}</code></p>
+          <form method="post" action="/editor/logout" class="inline"><button>${_('Stop being organiser on this device')}</button></form>`
+    : html`<p class="muted">${_('Everybody who can open the app can change it. Set EDITOR_TOKEN in .env to make it read-only for everyone except the organisers (see docs/DEPLOY.md).')}</p>`}
+
         <h2>${_('Backup')}</h2>
         <p class="muted">${th('A consistent copy of all the data (players, championships, results, teams). The app keeps its own copies in <code>backups/</code>: one every time it starts and one every day while it runs (the newest 14).')}</p>
         ${req.query.restore ? html`<p class="notice">${_('Restore scheduled: restart ChampMan (Docker: docker compose restart champman) and the chosen backup becomes the data. The data being replaced is copied to backups/ first.')}</p>` : ''}

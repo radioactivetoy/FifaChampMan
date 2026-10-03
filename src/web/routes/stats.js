@@ -68,7 +68,7 @@ export function registerStatsRoutes(app, { db }) {
     res.send(page({
       title: _('Stats'),
       body: html`
-        <p class="row"><a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a> <a href="/session">${_('📰 Session summary')}</a> <a href="/records">${_('🏅 Records')}</a> <a href="/head-to-head">${_('⚔ Head to head')}</a></p>
+        <p class="row"><a href="/season">${_('📅 Yearly ranking')}</a> <a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a> <a href="/session">${_('📰 Session summary')}</a> <a href="/records">${_('🏅 Records')}</a> <a href="/head-to-head">${_('⚔ Head to head')}</a></p>
         <form method="get" class="row">
           <label>${_('Edition')} ${select({ name: 'edition', items: editions.map(e => ({ value: e, label: e })), selected: selectedEdition, blank: _('All editions') })}</label>
           <button>${_('Filter')}</button>
@@ -127,6 +127,7 @@ export function registerStatsRoutes(app, { db }) {
           ${fun.unbeaten && funCard('🔥', _('Longest unbeaten run'), fun.unbeaten.player, _('{n} games with their own team', { n: fun.unbeaten.length }))}
           ${fun.winStreak && funCard('🚀', _('Longest winning run'), fun.winStreak.player, _('{n} wins in a row', { n: fun.winStreak.length }))}
           ${fun.losingRun && funCard('📉', _('Longest losing run'), fun.losingRun.player, _('{n} defeats in a row', { n: fun.losingRun.length }))}
+          ${fun.revengeServed && funCard('🔥', _('Revenge served'), fun.revengeServed.player, tn('{n} revenge served', '{n} revenges served', fun.revengeServed.n))}
           ${fun.drawKing && funCard('🤝', _('Draw king'), fun.drawKing.player, _('{draws} draws in {played} games', { draws: fun.drawKing.draws, played: fun.drawKing.played }))}
           ${fun.hardestToBeat && funCard('🛡️', _('Hardest to beat'), fun.hardestToBeat.player, _('lost only {pct} of {played} games', { pct: pctText(fun.hardestToBeat.lostPct), played: fun.hardestToBeat.played }))}
           ${fun.cpuWhisperer && funCard('🎮', _('CPU whisperer'), fun.cpuWhisperer.player, _('{cpu} wins with CPU teams vs {own} with their own', { cpu: pctText(fun.cpuWhisperer.cpuPct), own: pctText(fun.cpuWhisperer.ownPct) }))}
