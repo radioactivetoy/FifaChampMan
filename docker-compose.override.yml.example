@@ -1,0 +1,14 @@
+# Your own NAS settings, kept OUT of git so `git pull` never conflicts with docker-compose.yml.
+#
+#   cp docker-compose.override.yml.example docker-compose.override.yml   # then edit it
+#
+# Docker Compose reads docker-compose.override.yml automatically next to docker-compose.yml. A volume listed here for the
+# same container path (/data) REPLACES the default named volume; ports are added. Delete what you don't need.
+services:
+  champman:
+    volumes:
+      # keep the data in a NAS folder (must be writable by uid 1000, the container's `node` user)
+      - /share/appdata/FifaChampMan/data:/data
+    # also open it on the LAN (skips Cloudflare Access: LAN only, never port-forward it on the router)
+    ports:
+      - "3210:3210"
