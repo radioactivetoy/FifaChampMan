@@ -71,7 +71,7 @@ export function registerProfileRoutes(app, { db }) {
         </div>
 
         <h2>${_('Achievements')} <small class="muted">${unlocked.size}/${Object.keys(ACHIEVEMENTS).length}</small></h2>
-        <div class="achievements">${Object.entries(ACHIEVEMENTS).map(([key, [icon, title, how, joke]]) => {
+        <div class="achievements">${Object.entries(ACHIEVEMENTS).sort(([a], [b]) => Number(unlocked.has(b)) - Number(unlocked.has(a))).map(([key, [icon, title, how, joke]]) => { // unlocked first
           const a = unlocked.get(key);
           return html`<div class="achievement${a ? '' : ' locked'}${joke ? ' joke' : ''}" title="${_(how)}"><span class="ach-icon" aria-hidden="true">${icon}</span>
             <div><strong>${_(title)}</strong><small>${a ? a.championship ?? '' : _(how)}</small></div></div>`;
