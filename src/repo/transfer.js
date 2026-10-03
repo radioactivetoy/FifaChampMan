@@ -1,6 +1,50 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { _ } from '../i18n/index.js';
+import { checkSize } from './championships.js';
+import { knockoutSize, bracketStages, firstRound } from '../domain/bracket.js';
+import { groupLettersFor } from '../domain/draw.js';
+import { REACHED } from '../domain/stages.js';
+import { STAR_LEVELS } from '../domain/tiers.js';
+
+/**
+ * Checks an exported file before anything is written: a bad one (hand-edited, or from a newer version) would otherwise import
+ * "fine" and then break every page of that championship. Throws a UserError naming the first problem.
+ */
+function validateImport(data) {
+  const bad = detail => { throw new UserError(_('That file has invalid data: {detail}', { detail })); };
+  const c = data.championship;
+  if (typeof c.name !== 'string' || !c.name.trim()) bad('championship.name');
+  if (typeof c.edition !== 'string') bad('championship.edition');
+  if (!['active', 'finished'].includes(c.status)) bad(`championship.status "${c.status}"`);
+  if (typeof c.createdAt !== 'string' || Number.isNaN(Date.parse(c.createdAt))) bad('championship.createdAt');
+  try { checkSize(c.format, c.teamCount); } catch (err) { bad(err.message); }
+  const size = knockoutSize({ format: c.format, teamCount: c.teamCount });
+  const stages = [...(c.format === 'groups' ? ['group'] : []), ...bracketStages(size)];
+  const letters = c.format === 'groups' ? groupLettersFor(c.teamCount) : [];
+  const isRef = r => r && typeof r.name === 'string' && typeof r.edition === 'string';
+  const goals = v => v == null || (Number.isInteger(v) && v >= 0);
+  if (data.field.length > c.teamCount) bad(`field: ${data.field.length} > ${c.teamCount}`);
+  for (const p of data.players) {
+    if (typeof p.player !== 'string' || !p.player.trim()) bad('players[].player');
+    if (!STAR_LEVELS.includes(p.stars)) bad(`players[].stars ${p.stars}`);
+    if (p.team != null && !isRef(p.team)) bad('players[].team');
+  }
+  for (const t of data.field) {
+    if (!isRef(t.team)) bad('field[].team');
+    if (!REACHED.includes(t.reached)) bad(`field[].reached "${t.reached}"`);
+    if (t.groupLetter != null && !letters.includes(t.groupLetter)) bad(`field[].groupLetter "${t.groupLetter}"`);
+  }
+  for (const m of data.matches) {
+    if (!stages.includes(m.stage)) bad(`matches[].stage "${m.stage}"`);
+    if (m.stage === 'group' && !letters.includes(m.groupLetter)) bad(`matches[].groupLetter "${m.groupLetter}"`);
+    if (!isRef(m.home) || !isRef(m.away)) bad('matches[].home/away');
+    if (![m.homeScore, m.awayScore, m.homePens, m.awayPens].every(goals)) bad('matches[] score');
+  }
+  for (const b of data.byes ?? []) {
+    if (b.stage !== firstRound(size) || !Number.isInteger(b.slot) || b.slot < 0 || !isRef(b.team)) bad('byes[]');
+  }
+}
 
 // Export / import of one whole championship as JSON (to archive it or move it to another installation). Rows refer to
 // players and teams by *name* (and teams by edition), never by id, so the file means the same on another database.
@@ -42,6 +86,7 @@ export function importChampionship(db, data) {
   if (data?.format !== FORMAT || data.version !== VERSION || !data.championship || !Array.isArray(data.players) || !Array.isArray(data.field) || !Array.isArray(data.matches)) {
     throw new UserError(_('That is not a ChampMan championship file'));
   }
+  validateImport(data);
   return transaction(db, () => {
     const c = data.championship;
     const playerId = name => {

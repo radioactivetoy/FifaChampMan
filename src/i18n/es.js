@@ -41,6 +41,7 @@ export const es = {
   'Import': 'Importar',
   '⬇ Export this championship': '⬇ Exportar este campeonato',
   'A JSON file with players, teams, draw, matches and results; import it on this or another installation.': 'Un archivo JSON con jugadores, equipos, sorteo, partidos y resultados; impórtalo en esta u otra instalación.',
+  'That file has invalid data: {detail}': 'Ese archivo tiene datos no válidos: {detail}',
   'That is not a ChampMan championship file': 'Eso no es un archivo de campeonato de ChampMan',
   'The file refers to the team "{name}" but does not include it': 'El archivo menciona al equipo «{name}» pero no lo incluye',
   'imported': 'importado',
