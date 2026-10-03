@@ -8,6 +8,7 @@ import { groupLettersFor } from '../../domain/draw.js';
 import { intOrNull } from '../form.js';
 import { UserError } from '../../errors.js';
 import { REACHED_LABELS } from '../../domain/stages.js';
+import { firstRound, bracketStages } from '../../domain/bracket.js';
 
 export function registerGroupRoutes(app, { db, rng }) {
   app.get('/championships/:id/groups', (req, res) => {
@@ -28,7 +29,8 @@ export function registerGroupRoutes(app, { db, rng }) {
       const pointsCell = r => (r.team.owner
         ? html`<td><strong>${r.points}</strong></td>`
         : html`<td><input form="${formId}" name="points_${r.teamId}" type="number" min="0" class="num"
-            value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="${_('Points from the FIFA table (empty = calculated)')}"></td>`);
+            value="${r.team.pointsOverride ?? ''}" placeholder="${r.points}" title="${_('Points from the FIFA table (empty = calculated)')}">
+            <input type="hidden" form="${formId}" name="was_points_${r.teamId}" value="${r.team.pointsOverride ?? ''}"></td>`);
       // Human groups start open so results are one click away; ?open=X (a redirect back to that
       // group) opens it too; the rest stay collapsed to cut down scrolling.
       const open = rows.some(r => r.team.owner) || letter === openLetter;
@@ -44,7 +46,7 @@ export function registerGroupRoutes(app, { db, rng }) {
           <td>${teamName(t)}</td><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td>
           <td>${r.goalsFor}</td><td>${r.goalsAgainst}</td><td>${r.goalDiff}</td>${pointsCell(r)}
           <td><form method="post" action="${base}/teams/${t.teamId}/reached" class="inline">
-            <input type="hidden" name="reached" value="${qualified ? 'group' : 'r16'}"><input type="hidden" name="back" value="groups">
+            <input type="hidden" name="reached" value="${qualified ? 'group' : firstRound(c.bracketSize)}"><input type="hidden" name="back" value="groups">
             <button class="${qualified ? 'primary' : ''}">${qualified ? `✓ ${REACHED_LABELS[t.reached]}` : _('No')}</button></form></td>
         </tr>`; })}
         </tbody></table>
@@ -106,6 +108,8 @@ export function registerGroupRoutes(app, { db, rng }) {
     if (!groupLettersFor(C.getChampionship(db, id).teamCount).includes(letter)) throw new UserError(_('Unknown group "{letter}"', { letter }));
     for (const t of C.getChampionship(db, id).teams.filter(x => x.groupLetter === letter && !x.owner)) {
       const key = `points_${t.teamId}`;
+      // unchanged since the page was rendered (was_points_…): leave whatever someone else may have saved meanwhile
+      if (`was_${key}` in req.body && req.body[`was_${key}`] === req.body[key]) continue;
       if (key in req.body) C.setGroupPoints(db, id, t.teamId, intOrNull(req.body[key]));
     }
     const matchIds = listMatches(db, id).filter(m => m.stage === 'group' && m.groupLetter === letter).map(m => m.id);
@@ -151,7 +155,13 @@ export function registerGroupRoutes(app, { db, rng }) {
 
   app.post('/championships/:id/teams/:teamId/reached', (req, res) => {
     const championshipId = Number(req.params.id), teamId = Number(req.params.teamId);
-    C.setReached(db, championshipId, teamId, req.body.reached);
+    const reached = req.body.reached;
+    // only the stages this championship's bracket has (an r32 in a 16-team bracket could never count as out)
+    if (!['group', ...bracketStages(C.getChampionship(db, championshipId).bracketSize), 'champion'].includes(reached)) {
+      throw new UserError(_('Unknown stage "{stage}"', { stage: reached }));
+    }
+    if (reached === 'champion') C.setChampion(db, championshipId, teamId); // only one champion: the old one goes back to the final
+    else C.setReached(db, championshipId, teamId, reached);
     if (req.body.back === 'groups') {
       // Return to the same group instead of the top of the page.
       const letter = C.getChampionship(db, championshipId).teams.find(t => t.teamId === teamId)?.groupLetter;

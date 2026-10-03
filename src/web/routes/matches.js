@@ -16,33 +16,48 @@ function matchInChampionship(db, req) {
   return m;
 }
 
-/** Validates one match's raw form fields (already extracted for that one match). */
+/**
+ * Validates one match's raw form fields (already extracted for that one match). Only the fields present are returned, so a
+ * field nobody submitted is never overwritten (a match created after the page was loaded has no inputs in that form at all).
+ */
 function parseMatchFields(b) {
-  const fields = {
-    homeScore: intOrNull(b.homeScore), awayScore: intOrNull(b.awayScore),
-    homeControllerId: intOrNull(b.homeControllerId), awayControllerId: intOrNull(b.awayControllerId),
-  };
-  if (b.matchday !== undefined) {
+  const fields = {};
+  for (const key of ['homeScore', 'awayScore', 'homeControllerId', 'awayControllerId', 'leg', 'homePens', 'awayPens']) {
+    if (key in b) fields[key] = intOrNull(b[key]);
+  }
+  if ('matchday' in b) {
     const matchday = intOrNull(b.matchday);
     if (matchday == null || matchday < 1) throw new UserError(_('Pick a matchday'));
     fields.matchday = matchday;
   }
-  if (b.stage !== undefined) {
+  if ('stage' in b) {
     if (!PLAYOFF_STAGES.includes(b.stage)) throw new UserError(_('Unknown playoff stage "{stage}"', { stage: b.stage }));
     const homeTeamId = intOrNull(b.homeTeamId), awayTeamId = intOrNull(b.awayTeamId);
     if (homeTeamId == null || awayTeamId == null) throw new UserError(_('Pick both teams'));
     if (homeTeamId === awayTeamId) throw new UserError(_('A team cannot play itself'));
-    Object.assign(fields, { stage: b.stage, leg: intOrNull(b.leg), homeTeamId, awayTeamId, homePens: intOrNull(b.homePens), awayPens: intOrNull(b.awayPens) });
+    Object.assign(fields, { stage: b.stage, homeTeamId, awayTeamId });
   }
   return fields;
 }
 
 // A bulk-save form (matchRow's formId) names every row's inputs "<field>_<matchId>" so many rows
 // can share one form; this pulls one match's slice back out before validating it the same way.
+// Each row also carries "was_<matchId>": the values it was rendered with (see wasField in components.js). A field still equal
+// to that is dropped — this user didn't touch it — so two friends saving different matches of the same page at once never
+// blank each other's results. Stage and both teams travel together (they are validated as a unit).
 const BULK_KEYS = ['homeScore', 'awayScore', 'homeControllerId', 'awayControllerId', 'matchday', 'stage', 'leg', 'homeTeamId', 'awayTeamId', 'homePens', 'awayPens'];
+const TIE_KEYS = ['stage', 'homeTeamId', 'awayTeamId'];
 function bulkFieldsFor(body, id) {
   const b = {};
   for (const key of BULK_KEYS) { const v = body[`${key}_${id}`]; if (v !== undefined) b[key] = v; }
+  let was = null;
+  try { was = body[`was_${id}`] ? JSON.parse(body[`was_${id}`]) : null; } catch { was = null; }
+  if (!was) return b;
+  const same = key => key in b && key in was && String(was[key] ?? '') === String(b[key]);
+  const tieChanged = TIE_KEYS.some(key => key in b && !same(key));
+  for (const key of Object.keys(b)) {
+    if (TIE_KEYS.includes(key) ? !tieChanged : same(key)) delete b[key];
+  }
   return b;
 }
 

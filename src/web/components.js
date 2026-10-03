@@ -192,6 +192,16 @@ export const cpuToggle = count => (count
   : '');
 
 /**
+ * Hidden snapshot of a match's editable values as rendered, posted with the bulk-save form so the server only writes what the
+ * user changed (see bulkFieldsFor in web/routes/matches.js). Values are strings, as a form would post them.
+ */
+export function wasField(formId, m) {
+  const keys = ['homeScore', 'awayScore', 'homeControllerId', 'awayControllerId', 'matchday', 'stage', 'leg', 'homeTeamId', 'awayTeamId', 'homePens', 'awayPens'];
+  const snapshot = Object.fromEntries(keys.map(k => [k, m[k] == null ? '' : String(m[k])]));
+  return html`<input type="hidden" form="${formId}" name="was_${m.id}" value="${JSON.stringify(snapshot)}">`;
+}
+
+/**
  * One editable match as a table row. c: championship from getChampionship; m: match from listMatches.
  * formId: the id of the shared <form> (rendered once around the whole table) that a "Save results"
  * button below submits — every row's inputs post together in one go, so filling in several matches
@@ -219,7 +229,7 @@ export function matchRow(c, m, { playoff = false, formId } = {}) {
   const played = m.homeScore != null && m.awayScore != null;
   const ownHue = side => { const o = byId.get(m[`${side}TeamId`])?.owner; return o ? raw(` style="--ph:${playerHue(o.playerName)}"`) : ''; };
   return html`<tr class="match-row${played ? ' played' : ''}"${cpuOnly ? raw(' data-cpu-only') : ''}>
-    <td>${first}</td>
+    <td>${wasField(formId, m)}${first}</td>
     <td class="right${byId.get(m.homeTeamId)?.owner ? ' own-cell' : ''}"${ownHue('home')}>${team('home')}<br>${controller('home')}</td>
     <td class="score">${num('homeScore', m.homeScore)} – ${num('awayScore', m.awayScore)}
       ${playoff ? html`<br><small class="muted">${_('pens')}</small> ${num('homePens', m.homePens)} – ${num('awayPens', m.awayPens)}` : ''}</td>
@@ -271,7 +281,7 @@ function bracketMatch(c, m, formId, byId, teamItems, playerItems) {
   const controller = side => select({ name: `${side}ControllerId_${m.id}`, form: formId, items: playerItems, selected: m[`${side}ControllerId`], blank: _('— CPU —') });
   const played = m.homeScore != null && m.awayScore != null;
   return html`<div class="bracket-match${played ? ' played' : ''}">
-    <input type="hidden" form="${formId}" name="stage_${m.id}" value="${m.stage}">
+    <input type="hidden" form="${formId}" name="stage_${m.id}" value="${m.stage}">${wasField(formId, m)}
     ${scoreRow('home')}${scoreRow('away')}
     <details class="bracket-match-more">
       <summary>${_('⋯ more')}</summary>

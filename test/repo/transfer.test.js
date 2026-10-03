@@ -46,3 +46,27 @@ test('import rejects things that are not a championship file, and files missing 
   assert.throws(() => importChampionship(target, data), /does not include/);
   assert.equal(all(target, 'SELECT COUNT(*) AS n FROM championships')[0].n, 0); // nothing half-imported
 });
+
+test('import refuses files with an impossible size, stage, reached, group or score (nothing written)', () => {
+  const { db, id } = source();
+  const good = () => JSON.parse(JSON.stringify(exportChampionship(db, id)));
+  const target = openDb(':memory:');
+  const breakIt = [
+    d => { d.championship.teamCount = 13; },
+    d => { d.championship.format = 'league'; },
+    d => { d.championship.status = 'paused'; },
+    d => { d.matches[0].stage = 'r128'; },
+    d => { d.matches[0].groupLetter = 'Z'; },
+    d => { d.matches[0].homeScore = -1; },
+    d => { d.field[0].reached = 'winner'; },
+    d => { d.field[0].groupLetter = 'Q'; },
+    d => { d.players[0].stars = 7; },
+    d => { d.championship.teamCount = 8; }, // 32 teams in the field
+  ];
+  for (const f of breakIt) {
+    const d = good(); f(d);
+    assert.throws(() => importChampionship(target, d), /invalid data/, String(f));
+  }
+  assert.equal(all(target, 'SELECT COUNT(*) AS n FROM championships')[0].n, 0);
+  assert.ok(importChampionship(target, good())); // the untouched file still imports
+});

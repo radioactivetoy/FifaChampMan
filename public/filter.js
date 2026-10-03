@@ -290,13 +290,18 @@ function setupPhotoUpload() {
   }
 }
 
-// Score entry: tapping a score box selects its content (typing replaces it), and a digit typed in a home score jumps to the away
-// score of the same match (…homeScore… → …awayScore…), so a result is typed without touching the screen between the two numbers.
+// Score entry: tapping a score box selects its content (typing replaces it), and a home score jumps to the away score of the same
+// match (…homeScore… → …awayScore…) once it can't grow any more: 0 and 2–9 at once, two digits at once, and a lone 1 after a short
+// pause (it may be the start of 10–19 — a 0–10 home loss is exactly what the Maracas Trophy needs).
 document.addEventListener('focusin', event => { if (event.target.matches?.('input.num[name*="Score"]')) event.target.select(); });
+let scoreJump = null;
 document.addEventListener('input', event => {
   const input = event.target;
-  if (!input.matches?.('input.num[name*="homeScore"]') || !/^\d$/.test(input.value)) return;
-  document.querySelector(`input[name="${CSS.escape(input.name.replace('homeScore', 'awayScore'))}"]`)?.focus();
+  if (!input.matches?.('input.num[name*="homeScore"]')) return;
+  clearTimeout(scoreJump);
+  const away = () => document.querySelector(`input[name="${CSS.escape(input.name.replace('homeScore', 'awayScore'))}"]`)?.focus();
+  if (/^(0|[2-9]|\d\d)$/.test(input.value)) away();
+  else if (input.value === '1') scoreJump = setTimeout(() => { if (document.activeElement === input && input.value === '1') away(); }, 700);
 });
 
 // Light/dark toggle: marks the button of the theme in use (the cookie's data-theme, else the device's setting).

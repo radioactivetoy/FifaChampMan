@@ -123,6 +123,7 @@ export function setChampionshipSize(db, id, { format, teamCount }) {
     || get(db, 'SELECT 1 AS x FROM bracket_byes WHERE championship_id = ?', id);
   if (started) throw new UserError(_('The format and number of teams cannot change once the draw or any match exists'));
   if (c.players.length > newCount) throw new UserError(_('There are more players than teams in the field'));
+  if (c.teams.length > newCount) throw new UserError(_('There are already {count} teams in the field; remove some first', { count: c.teams.length }));
   run(db, 'UPDATE championships SET format = ?, team_count = ?, group_stage_closed = 0 WHERE id = ?', newFormat, newCount, id);
 }
 
