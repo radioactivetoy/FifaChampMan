@@ -9,6 +9,7 @@ import { ACHIEVEMENTS } from './domain/achievements.js';
 import { registerHomeRoutes } from './web/routes/home.js';
 import { registerHallRoutes } from './web/routes/hall.js';
 import { registerTvRoutes } from './web/routes/tv.js';
+import { registerSeasonRoutes } from './web/routes/season.js';
 import { registerSessionRoutes } from './web/routes/session.js';
 import { registerRecordsRoutes } from './web/routes/records.js';
 import { registerVersusRoutes } from './web/routes/versus.js';
@@ -162,6 +163,7 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
   registerSessionRoutes(app, ctx);
   registerHallRoutes(app, ctx);
   registerTvRoutes(app, ctx);
+  registerSeasonRoutes(app, ctx);
   registerVersusRoutes(app, ctx);
   registerRecapRoutes(app, ctx);
   registerUndoRoutes(app, ctx);

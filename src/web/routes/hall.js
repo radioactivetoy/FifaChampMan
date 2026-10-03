@@ -2,11 +2,15 @@ import { html, page, tn, _ } from '../html.js';
 import { avatar, maracasIcon, teamName } from '../components.js';
 import { listPlayers } from '../../repo/players.js';
 import { hallOfFame } from '../../repo/championships.js';
+import { seasonData } from './season.js';
 
 /** Trophy room: a podium per finished championship, titles per player, the Cuchara de Madera "cutlery drawer" and the Maracas Trophy vitrine. */
 export function registerHallRoutes(app, { db }) {
   app.get('/hall-of-fame', (req, res) => {
     const hall = hallOfFame(db);
+    const seasons = seasonData(db);
+    const thisYear = new Date().getFullYear();
+    const seasonChamps = seasons.years.map(y => ({ year: y, leaders: seasons.table(y).filter(r => r.rank === 1) })).filter(s => s.leaders.length);
     const players = new Map(listPlayers(db).map(p => [p.id, p]));
     const dates = c => `${c.createdAt.slice(0, 10)}${c.finishedAt ? ` → ${c.finishedAt.slice(0, 10)}` : ''}`;
     const step = (cls, medal, label, teams) => html`<div class="podium-step ${cls}"><div class="podium-team">${teams.length ? teams.map(t => html`<div>${teamName(t)}</div>`) : html`<span class="muted">—</span>`}</div>
@@ -19,6 +23,8 @@ export function registerHallRoutes(app, { db }) {
     res.send(page({
       title: _('Hall of Fame'),
       body: html`<p><a href="/stats">${_('← All stats')}</a></p>
+        ${seasonChamps.length ? html`<h2>${_('Season champions')}</h2><ul class="season-champs">${seasonChamps.map(s => html`<li><a href="/season?year=${s.year}"><strong>${s.year}</strong></a>
+          ${s.year === thisYear ? html`<small class="muted">${_('(in progress)')}</small>` : ''} — ${s.leaders.map(r => r.player).join(' & ')} <small class="muted">${tn('{n} pt', '{n} pts', s.leaders[0].points)}</small></li>`)}</ul>` : ''}
         ${hall.length === 0 ? html`<p class="muted">${_('No finished championships yet — the first champion will be here.')}</p>` : html`
         ${titleRows.length ? html`<div class="title-strip">${titleRows.map(([id, n]) => html`<span class="badge-pill">${avatar(players.get(id), { size: 22 })} <strong>${players.get(id)?.name}</strong> ${tn('🏆 {n} title', '🏆 {n} titles', n)}</span>`)}</div>` : ''}
         <div class="podiums">${hall.map(h => html`<section class="card podium-card">

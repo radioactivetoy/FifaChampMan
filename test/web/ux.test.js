@@ -293,3 +293,16 @@ test('championship photo: upload, shown on overview/recap/hall/TV, removable wit
     assert.equal((await app.post(`/championships/${id}/photo`, { photo: `data:image/jpeg;base64,${huge.toString('base64')}` })).status, 400);
   } finally { await app.close(); }
 });
+
+test('yearly ranking page and season champions in the Hall of Fame', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const year = getChampionship(app.db, id).createdAt.slice(0, 4);
+    const t = (await app.get('/season')).text;
+    assert.match(t, /Yearly ranking/);
+    assert.match(t, new RegExp(`Leading the ${year} season`));
+    assert.match(t, /class="season-part"/);
+    assert.match((await app.get('/stats')).text, /href="\/season"/);
+    assert.match((await app.get('/hall-of-fame')).text, /Season champions/);
+  } finally { await app.close(); }
+});

@@ -68,7 +68,7 @@ export function registerStatsRoutes(app, { db }) {
     res.send(page({
       title: _('Stats'),
       body: html`
-        <p class="row"><a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a> <a href="/session">${_('📰 Session summary')}</a> <a href="/records">${_('🏅 Records')}</a> <a href="/head-to-head">${_('⚔ Head to head')}</a></p>
+        <p class="row"><a href="/season">${_('📅 Yearly ranking')}</a> <a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a> <a href="/session">${_('📰 Session summary')}</a> <a href="/records">${_('🏅 Records')}</a> <a href="/head-to-head">${_('⚔ Head to head')}</a></p>
         <form method="get" class="row">
           <label>${_('Edition')} ${select({ name: 'edition', items: editions.map(e => ({ value: e, label: e })), selected: selectedEdition, blank: _('All editions') })}</label>
           <button>${_('Filter')}</button>

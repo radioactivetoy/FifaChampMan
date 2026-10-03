@@ -624,3 +624,9 @@ body.tv { font-size: clamp(16px, 1.6vw, 28px); background: radial-gradient(120% 
 .champ-photo-section { margin: 0 0 14px; }
 .hall-photo { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: var(--radius-sm); margin-bottom: 8px; }
 .tv-photo { float: right; max-height: 9em; max-width: 45%; border-radius: 14px; border: 3px solid #f2b705; margin-left: .6em; }
+
+/* ---------- yearly ranking ---------- */
+.season-champion { font-size: 18px; }
+tr.season-top td { background: rgba(242, 183, 5, .12); }
+.season-part { display: inline-block; margin: 2px 4px 2px 0; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); font-size: 12px; white-space: nowrap; }
+.season-champs { list-style: none; padding: 0; display: grid; gap: 4px; }
