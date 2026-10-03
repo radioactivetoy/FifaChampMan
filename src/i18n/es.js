@@ -102,6 +102,13 @@ export const es = {
   'Viewers (anyone without the organiser link) can look at everything but change nothing. Share the normal address with them; keep this link for the organisers — opening it once on a device makes that device an organiser.': 'Los espectadores (quien no tenga el enlace de organizador) pueden verlo todo pero no cambiar nada. Compárteles la dirección normal y guarda este enlace para los organizadores: abrirlo una vez en un dispositivo lo convierte en organizador.',
   'Stop being organiser on this device': 'Dejar de ser organizador en este dispositivo',
   'Everybody who can open the app can change it. Set EDITOR_TOKEN in .env to make it read-only for everyone except the organisers (see docs/DEPLOY.md).': 'Cualquiera que pueda abrir la aplicación puede cambiarla. Pon EDITOR_TOKEN en el .env para que sea de solo lectura para todos salvo los organizadores (mira docs/DEPLOY.md).',
+  'TV mode': 'Modo TV',
+  '📺 TV mode': '📺 Modo TV',
+  'Up next': 'Próximos partidos',
+  'Now': 'Ahora',
+  'Latest results': 'Últimos resultados',
+  'Refreshes every {n} second': { one: 'Se actualiza cada {n} segundo', other: 'Se actualiza cada {n} segundos' },
+  'Back to the app': 'Volver a la aplicación',
   // ---- achievements and revenge ----
   'Achievement unlocked': 'Logro desbloqueado',
   'Achievements': 'Logros',

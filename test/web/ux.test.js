@@ -250,3 +250,23 @@ test('achievements: a save that unlocks one shows a toast once; the profile list
     assert.match(profile, /class="achievement"[^>]*>[\s\S]*?Manita/);
   } finally { await app.close(); }
 });
+
+test('TV mode: bare self-refreshing page with next matches, latest results and the player groups', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const empty = await startTestApp();
+    try { assert.match((await empty.get('/tv')).text, /No championships yet/); } finally { await empty.close(); }
+    const ms = (await import('../../src/repo/matches.js')).listMatches(app.db, id);
+    (await import('../../src/repo/matches.js')).updateMatch(app.db, ms[0].id, { homeScore: 2, awayScore: 1 });
+    const t = (await app.get('/tv')).text;
+    assert.match(t, /<meta http-equiv="refresh" content="30">/);
+    assert.match(t, /<body class="tv">/);
+    assert.doesNotMatch(t, /<header><div class="bar">/); // no site header
+    assert.match(t, /Up next/);
+    assert.match(t, /tv-now/);
+    assert.match(t, /Latest results[\s\S]*2–1/);
+    assert.match(t, /Groups with players/);
+    assert.match((await app.get(`/tv?id=${id}`)).text, /Liga/);
+    assert.match((await app.get(`/championships/${id}`)).text, new RegExp(`href="/tv\\?id=${id}"`));
+  } finally { await app.close(); }
+});

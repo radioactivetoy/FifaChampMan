@@ -68,7 +68,7 @@ export function champNav(c, active) {
     .filter(([path]) => !(c.format === 'cup' && path === 'groups')); // a cup has no group stage
   // Rename lives in the overview's settings; the full award cards only on the overview and the recap (one compact chip row
   // elsewhere), so on a phone the tab's own content is not pushed below the first screen.
-  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')} · ${c.createdAt.slice(0, 10)}${c.finishedAt ? ` → ${c.finishedAt.slice(0, 10)}` : ''}</p>
+  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')} · ${c.createdAt.slice(0, 10)}${c.finishedAt ? ` → ${c.finishedAt.slice(0, 10)}` : ''} · <a href="/tv?id=${c.id}">${_('📺 TV mode')}</a></p>
     ${finishBanner(c)}${active === '' || active === 'recap' ? awards(c) : awardChips(c)}
     ${nextStepHint(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}${tabCount(c, path)}</a>`)}</nav>`;
