@@ -95,6 +95,7 @@ export const es = {
   'Finished championship: results can still be corrected here; to redo fixtures or reopen the groups, <a href="{results}">reopen it on Results</a> first.': 'Campeonato finalizado: aquí aún puedes corregir resultados; para rehacer los partidos o reabrir los grupos, <a href="{results}">reábrelo en Resultados</a> primero.',
   '🏆 Champion: <strong>{team}</strong>{owner}': '🏆 Campeón: <strong>{team}</strong>{owner}',
   'Organiser link': 'Enlace de organizador',
+  'No organiser token is set on the server (EDITOR_TOKEN), so everybody can already edit. Add it to .env and recreate the container with docker compose up -d.': 'El servidor no tiene ningún token de organizador (EDITOR_TOKEN), así que todo el mundo puede editar ya. Añádelo al .env y vuelve a crear el contenedor con docker compose up -d.',
   'That organiser link is not valid.': 'Ese enlace de organizador no es válido.',
   'Read-only: ask the organiser for the organiser link to change things': 'Solo lectura: pide al organizador el enlace de organizador para cambiar cosas',
   'Read-only: you can look at everything, but only the organiser can change it.': 'Solo lectura: puedes verlo todo, pero solo el organizador puede cambiarlo.',
