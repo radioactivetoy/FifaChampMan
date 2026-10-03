@@ -47,3 +47,7 @@ The Recap page can ask an LLM for a funny account of a finished championship. Wi
 3. `docker compose up -d` again. The stories are stored in the database (and its backups).
 
 The prompt contains player names and results only. On free tiers Google may use submitted content to improve its products.
+
+## Optional: organisers and read-only viewers
+
+Set `EDITOR_TOKEN` in `.env` to a long random secret (for example the output of `openssl rand -hex 24`) and restart. From then on only devices that opened `https://<your-host>/editor?token=<that secret>` once (it sets a cookie for a year) can change anything; everybody else sees the whole app read-only. Config shows the organiser link to organisers and has a button to stop being organiser on a device. Without `EDITOR_TOKEN` everybody edits, as before.

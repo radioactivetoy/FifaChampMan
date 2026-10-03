@@ -200,3 +200,30 @@ test('visual pass: finished championship home summary, no fixture tools, no empt
     assert.doesNotMatch(home, /What each player plays next/);
   } finally { await app.close(); }
 });
+
+test('read-only viewers: POSTs refused, edit controls hidden; the organiser link makes a device an editor', async () => {
+  const app = await startTestApp({ editorToken: 's3cret' });
+  seedTeams(app.db);
+  try {
+    const page = await fetch(`${app.baseUrl}/players`);
+    const text = await page.text();
+    assert.match(text, /<body class="read-only">/);
+    assert.match(text, /class="readonly-bar"/);
+    const post = await fetch(`${app.baseUrl}/players`, { method: 'POST', body: new URLSearchParams({ name: 'Zoe' }), redirect: 'manual', headers: { referer: `${app.baseUrl}/players` } });
+    assert.equal(post.status, 303);
+    assert.match(decodeURIComponent(post.headers.get('set-cookie') ?? ''), /Read-only/);
+    assert.equal((await fetch(`${app.baseUrl}/config/backup`)).status, 403);
+    assert.equal((await fetch(`${app.baseUrl}/editor?token=wrong`)).status, 403);
+    const ok = await fetch(`${app.baseUrl}/editor?token=s3cret`, { redirect: 'manual' });
+    const cookie = /editor=[0-9a-f]+/.exec(ok.headers.get('set-cookie'))[0];
+    const asEditor = await fetch(`${app.baseUrl}/players`, { method: 'POST', body: new URLSearchParams({ name: 'Zoe' }), redirect: 'manual', headers: { cookie } });
+    assert.equal(asEditor.status, 302);
+    const editorPage = await (await fetch(`${app.baseUrl}/config`, { headers: { cookie } })).text();
+    assert.doesNotMatch(editorPage, /class="read-only"/);
+    assert.match(editorPage, /editor\?token=s3cret/);
+    // the language switch still works for viewers
+    assert.equal((await fetch(`${app.baseUrl}/lang`, { method: 'POST', body: new URLSearchParams({ lang: 'es' }), redirect: 'manual' })).status, 302);
+  } finally { await app.close(); }
+  const open = await startTestApp(); // no token: everybody edits
+  try { assert.doesNotMatch((await open.get('/players')).text, /read-only/); } finally { await open.close(); }
+});

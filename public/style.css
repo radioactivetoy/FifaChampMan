@@ -564,3 +564,9 @@ textarea.wide { width: 100%; font: inherit; }
   .lang-switch, .theme-switch { margin-left: 4px; }
   .lang-switch button, .theme-switch button { padding: 3px 8px; min-height: 0; }
 }
+
+/* ---------- read-only viewers (EDITOR_TOKEN set, no organiser cookie): look at everything, change nothing ---------- */
+.readonly-bar { text-align: center; padding: 6px 16px; font-size: 13px; font-weight: 600; background: var(--surface-2); border-bottom: 1px solid var(--line); color: var(--muted); }
+body.read-only main form[method="post"], body.read-only main button[form], body.read-only .undo-bar,
+body.read-only main details.settings, body.read-only main details:has(> form.danger-zone) { display: none !important; }
+body.read-only main input[form], body.read-only main select[form], body.read-only main textarea[form] { pointer-events: none; background: transparent; border-color: transparent; }

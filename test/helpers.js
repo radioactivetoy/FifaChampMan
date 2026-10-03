@@ -3,10 +3,10 @@ import { createApp } from '../src/app.js';
 import { createRng } from '../src/domain/rng.js';
 
 /** Starts the app on a random port with an in-memory DB. Always `await app.close()`. */
-export async function startTestApp({ seed = 42, lang = 'en', llm = null } = {}) {
+export async function startTestApp({ seed = 42, lang = 'en', llm = null, editorToken = null } = {}) {
   const db = openDb(':memory:');
   const server = await new Promise(resolve => {
-    const s = createApp({ db, rng: createRng(seed), defaultLang: lang, llm }).listen(0, () => resolve(s));
+    const s = createApp({ db, rng: createRng(seed), defaultLang: lang, llm, editorToken }).listen(0, () => resolve(s));
   });
   const base = `http://127.0.0.1:${server.address().port}`;
   return {

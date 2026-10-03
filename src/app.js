@@ -1,7 +1,8 @@
 import express from 'express';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
-import { html, page, th, _ } from './web/html.js';
+import { html, page, th, escape, _ } from './web/html.js';
 import { applyLlmSettings } from './repo/settings.js';
 import { registerHomeRoutes } from './web/routes/home.js';
 import { registerHallRoutes } from './web/routes/hall.js';
@@ -25,7 +26,7 @@ import { registerUndoRoutes } from './web/routes/undo.js';
 import { latestUndo } from './repo/undo.js';
 import { runWithLang, LANGS } from './i18n/index.js';
 
-export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = null }) {
+export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = null, editorToken = null }) {
   const app = express();
   // A full FC club database pasted as CSV is ~150 KB; the default limit is 100 KB.
   app.use(express.urlencoded({ extended: false, limit: '5mb' }));
@@ -62,6 +63,34 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
     next();
   });
 
+  // Organiser vs viewer. With EDITOR_TOKEN set, only browsers that opened /editor?token=<it> once (cookie `editor` = its hash) can
+  // change anything; everyone else gets a read-only app (POSTs refused, edit controls hidden, backups not downloadable).
+  // Without EDITOR_TOKEN everybody edits, as before.
+  const editorHash = editorToken ? createHash('sha256').update(String(editorToken)).digest('hex') : null;
+  app.get('/editor', (req, res) => {
+    if (!editorHash || createHash('sha256').update(String(req.query.token ?? '')).digest('hex') !== editorHash) {
+      return res.status(403).send(page({ title: _('Organiser link'), body: html`<p class="error">${_('That organiser link is not valid.')}</p><p><a href="/">${_('Home')}</a></p>` }));
+    }
+    res.cookie('editor', editorHash, { maxAge: 365 * 24 * 3600 * 1000, sameSite: 'lax', path: '/', httpOnly: true });
+    res.redirect('/');
+  });
+  app.post('/editor/logout', (req, res) => { res.clearCookie('editor', { path: '/' }); res.redirect('/'); });
+  app.use((req, res, next) => {
+    const cookie = /(?:^|;\s*)editor=([0-9a-f]{64})/.exec(req.headers.cookie ?? '')?.[1];
+    req.isEditor = !editorHash || cookie === editorHash;
+    res.locals.readOnly = !req.isEditor;
+    if (req.isEditor) return next();
+    const always = /^\/(lang|theme)$/.test(req.path);
+    if ((req.method === 'POST' && !always) || /^\/config\/backups?\b/.test(req.path)) {
+      return next(new UserError(_('Read-only: ask the organiser for the organiser link to change things'), 403));
+    }
+    const send = res.send.bind(res);
+    res.send = body => send(typeof body === 'string' && body.startsWith('<!doctype html>')
+      ? body.replace('<body>', `<body class="read-only">`).replace('</header>', `</header><div class="readonly-bar">👀 ${escape(_('Read-only: you can look at everything, but only the organiser can change it.'))}</div>`)
+      : body);
+    next();
+  });
+
   // A form action that went through (a POST answered with a redirect) leaves a one-shot `ok` cookie, which the next page shows as a
   // short "Saved" toast — without it a successful save looks exactly like nothing happening. Failed actions set `res.locals.failed`.
   app.use((req, res, next) => {
@@ -83,7 +112,7 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
       const isPage = typeof body === 'string' && body.startsWith('<!doctype html>');
       if (flash && isPage) res.clearCookie('flash', { path: '/' });
       if (ok && isPage) res.clearCookie('ok', { path: '/' });
-      const undo = isPage ? latestUndo(db) : null;
+      const undo = isPage && !res.locals.readOnly ? latestUndo(db) : null;
       if (!isPage || (!undo && !flash && !ok)) return send(body);
       const back = undo ? html`<input type="hidden" name="back" value="${req.originalUrl}">` : '';
       const flashBox = flash ? html`<div class="flash-box" role="alert"><span>⚠ ${flash}</span><button type="button" title="${_('Hide')}" onclick="this.parentElement.remove()">✕</button></div>` : '';
@@ -97,7 +126,7 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
   });
 
   applyLlmSettings(db, llm); // the model chosen on Config (saved in the database) wins over .env
-  const ctx = { db, rng, dbPath, llm };
+  const ctx = { db, rng, dbPath, llm, editorToken };
   registerHomeRoutes(app, ctx);
   registerPlayerRoutes(app, ctx);
   registerProfileRoutes(app, ctx);
