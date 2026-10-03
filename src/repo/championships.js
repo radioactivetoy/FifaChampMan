@@ -25,11 +25,11 @@ export function listChampionships(db) {
 
 export function getChampionship(db, id) {
   const row = get(db, `SELECT id, name, status, edition, template_id AS templateId, group_stage_closed AS groupStageClosed,
-      format, team_count AS teamCount, created_at AS createdAt, finished_at AS finishedAt
+      format, team_count AS teamCount, created_at AS createdAt, finished_at AS finishedAt, photo IS NOT NULL AS hasPhoto
     FROM championships WHERE id = ?`, id);
   if (!row) throw new UserError(_('Championship not found'), 404);
   // groupCount: groups in the field (0 for a cup); bracketSize: places in the knockout (see domain/bracket.js).
-  const c = { ...row, groupStageClosed: row.groupStageClosed === 1, groupCount: row.format === 'cup' ? 0 : row.teamCount / 4, bracketSize: knockoutSize(row) };
+  const c = { ...row, hasPhoto: row.hasPhoto === 1, groupStageClosed: row.groupStageClosed === 1, groupCount: row.format === 'cup' ? 0 : row.teamCount / 4, bracketSize: knockoutSize(row) };
   const teamsById = new Map(listTeams(db).map(t => [t.id, t]));
   const matches = listMatches(db, id);
   const players = all(db, `SELECT cp.player_id AS playerId, p.name AS playerName, p.photo IS NOT NULL AS hasPhoto, cp.stars, cp.team_id AS teamId,
@@ -607,7 +607,7 @@ export function hallOfFame(db) {
     const maracasScores = teamId => matches.filter(m => m.stage === 'group' && hasResult(m) && (m.homeTeamId === teamId || m.awayTeamId === teamId))
       .map(m => (m.homeTeamId === teamId ? `${m.homeScore}–${m.awayScore}` : `${m.awayScore}–${m.homeScore}`));
     return {
-      hasStory: !!get(db, 'SELECT 1 AS x FROM championship_stories WHERE championship_id = ?', c.id), id: c.id, name: c.name, edition: c.edition, format: c.format, createdAt: c.createdAt, finishedAt: c.finishedAt,
+      hasPhoto: c.hasPhoto, hasStory: !!get(db, 'SELECT 1 AS x FROM championship_stories WHERE championship_id = ?', c.id), id: c.id, name: c.name, edition: c.edition, format: c.format, createdAt: c.createdAt, finishedAt: c.finishedAt,
       champion: placed('champion')[0] ?? null, runnerUp: placed('final')[0] ?? null, semifinalists: placed('sf'),
       cucharas: c.players.filter(p => p.cuchara && !p.maracas).map(p => ({ player: p.playerName, playerId: p.playerId, team: p.team })),
       maracas: c.players.filter(p => p.maracas).map(p => ({ player: p.playerName, playerId: p.playerId, team: p.team, scores: maracasScores(p.teamId) })),
@@ -619,4 +619,18 @@ export function allEntries(db) {
   return all(db, `SELECT cp.championship_id AS championshipId, c.name AS championshipName, c.edition AS edition, cp.player_id AS playerId
       FROM championship_players cp JOIN championships c ON c.id = cp.championship_id ORDER BY cp.championship_id`)
     .map(e => ({ ...e, ...playerOutcome(db, e.championshipId, e.playerId) }));
+}
+
+// ---------- the championship photo (the champion, the group with the trophy…) ----------
+
+export const CHAMPIONSHIP_PHOTO_MAX_BYTES = 1500 * 1024;
+
+export function setChampionshipPhoto(db, id, { buffer, type }) {
+  if (run(db, 'UPDATE championships SET photo = ?, photo_type = ? WHERE id = ?', buffer, type, id).changes === 0) throw new UserError(_('Championship not found'), 404);
+}
+export const clearChampionshipPhoto = (db, id) => { run(db, 'UPDATE championships SET photo = NULL, photo_type = NULL WHERE id = ?', id); };
+/** { buffer, type } or null. */
+export function getChampionshipPhoto(db, id) {
+  const row = get(db, 'SELECT photo, photo_type AS type FROM championships WHERE id = ?', id);
+  return row?.photo ? { buffer: Buffer.from(row.photo), type: row.type ?? 'image/jpeg' } : null;
 }

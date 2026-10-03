@@ -56,7 +56,9 @@ CREATE TABLE IF NOT EXISTS championships (
   format TEXT NOT NULL DEFAULT 'groups',
   team_count INTEGER NOT NULL DEFAULT 32,
   created_at TEXT NOT NULL DEFAULT (datetime('now')), -- the start date (editable)
-  finished_at TEXT -- the close date: set when it is marked finished (editable), null while open
+  finished_at TEXT, -- the close date: set when it is marked finished (editable), null while open
+  photo BLOB, -- the champion's / group photo (see repo/championships.js)
+  photo_type TEXT
 );
 
 -- A player taking part in a championship, with the level and team they play with.

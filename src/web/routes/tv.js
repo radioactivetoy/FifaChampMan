@@ -37,7 +37,7 @@ export function registerTvRoutes(app, { db }) {
         <div class="tv-head"><h1>${c.name}</h1>
           <p>${c.edition} · ${c.progress.groups.total ? html`${_('Group stage')} <strong>${c.progress.groups.played}/${c.progress.groups.total}</strong>` : ''}
             ${c.progress.playoff.total ? html` · ${_('Playoff')} <strong>${c.progress.playoff.played}/${c.progress.playoff.total}</strong>` : ''}</p></div>
-        ${champion ? html`<section class="tv-card tv-champion"><h2>🏆 ${_('Champion')}</h2><p class="tv-big">${badge(champion)} ${champion.name}</p>
+        ${champion ? html`<section class="tv-card tv-champion">${c.hasPhoto ? html`<img class="tv-photo" src="/championships/${c.id}/photo" alt="">` : ''}<h2>🏆 ${_('Champion')}</h2><p class="tv-big">${badge(champion)} ${champion.name}</p>
           ${champion.owner ? html`<p>${th('<strong>{player}</strong> won it! 🎉', { player: champion.owner.playerName })}</p>` : ''}
           ${c.players.filter(p => p.maracas).map(p => html`<p>${maracasIcon({ size: 28 })} ${_('Maracas Trophy')}: <strong>${p.playerName}</strong></p>`)}
           ${c.players.filter(p => p.cuchara && !p.maracas).map(p => html`<p>🥄 ${_('Cuchara de Madera')}: <strong>${p.playerName}</strong></p>`)}</section>` : ''}

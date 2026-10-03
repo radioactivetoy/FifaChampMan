@@ -117,6 +117,7 @@ export function registerRecapRoutes(app, { db, llm, rng }) {
     res.send(page({
       title: c.name,
       body: html`${champNav(c, 'recap')}
+        ${c.hasPhoto ? html`<figure class="champ-photo"><img src="/championships/${c.id}/photo" alt="${_('Photo of {name}', { name: c.name })}" loading="lazy"></figure>` : ''}
         ${story.lines.length ? html`<h2>${_('The story')}</h2><ul class="story">${story.lines.map(l => html`<li>${l}</li>`)}</ul>
           <button type="button" data-copy="${`${c.name} (${c.edition})\n${story.lines.map(l => `• ${l}`).join('\n')}`}">${_('📋 Copy summary')}</button> <span class="muted" data-copy-status></span>` : ''}
         ${Object.values(aw).some(Boolean) ? html`<h2>${_('Awards')}</h2><div class="fun-cards">

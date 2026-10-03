@@ -270,3 +270,26 @@ test('TV mode: bare self-refreshing page with next matches, latest results and t
     assert.match((await app.get(`/championships/${id}`)).text, new RegExp(`href="/tv\\?id=${id}"`));
   } finally { await app.close(); }
 });
+
+test('championship photo: upload, shown on overview/recap/hall/TV, removable with undo, size-limited', async () => {
+  const { latestUndo } = await import('../../src/repo/undo.js');
+  const { app, id } = await withGroups();
+  try {
+    const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(600 * 1024, 1)]); // 600 KB: too big for an avatar, fine here
+    (await import('../../src/repo/championships.js')).setChampion(app.db, id, getChampionship(app.db, id).players[0].teamId);
+    await app.post(`/championships/${id}/status`, { status: 'finished' });
+    assert.match((await app.get(`/championships/${id}`)).text, /data-photo-upload="wide"/);
+    const up = await app.post(`/championships/${id}/photo`, { photo: `data:image/jpeg;base64,${jpeg.toString('base64')}` });
+    assert.equal(up.status, 302);
+    const img = await fetch(`${app.baseUrl}/championships/${id}/photo`);
+    assert.equal(img.status, 200);
+    assert.equal(Buffer.from(await img.arrayBuffer()).length, jpeg.length);
+    for (const path of [`/championships/${id}`, `/championships/${id}/recap`, '/hall-of-fame', '/tv']) assert.match((await app.get(path)).text, new RegExp(`/championships/${id}/photo`), path);
+    await app.post(`/championships/${id}/photo/delete`);
+    assert.equal((await fetch(`${app.baseUrl}/championships/${id}/photo`)).status, 404);
+    await app.post(`/undo/${latestUndo(app.db).id}`, { back: '/' });
+    assert.equal((await fetch(`${app.baseUrl}/championships/${id}/photo`)).status, 200);
+    const huge = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(1600 * 1024, 1)]);
+    assert.equal((await app.post(`/championships/${id}/photo`, { photo: `data:image/jpeg;base64,${huge.toString('base64')}` })).status, 400);
+  } finally { await app.close(); }
+});

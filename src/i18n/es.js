@@ -109,6 +109,9 @@ export const es = {
   'Latest results': 'Últimos resultados',
   'Refreshes every {n} second': { one: 'Se actualiza cada {n} segundo', other: 'Se actualiza cada {n} segundos' },
   'Back to the app': 'Volver a la aplicación',
+  'Photo of {name}': 'Foto de {name}',
+  '📷 Change the champion photo': '📷 Cambiar la foto del campeón',
+  '📷 Add the champion photo': '📷 Añadir la foto del campeón',
   // ---- achievements and revenge ----
   'Achievement unlocked': 'Logro desbloqueado',
   'Achievements': 'Logros',
@@ -742,7 +745,7 @@ export const es = {
   'Unknown stage "{stage}"': 'Fase desconocida «{stage}»',
   'Choose an image file (JPEG, PNG or WebP)': 'Elige un archivo de imagen (JPEG, PNG o WebP)',
   'That file is not a valid image': 'Ese archivo no es una imagen válida',
-  'The photo is too big (max 400 KB after resizing)': 'La foto es demasiado grande (máximo 400 KB tras reducirla)',
+  'The photo is too big (max {kb} KB after resizing)': 'La foto es demasiado grande (máximo {kb} KB tras reducirla)',
   'A player called "{name}" already exists': 'Ya existe un jugador llamado «{name}»',
   'Deactivate the player first; only inactive players can be deleted': 'Desactiva primero al jugador; solo se puede borrar a los jugadores inactivos',
   'A team quota must be a whole number, 0 or more': 'El cupo de equipos debe ser un número entero, 0 o más',
