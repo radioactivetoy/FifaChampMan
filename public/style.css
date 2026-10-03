@@ -166,6 +166,7 @@ details.group-details[open] > summary { border-bottom: 1px solid var(--line); }
 .group-team-chip .owner { padding: 0 6px; }
 details.group-details > *:not(summary) { margin-left: 16px; margin-right: 16px; }
 details.group-details > table:first-of-type { margin-top: 14px; }
+details.group-details > table { width: calc(100% - 32px); }
 details.group-details > *:last-child { margin-bottom: 16px; }
 
 /* ---------- match rows ---------- */
@@ -219,7 +220,7 @@ table[data-sortable] th:hover { color: var(--navy-800); }
 @media (max-width: 760px) {
   body { font-size: 14px; }
   header .bar { gap: 6px; padding: 8px 12px; }
-  header nav { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  header nav { width: 100%; flex-wrap: wrap; row-gap: 4px; } /* wraps: a sideways-scrolling menu hid Stats, Config and the switches */
   header nav a { padding: 6px 10px; font-size: 13px; }
   main { padding: 14px 10px 40px; }
   h1 { font-size: 23px; }
@@ -363,6 +364,7 @@ details.help > p { margin: 8px 0 0; }
 .award > div { display: flex; flex-direction: column; line-height: 1.25; }
 .award small { color: #7a6420; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
 .award small:last-child:not(:first-child) { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 500; }
+.award { color: #2a2410; } /* light cards: dark text in both themes (the dark theme's --fg would be unreadable here) */
 .award strong { font-size: 16px; }
 .award-icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-size: 22px; background: radial-gradient(circle at 35% 30%, #ffe27a, var(--gold) 70%); box-shadow: 0 0 0 3px rgba(242, 183, 5, .28); }
 .award-spoon { border-color: #d3bb98; background: linear-gradient(160deg, #f8f1e6, #eadcc6); }
@@ -527,3 +529,38 @@ details.settings[open] > form.row { margin: 8px 0; }
 .tale { padding: 4px 18px; border-left: 4px solid var(--gold); background: var(--surface); border-radius: var(--radius-sm); }
 .tale p { margin: 12px 0; line-height: 1.6; }
 textarea.wide { width: 100%; font: inherit; }
+
+/* ---------- visual pass: compact championship header on phones, stacked players table, compact award chips ---------- */
+.award-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.award-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  background: linear-gradient(160deg, #fff9e0, #fff2bf); border: 1px solid #f0d27a; color: #2a2410; }
+.award-chip.spoon { background: linear-gradient(160deg, #f8f1e6, #eadcc6); border-color: #d3bb98; }
+.award-chip.maracas { background: linear-gradient(160deg, #1c2a78, #0b1a55); border-color: #f2b705; color: #fff; }
+.award-chip .chip-icon { width: 22px; height: 22px; display: grid; place-items: center; font-size: 14px; }
+.home-finished p { margin: 6px 0; }
+@media (max-width: 760px) {
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; border-radius: 999px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .awards { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; }
+  .awards::-webkit-scrollbar { display: none; }
+  .award { flex: 0 0 auto; padding: 6px 12px 6px 8px; gap: 8px; }
+  .award-icon { width: 30px; height: 30px; font-size: 16px; }
+  .award-maracas .award-icon { width: 36px; height: 36px; }
+  .award-maracas .award-icon svg { width: 36px; height: 36px; }
+  .award strong { font-size: 14px; }
+  /* the overview's players table becomes one card per player */
+  table.players-table, table.players-table tbody { display: block; overflow: visible; }
+  table.players-table thead { display: none; }
+  table.players-table tr { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; padding: 10px; border-bottom: 1px solid var(--line); }
+  table.players-table td { border: 0; padding: 0; }
+  table.players-table td:nth-child(3), table.players-table td:nth-child(4), table.players-table td:nth-child(5) { grid-column: 1 / -1; }
+  table.players-table td select { max-width: 100%; }
+  table.players-table td:nth-child(3) select { width: 100%; }
+  .teams-table input[name="name"] { min-width: 150px; }
+}
+@media (max-width: 760px) {
+  header nav { gap: 2px 0; }
+  header nav a { padding: 5px 8px; }
+  .lang-switch, .theme-switch { margin-left: 4px; }
+  .lang-switch button, .theme-switch button { padding: 3px 8px; min-height: 0; }
+}

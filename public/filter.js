@@ -325,3 +325,6 @@ document.addEventListener('click', event => {
   if (!button) return;
   for (const box of document.querySelectorAll(`input[type=checkbox][name="${button.dataset.checkAll}"]`)) box.checked = !('checkNone' in button.dataset);
 });
+
+// Championship tabs scroll sideways on phones: bring the active one into view (instantly, no animated scroll).
+(() => { const a = document.querySelector('.tabs a.active'); if (a) a.parentElement.scrollLeft = a.offsetLeft - 12; })();

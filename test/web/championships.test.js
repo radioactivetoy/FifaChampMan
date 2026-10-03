@@ -119,14 +119,15 @@ test('a championship\'s edition can be changed after creation', async () => {
   }
 });
 
-test('every championship tab has a rename control and renaming returns to the same tab', async () => {
+test('rename lives in the overview settings (no stray inline control on every tab); renaming returns to the same tab', async () => {
   const app = await startTestApp();
   try {
     seedTeams(app.db);
     const rng = createRng(1);
     const id = createChampionship(app.db, { name: 'Old name', playerIds: seedPlayers(app.db), rng });
+    assert.match((await app.get(`/championships/${id}`)).text, new RegExp(`<form method="post" action="/championships/${id}" class="row"><input name="name" value="Old name" required>`));
     for (const tab of ['', '/draw', '/groups', '/playoff', '/results', '/recap']) {
-      assert.match((await app.get(`/championships/${id}${tab}`)).text, /<details class="rename-inline"><summary>✏️ Rename<\/summary>/, tab);
+      assert.doesNotMatch((await app.get(`/championships/${id}${tab}`)).text, /rename-inline/, tab);
     }
     const r = await fetch(`${app.baseUrl}/championships/${id}`, { method: 'POST', body: new URLSearchParams({ name: 'New name' }), redirect: 'manual', headers: { referer: `${app.baseUrl}/championships/${id}/playoff` } });
     assert.equal(r.headers.get('location'), `/championships/${id}/playoff`);

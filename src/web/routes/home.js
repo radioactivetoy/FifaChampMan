@@ -1,7 +1,8 @@
 import { html, page, th, tn, _ } from '../html.js';
-import { avatar, badge, stars } from '../components.js';
+import { avatar, badge, stars, maracasIcon } from '../components.js';
 import { STAGE_LABELS } from '../../domain/stages.js';
 import * as C from '../../repo/championships.js';
+import { getStory } from '../../repo/stories.js';
 import { listMatches } from '../../repo/matches.js';
 
 const MATCHES_SHOWN = 3;
@@ -22,16 +23,25 @@ export function registerHomeRoutes(app, { db }) {
     const champion = lastFinished && C.getChampionship(db, lastFinished.id).teams.find(t => t.reached === 'champion');
     const counter = (label, p) => p.total > 0 ? html`<li><strong>${p.played}/${p.total}</strong> <span class="muted">${label}</span></li>` : '';
     const label = m => `${m.homeTeamName} – ${m.awayTeamName}`;
+    // A finished championship has nothing left to play: show how it ended (champion, joke trophies, its tale) instead.
+    const finished = c.status === 'finished';
+    const ended = c.teams.find(t => t.reached === 'champion');
+    const finishedSummary = finished ? html`<div class="home-finished">
+        ${ended ? html`<p>${th('🏆 Champion: <strong>{team}</strong>{owner}', { team: ended.name, owner: ended.owner ? ` (${ended.owner.playerName})` : '' })}</p>` : ''}
+        ${c.players.filter(p => p.maracas).map(p => html`<p>${maracasIcon({ size: 20 })} ${_('Maracas Trophy')}: <strong>${p.playerName}</strong></p>`)}
+        ${c.players.filter(p => p.cuchara && !p.maracas).map(p => html`<p>🥄 ${_('Cuchara de Madera')}: <strong>${p.playerName}</strong></p>`)}
+        <p>${getStory(db, c.id) ? html`<a href="/championships/${c.id}/recap#story">${_('📜 Read the tale')}</a> · ` : ''}<a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a></p>
+      </div>` : '';
     res.send(page({
       title: _('ChampMan'),
       body: html`<section class="card home-current">
           <h2><a href="/championships/${c.id}">${c.name}</a></h2>
           <p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')} · ${tn('{n} player', '{n} players', c.players.length)}</p>
-          <ul class="home-progress">${counter(_('Group stage'), c.progress.groups)}${counter(_('Playoff'), c.progress.playoff)}</ul>
+          ${finished ? finishedSummary : html`<ul class="home-progress">${counter(_('Group stage'), c.progress.groups)}${counter(_('Playoff'), c.progress.playoff)}</ul>`}
           <p><a href="/championships/${c.id}"><button class="primary">${_('Open championship')}</button></a>
             <a href="/championships/new"><button>${_('New championship')}</button></a></p>
         </section>
-        <h2>${_('What each player plays next')}</h2>
+        ${finished ? '' : html`<h2>${_('What each player plays next')}</h2>
         <div class="home-players">${c.players.map(p => {
           const pending = pendingFor(matches, p.playerId);
           return html`<div class="card"><h3><a href="/players/${p.playerId}">${avatar(p, { size: 26 })} ${p.playerName}</a>
@@ -39,8 +49,8 @@ export function registerHomeRoutes(app, { db }) {
             ${pending.length === 0 ? html`<p class="muted">${matches.length === 0 ? _('No fixtures yet.') : _('Nothing left to play right now.')}</p>` : html`
               <ul>${pending.slice(0, MATCHES_SHOWN).map(m => html`<li>${label(m)} <small class="muted">${m.stage === 'group' ? _('Group {letter}', { letter: m.groupLetter }) : STAGE_LABELS[m.stage]}</small></li>`)}</ul>
               ${pending.length > MATCHES_SHOWN ? html`<p class="muted">${_('+{n} more', { n: pending.length - MATCHES_SHOWN })}</p>` : ''}`}</div>`;
-        })}</div>
-        ${champion ? html`<p class="muted">${th('Last champion: <strong>{team}</strong>{owner}', { team: champion.name, owner: champion.owner ? ` (${champion.owner.playerName})` : '' })}</p>` : ''}
+        })}</div>`}
+        ${champion && !finished ? html`<p class="muted">${th('Last champion: <strong>{team}</strong>{owner}', { team: champion.name, owner: champion.owner ? ` (${champion.owner.playerName})` : '' })}</p>` : ''}
         <p class="muted"><a href="/hall-of-fame">${_('🏆 Hall of Fame')}</a> · <a href="/session">${_('📰 Session summary')}</a> · <a href="/championships">${_('All championships')}</a> · <a href="/stats">${_('Stats')}</a> · <a href="/players">${_('Players')}</a></p>`,
     }));
   });

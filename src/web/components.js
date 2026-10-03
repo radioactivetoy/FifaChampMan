@@ -66,10 +66,10 @@ function nextStepHint(c) {
 export function champNav(c, active) {
   const tabs = [['', _('Players & teams')], ['draw', _('Field & draw')], ['groups', _('Group stage')], ['playoff', _('Playoff')], ['results', _('Results')], ['recap', _('Recap')]]
     .filter(([path]) => !(c.format === 'cup' && path === 'groups')); // a cup has no group stage
-  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')} · ${c.createdAt.slice(0, 10)}${c.finishedAt ? ` → ${c.finishedAt.slice(0, 10)}` : ''}
-      · <details class="rename-inline"><summary>${_('✏️ Rename')}</summary>
-        <form method="post" action="/championships/${c.id}" class="row"><input name="name" value="${c.name}" required><button class="primary">${_('Save')}</button></form></details></p>
-    ${finishBanner(c)}${awards(c)}
+  // Rename lives in the overview's settings; the full award cards only on the overview and the recap (one compact chip row
+  // elsewhere), so on a phone the tab's own content is not pushed below the first screen.
+  return html`<p class="muted">${c.edition} · ${c.status === 'finished' ? _('Finished') : _('In progress')} · ${c.createdAt.slice(0, 10)}${c.finishedAt ? ` → ${c.finishedAt.slice(0, 10)}` : ''}</p>
+    ${finishBanner(c)}${active === '' || active === 'recap' ? awards(c) : awardChips(c)}
     ${nextStepHint(c)}
     <nav class="tabs">${tabs.map(([path, label]) => html`<a href="/championships/${c.id}${path ? `/${path}` : ''}" class="${path === active ? 'active' : ''}">${label}${tabCount(c, path)}</a>`)}</nav>`;
 }
@@ -110,6 +110,20 @@ export function maracasIcon({ size = 20, title = '' } = {}) {
     <text x="12" y="62" font-size="15" fill="#ffe27a" fill-opacity=".9" font-family="serif">♪</text>
     <text x="95" y="62" font-size="13" fill="#ffe27a" fill-opacity=".9" font-family="serif">♫</text>
   </svg>`);
+}
+
+/** The award cards as one row of small chips (the other championship tabs). */
+function awardChips(c) {
+  if (c.status !== 'finished') return '';
+  const champion = c.teams.find(t => t.reached === 'champion');
+  const spoons = c.players.filter(p => p.cuchara && !p.maracas);
+  const maracas = c.players.filter(p => p.maracas);
+  if (!champion && !spoons.length && !maracas.length) return '';
+  return html`<div class="award-chips">
+    ${champion ? html`<span class="award-chip" title="${_('Champion')}"><span class="chip-icon" aria-hidden="true">🏆</span>${champion.name}${champion.owner ? ` (${champion.owner.playerName})` : ''}</span>` : ''}
+    ${spoons.map(p => html`<span class="award-chip spoon" title="${_('Cuchara de Madera')}"><span class="chip-icon" aria-hidden="true">🥄</span>${p.playerName}</span>`)}
+    ${maracas.map(p => html`<span class="award-chip maracas" title="${_('Maracas Trophy')}"><span class="chip-icon" aria-hidden="true">${maracasIcon({ size: 20 })}</span>${p.playerName}</span>`)}
+  </div>`;
 }
 
 /**
