@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { UserError } from './errors.js';
 import { html, page, th, escape, _ } from './web/html.js';
 import { applyLlmSettings } from './repo/settings.js';
+import { newAchievements, baselineAchievements } from './repo/achievements.js';
+import { ACHIEVEMENTS } from './domain/achievements.js';
 import { registerHomeRoutes } from './web/routes/home.js';
 import { registerHallRoutes } from './web/routes/hall.js';
 import { registerSessionRoutes } from './web/routes/session.js';
@@ -96,7 +98,17 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
   app.use((req, res, next) => {
     if (req.method !== 'POST' || /^\/(lang|theme|undo)\b/.test(req.path)) return next();
     const redirect = res.redirect.bind(res);
-    res.redirect = (...args) => { if (!res.locals.failed) res.cookie('ok', '1', { maxAge: 60 * 1000, sameSite: 'lax', path: '/', httpOnly: true }); return redirect(...args); };
+    res.redirect = (...args) => {
+      if (!res.locals.failed) {
+        res.cookie('ok', '1', { maxAge: 60 * 1000, sameSite: 'lax', path: '/', httpOnly: true });
+        // a save that unlocked achievements: announce them on the next page (never let this break the save itself)
+        try {
+          const fresh = newAchievements(db).slice(0, 3).map(a => [a.player, a.key]);
+          if (fresh.length) res.cookie('ach', JSON.stringify(fresh), { maxAge: 60 * 1000, sameSite: 'lax', path: '/', httpOnly: true });
+        } catch (err) { console.error('achievements:', err.message); }
+      }
+      return redirect(...args);
+    };
     next();
   });
 
@@ -106,26 +118,31 @@ export function createApp({ db, rng, defaultLang = 'es', dbPath = null, llm = nu
     if (req.method !== 'GET') return next();
     let flash = null;
     const ok = /(?:^|;\s*)ok=1/.test(req.headers.cookie ?? '');
+    let ach = [];
+    try { const raw = /(?:^|;\s*)ach=([^;]*)/.exec(req.headers.cookie ?? '')?.[1]; if (raw) ach = JSON.parse(decodeURIComponent(raw)).filter(([, key]) => key in ACHIEVEMENTS); } catch { ach = []; }
     try { const raw = /(?:^|;\s*)flash=([^;]*)/.exec(req.headers.cookie ?? '')?.[1]; if (raw) flash = decodeURIComponent(raw).slice(0, 400); } catch { /* bad cookie */ }
     const send = res.send.bind(res);
     res.send = body => {
       const isPage = typeof body === 'string' && body.startsWith('<!doctype html>');
       if (flash && isPage) res.clearCookie('flash', { path: '/' });
       if (ok && isPage) res.clearCookie('ok', { path: '/' });
+      if (ach.length && isPage) res.clearCookie('ach', { path: '/' });
       const undo = isPage && !res.locals.readOnly ? latestUndo(db) : null;
-      if (!isPage || (!undo && !flash && !ok)) return send(body);
+      if (!isPage || (!undo && !flash && !ok && !ach.length)) return send(body);
       const back = undo ? html`<input type="hidden" name="back" value="${req.originalUrl}">` : '';
       const flashBox = flash ? html`<div class="flash-box" role="alert"><span>⚠ ${flash}</span><button type="button" title="${_('Hide')}" onclick="this.parentElement.remove()">✕</button></div>` : '';
       const toast = ok && !flash ? html`<div class="ok-toast" role="status">✓ ${_('Saved')}</div>` : '';
+      const achToast = ach.length ? html`<div class="ach-toast" role="status">${ach.map(([player, key]) => html`<div>🏅 ${_('Achievement unlocked')}: <strong>${player}</strong> — ${ACHIEVEMENTS[key][0]} ${_(ACHIEVEMENTS[key][1])}</div>`)}</div>` : '';
       const undoBar = undo ? html`<div class="undo-bar"><span>↩ ${undo.label}</span>
         <form method="post" action="/undo/${undo.id}">${back}<button class="primary">${_('Undo')}</button></form>
         <form method="post" action="/undo/${undo.id}/dismiss">${back}<button title="${_('Hide')}">✕</button></form></div>` : '';
-      return send(body.replace('</header>', `</header>${flashBox}${toast}${undoBar}`));
+      return send(body.replace('</header>', `</header>${flashBox}${toast}${achToast}${undoBar}`));
     };
     next();
   });
 
   applyLlmSettings(db, llm); // the model chosen on Config (saved in the database) wins over .env
+  try { baselineAchievements(db); } catch (err) { console.error('achievements:', err.message); } // old history: no toast flood
   const ctx = { db, rng, dbPath, llm, editorToken };
   registerHomeRoutes(app, ctx);
   registerPlayerRoutes(app, ctx);

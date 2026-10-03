@@ -132,3 +132,11 @@ CREATE TABLE IF NOT EXISTS championship_stories (
   model TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Achievements already announced (see repo/achievements.js): a new one shows a toast once, after the save that unlocked it.
+CREATE TABLE IF NOT EXISTS achievements_seen (
+  player_id INTEGER NOT NULL,
+  key TEXT NOT NULL,
+  seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (player_id, key)
+);

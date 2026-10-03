@@ -9,6 +9,8 @@ import { funStats, trophyCabinet } from '../../domain/fun.js';
 import { eloRatings } from '../../domain/elo.js';
 import { REACHED, REACHED_LABELS } from '../../domain/stages.js';
 import { UserError } from '../../errors.js';
+import { allAchievements } from '../../repo/achievements.js';
+import { ACHIEVEMENTS } from '../../domain/achievements.js';
 
 const wdl = r => `${r.won}-${r.drawn}-${r.lost}`;
 const pct = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '—');
@@ -31,6 +33,7 @@ export function registerProfileRoutes(app, { db }) {
     const elo = eloRatings({ players: plain, matches, championshipNames: new Map(entries.map(e => [e.championshipId, e.championshipName])) });
     const myElo = elo.find(e => e.playerId === id);
     const cabinet = trophyCabinet(fun, id);
+    const unlocked = new Map(allAchievements(db).filter(a => a.playerId === id).map(a => [a.key, a]));
     const journey = fun.journeys.find(j => j.playerId === id);
     const nemesis = fun.nemesis.find(n => n.playerId === id);
     const nameOf = new Map(players.map(p => [p.id, p.name]));
@@ -66,6 +69,13 @@ export function registerProfileRoutes(app, { db }) {
           ${best && funCard('🌟', _('Best run'), REACHED_LABELS[best.reached], `${teamsById.get(best.teamId)?.name ?? ''} · ${best.championshipName}`)}
           ${worst && runs.length > 1 && funCard('🪫', _('Worst run'), REACHED_LABELS[worst.reached], `${teamsById.get(worst.teamId)?.name ?? ''} · ${worst.championshipName}`)}
         </div>
+
+        <h2>${_('Achievements')} <small class="muted">${unlocked.size}/${Object.keys(ACHIEVEMENTS).length}</small></h2>
+        <div class="achievements">${Object.entries(ACHIEVEMENTS).map(([key, [icon, title, how, joke]]) => {
+          const a = unlocked.get(key);
+          return html`<div class="achievement${a ? '' : ' locked'}${joke ? ' joke' : ''}" title="${_(how)}"><span class="ach-icon" aria-hidden="true">${icon}</span>
+            <div><strong>${_(title)}</strong><small>${a ? a.championship ?? '' : _(how)}</small></div></div>`;
+        })}</div>
 
         <h2>${_('Trophy cabinet')}</h2>
         ${cabinet.length ? html`<div class="cabinet">${cabinet.map(t => html`<span>${t.icon} ${t.title}</span>`)}</div>`

@@ -1,7 +1,8 @@
 import { all, get, run, transaction } from '../db/connection.js';
 import { UserError } from '../errors.js';
 import { listTeams } from './teams.js';
-import { listMatches, insertMatch, drawControllers, bracketSizeOf, listByes } from './matches.js';
+import { listMatches, listAllMatches, insertMatch, drawControllers, bracketSizeOf, listByes } from './matches.js';
+import { revenges } from '../domain/fun.js';
 import { planTeamOffer, resultStars } from '../domain/rating.js';
 import { teamRecord, computeStandings, hasResult, isCucharaDeMadera, isMaracas } from '../domain/standings.js';
 import { playerStats } from '../domain/stats.js';
@@ -55,7 +56,11 @@ export function getChampionship(db, id) {
   const tally = list => ({ played: list.filter(m => m.homeScore != null && m.awayScore != null).length, total: list.length });
   const human = m => ownerByTeam.has(m.homeTeamId) || ownerByTeam.has(m.awayTeamId) || m.homeControllerId != null || m.awayControllerId != null;
   const progress = { groups: tally(matches.filter(m => m.stage === 'group' && human(m))), playoff: tally(matches.filter(m => m.stage !== 'group' && human(m))) };
-  return { ...c, players, teams, progress, groupMatchCount: matches.filter(m => m.stage === 'group').length, playoffMatchCount: matches.filter(m => m.stage !== 'group').length };
+  // Matches where one player is out for revenge (lost their previous meeting): matchId -> that player's name (see revenges in fun.js).
+  const names = new Map(all(db, 'SELECT id, name FROM players').map(p => [p.id, p.name]));
+  const ids = new Set(matches.map(m => m.id));
+  const revenge = new Map([...revenges(listAllMatches(db))].filter(([mid]) => ids.has(mid)).map(([mid, pid]) => [mid, names.get(pid)]));
+  return { ...c, players, teams, progress, revenge, groupMatchCount: matches.filter(m => m.stage === 'group').length, playoffMatchCount: matches.filter(m => m.stage !== 'group').length };
 }
 
 /** Throws a UserError unless `format`/`teamCount` describe a possible championship. */

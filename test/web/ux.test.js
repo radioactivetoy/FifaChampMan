@@ -227,3 +227,26 @@ test('read-only viewers: POSTs refused, edit controls hidden; the organiser link
   const open = await startTestApp(); // no token: everybody edits
   try { assert.doesNotMatch((await open.get('/players')).text, /read-only/); } finally { await open.close(); }
 });
+
+test('achievements: a save that unlocks one shows a toast once; the profile lists them; revenge tag on the rematch', async () => {
+  const { app, id } = await withGroups();
+  try {
+    const c = getChampionship(app.db, id);
+    const owner = c.players[0];
+    const m = (await import('../../src/repo/matches.js')).listMatches(app.db, id).find(x => x.homeTeamId === owner.teamId || x.awayTeamId === owner.teamId);
+    const [hs, as] = m.homeTeamId === owner.teamId ? ['6', '0'] : ['0', '6'];
+    // the first POST on a database with history just marks what exists; this one has none yet, so the manita is announced
+    const r = await fetch(`${app.baseUrl}/championships/${id}/groups/${m.groupLetter}/save`, { method: 'POST', body: new URLSearchParams({ [`homeScore_${m.id}`]: hs, [`awayScore_${m.id}`]: as }), redirect: 'manual' });
+    const ach = /ach=([^;]+)/.exec(r.headers.get('set-cookie') ?? '')?.[1];
+    assert.ok(ach, 'achievement cookie set');
+    assert.match(decodeURIComponent(ach), /manita/);
+    const page = await (await fetch(`${app.baseUrl}/championships/${id}`, { headers: { cookie: `ach=${ach}` } })).text();
+    assert.match(page, /class="ach-toast"[\s\S]*Achievement unlocked[\s\S]*Manita/);
+    // next save: nothing new to announce
+    const again = await fetch(`${app.baseUrl}/championships/${id}/groups/${m.groupLetter}/save`, { method: 'POST', body: new URLSearchParams({}), redirect: 'manual' });
+    assert.doesNotMatch(again.headers.get('set-cookie') ?? '', /ach=/);
+    const profile = (await app.get(`/players/${owner.playerId}`)).text;
+    assert.match(profile, /<h2>Achievements/);
+    assert.match(profile, /class="achievement"[^>]*>[\s\S]*?Manita/);
+  } finally { await app.close(); }
+});

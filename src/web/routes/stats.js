@@ -127,6 +127,7 @@ export function registerStatsRoutes(app, { db }) {
           ${fun.unbeaten && funCard('🔥', _('Longest unbeaten run'), fun.unbeaten.player, _('{n} games with their own team', { n: fun.unbeaten.length }))}
           ${fun.winStreak && funCard('🚀', _('Longest winning run'), fun.winStreak.player, _('{n} wins in a row', { n: fun.winStreak.length }))}
           ${fun.losingRun && funCard('📉', _('Longest losing run'), fun.losingRun.player, _('{n} defeats in a row', { n: fun.losingRun.length }))}
+          ${fun.revengeServed && funCard('🔥', _('Revenge served'), fun.revengeServed.player, tn('{n} revenge served', '{n} revenges served', fun.revengeServed.n))}
           ${fun.drawKing && funCard('🤝', _('Draw king'), fun.drawKing.player, _('{draws} draws in {played} games', { draws: fun.drawKing.draws, played: fun.drawKing.played }))}
           ${fun.hardestToBeat && funCard('🛡️', _('Hardest to beat'), fun.hardestToBeat.player, _('lost only {pct} of {played} games', { pct: pctText(fun.hardestToBeat.lostPct), played: fun.hardestToBeat.played }))}
           ${fun.cpuWhisperer && funCard('🎮', _('CPU whisperer'), fun.cpuWhisperer.player, _('{cpu} wins with CPU teams vs {own} with their own', { cpu: pctText(fun.cpuWhisperer.cpuPct), own: pctText(fun.cpuWhisperer.ownPct) }))}
